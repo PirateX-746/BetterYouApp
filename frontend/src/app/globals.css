@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   DESIGN TOKENS – LIGHT THEME
+   ======================================== */
+:root {
+  /* Primary */
+  --primary: #5b8def;
+  --primary-light: #e8f1ff;
+  --primary-hover: #4a7dd9;
+
+  /* Status */
+  --success: #52c41a;
+  --warning: #faad14;
+  --danger: #ef4444;
+  --purple: #9333ea;
+
+  /* Background */
+  --bg-page: #f8f9fa;
+  --bg-card: #ffffff;
+  --bg-light: #f5f7fa;
+  --bg-hover: #f0f2f5;
+
+  /* Text */
+  --text-primary: #1f1f1f;
+  --text-secondary: #5f6368;
+  --text-light: #9aa0a6;
+  --text-disabled: #bfbfbf;
+
+  /* Border */
+  --border: #e8eaed;
+  --border-light: #f0f0f0;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Status light backgrounds */
+  --success-light: #dcfce7; /* green-50 */
+  --warning-light: #fef3c7; /* yellow-100 */
+  --purple-light: #f3e8ff; /* purple-100 */
+}
+
+/* ========================================
+   DARK THEME
+   ======================================== */
+.dark {
+  --primary: #6b9df7;
+  --primary-light: #1e2a3a;
+  --primary-hover: #5a8df0;
+
+  --success: #73d13d;
+  --warning: #ffc53d;
+  --danger: #ff4d4f;
+
+  --bg-page: #0f0f0f;
+  --bg-card: #1a1a1a;
+  --bg-light: #262626;
+  --bg-hover: #2a2a2a;
+
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-light: #5f6368;
+
+  --border: #2a2a2a;
+  --border-light: #333333;
+}

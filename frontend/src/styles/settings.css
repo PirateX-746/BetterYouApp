@@ -1,0 +1,365 @@
+/* ========================================
+   SETTINGS PAGE SPECIFIC STYLES
+   ======================================== */
+
+.settings-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.settings-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: var(--space-2xl);
+}
+
+.settings-sidebar {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    border: 1px solid var(--border-light);
+    height: fit-content;
+    position: sticky;
+    top: 24px;
+}
+
+.settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    width: 100%;
+}
+
+.settings-nav-item:hover {
+    background: var(--bg-light);
+    color: var(--primary);
+}
+
+.settings-nav-item.active {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.settings-nav-item svg {
+    flex-shrink: 0;
+}
+
+/* Settings Content */
+.settings-content {
+    min-height: 500px;
+}
+
+.settings-tab {
+    display: none;
+}
+
+.settings-tab.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Settings Form */
+.settings-form {
+    padding: var(--space-2xl);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-md);
+    margin-top: var(--space-2xl);
+    padding-top: var(--space-2xl);
+    border-top: 1px solid var(--border-light);
+}
+
+/* Profile Photo - Enhanced */
+.profile-photo-section {
+margin-bottom: 32px;
+padding-bottom: 32px;
+border-bottom: 1px solid var(--border-light);
+}
+
+
+.profile-photo-wrapper {
+display: flex;
+align-items: center;
+gap: 20px;
+}
+
+
+.profile-photo {
+width: 100px;
+height: 100px;
+border-radius: 50%;
+background: var(--primary-light);
+color: var(--primary);
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 40px;
+font-weight: 600;
+}
+
+/* Settings List (for toggles) */
+.settings-list {
+    padding: var(--space-2xl);
+}
+
+.settings-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-xl) 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.settings-item:last-child {
+    border-bottom: none;
+}
+
+.settings-item-content {
+    flex: 1;
+}
+
+.settings-item-title {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.settings-item-description {
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-light);
+    transition: 0.3s;
+    border-radius: 24px;
+    border: 2px solid var(--border);
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+.toggle-switch input:focus + .toggle-slider {
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+
+
+/* ========================================
+   RESPONSIVE STYLES
+   ======================================== */
+@media (max-width: 992px) {
+    .settings-layout {
+        grid-template-columns: 1fr;
+        gap: var(--space-xl);
+    }
+
+    .settings-sidebar {
+        position: relative;
+        top: 0;
+    }
+
+    .settings-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        gap: var(--space-sm);
+        padding-bottom: var(--space-sm);
+    }
+
+    .settings-nav-item {
+        white-space: nowrap;
+        flex-shrink: 0;
+        padding: var(--space-sm) var(--space-md);
+        font-size: 14px;
+    }
+
+    .settings-nav-item svg {
+        display: none;
+    }
+
+    .settings-form {
+        padding: var(--space-xl);
+    }
+
+    .settings-list {
+        padding: var(--space-xl);
+    }
+}
+
+@media (max-width: 768px) {
+    .settings-container {
+        padding: 0;
+    }
+
+    .profile-photo-wrapper {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .profile-photo {
+        width: 80px;
+        height: 80px;
+        font-size: 32px;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+        gap: var(--space-sm);
+    }
+
+    .form-actions button {
+        width: 100%;
+    }
+
+    .notification-container {
+        left: 16px;
+        right: 16px;
+        top: 16px;
+    }
+
+    .notification {
+        min-width: auto;
+        max-width: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .settings-form {
+        padding: var(--space-lg);
+    }
+
+    .settings-list {
+        padding: var(--space-lg);
+    }
+
+    .settings-item {
+        padding: var(--space-lg) 0;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-md);
+    }
+
+    .settings-item-content {
+        margin-bottom: var(--space-sm);
+    }
+
+    .profile-photo-section {
+        margin-bottom: var(--space-xl);
+        padding-bottom: var(--space-xl);
+    }
+}
+
+/* ========================================
+   COMPACT MODE ADJUSTMENTS
+   ======================================== */
+.canvas.compact-mode .settings-layout {
+    gap: var(--space-lg);
+}
+
+.canvas.compact-mode .settings-sidebar {
+    padding: var(--space-md);
+}
+
+.canvas.compact-mode .settings-nav-item {
+    padding: var(--space-sm) var(--space-md);
+    font-size: 13px;
+}
+
+.canvas.compact-mode .settings-form,
+.canvas.compact-mode .settings-list {
+    padding: var(--space-lg);
+}
+
+.canvas.compact-mode .settings-item {
+    padding: var(--space-md) 0;
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+@media print {
+    .settings-sidebar,
+    .form-actions,
+    .toggle-switch,
+    .notification-container {
+        display: none !important;
+    }
+
+    .settings-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-tab {
+        display: block !important;
+    }
+}

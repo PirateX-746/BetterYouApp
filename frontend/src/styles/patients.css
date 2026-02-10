@@ -1,0 +1,296 @@
+/* ========================================
+   PATIENTS PAGE SPECIFIC STYLES
+   ======================================== */
+
+
+.patients-container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Page Header Proper Spacing */
+.patients-container .page-header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3xl);
+    gap: var(--space-3xl);
+    flex-wrap: wrap;
+}
+
+.patients-container .page-header-left {
+    flex: 1;
+    min-width: 200px;
+}
+
+.patients-container .page-header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+}
+
+/* Table Wrapper - Responsive Scroll */
+.patients-container .table-wrapper {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    overflow-x: auto;
+    overflow-y: visible;
+    position: relative;
+}
+
+/* Custom Scrollbar for Table */
+.patients-container .table-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.patients-container .table-wrapper::-webkit-scrollbar-track {
+    background: var(--bg-light);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.patients-container .table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.patients-container .table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--text-light);
+}
+
+/* Table - Prevent Overflow */
+.patients-container .data-table {
+    min-width: 1000px; /* Ensures table doesn't squish on smaller screens */
+    width: 100%;
+}
+
+/* Table Cell Adjustments */
+.patients-container .data-table th,
+.patients-container .data-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Specific Column Widths for Better Layout */
+.patients-container .data-table th:nth-child(1),
+.patients-container .data-table td:nth-child(1) {
+    min-width: 200px; /* Patient Name */
+}
+
+.patients-container .data-table th:nth-child(2),
+.patients-container .data-table td:nth-child(2) {
+    min-width: 80px; /* Age */
+}
+
+.patients-container .data-table th:nth-child(3),
+.patients-container .data-table td:nth-child(3) {
+    min-width: 100px; /* Gender */
+}
+
+.patients-container .data-table th:nth-child(4),
+.patients-container .data-table td:nth-child(4) {
+    min-width: 140px; /* Phone */
+}
+
+.patients-container .data-table th:nth-child(5),
+.patients-container .data-table td:nth-child(5) {
+    min-width: 200px; /* Email */
+    max-width: 250px;
+}
+
+.patients-container .data-table th:nth-child(6),
+.patients-container .data-table td:nth-child(6) {
+    min-width: 120px; /* Last Visit */
+}
+
+.patients-container .data-table th:nth-child(7),
+.patients-container .data-table td:nth-child(7) {
+    min-width: 100px; /* Status */
+}
+
+.patients-container .data-table th:nth-child(8),
+.patients-container .data-table td:nth-child(8) {
+    min-width: 140px; /* Actions */
+    position: sticky;
+    right: 0;
+    background: var(--bg-card);
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);
+}
+
+.patients-container .data-table thead th:nth-child(8) {
+    background: var(--bg-light);
+    z-index: 2;
+}
+
+.patients-container .data-table tbody tr:hover td:nth-child(8) {
+    background: var(--bg-light);
+}
+
+/* Avatar in Table */
+.table-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.badge-purple {
+    background: #F3E8FF;
+    color: #9333EA;
+}
+
+.btn-danger {
+    background: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid var(--danger-light);
+}
+
+.btn-danger:hover {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+}
+
+/* Scroll Indicator */
+.scroll-indicator {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    background: var(--primary-light);
+    color: var(--primary);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 10;
+}
+
+.scroll-indicator.show {
+    opacity: 1;
+}
+
+/* Mobile Responsive - Card Layout */
+@media (max-width: 768px) {
+    .patients-container .page-header-actions {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+
+    .patients-container .page-header-right {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .patients-container .search-bar {
+        max-width: 100%;
+    }
+
+    /* Convert Table to Cards on Mobile */
+    .patients-container .table-wrapper {
+        overflow: visible;
+    }
+
+    .patients-container .data-table {
+        min-width: unset;
+        display: block;
+    }
+
+    .patients-container .data-table thead {
+        display: none;
+    }
+
+    .patients-container .data-table tbody {
+        display: block;
+    }
+
+    .patients-container .data-table tbody tr {
+        display: block;
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .patients-container .data-table tbody tr:hover {
+        background: var(--bg-card);
+    }
+
+    .patients-container .data-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border: none;
+        border-bottom: 1px solid var(--border-light);
+        white-space: normal;
+        min-width: unset;
+        max-width: unset;
+        position: static;
+        box-shadow: none;
+    }
+
+    .patients-container .data-table tbody td:last-child {
+        border-bottom: none;
+        padding-top: 16px;
+    }
+
+    .patients-container .data-table tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--text-secondary);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .patients-container .data-table tbody td:first-child {
+        padding-top: 0;
+        border-bottom: 1px solid var(--border-light);
+        padding-bottom: 16px;
+        margin-bottom: 8px;
+    }
+
+    .patients-container .data-table tbody td:first-child::before {
+        display: none;
+    }
+
+    /* Actions on Mobile */
+    .patients-container .data-table tbody td:last-child {
+        justify-content: flex-end;
+    }
+
+    .patients-container .data-table tbody td:last-child::before {
+        content: '';
+    }
+}
+
+/* Very Small Screens */
+@media (max-width: 480px) {
+    .patients-container .data-table tbody td > div {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .patients-container .btn-icon {
+        width: 100%;
+        justify-content: center;
+    }
+}

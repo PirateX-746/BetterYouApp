@@ -1,0 +1,361 @@
+/* ========================================
+   APPOINTMENTS PAGE SPECIFIC STYLES
+   ======================================== */
+
+.appointments-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Page Header - Simple Layout */
+.appointments-container .page-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3xl);
+  gap: var(--space-2xl);
+  flex-wrap: wrap;
+}
+
+.appointments-container .page-header-left {
+  flex: 1;
+  min-width: 250px;
+}
+
+.appointments-container .page-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-shrink: 0;
+}
+
+.calendar-wrapper {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--space-2xl);
+  border: 1px solid var(--border-light);
+}
+
+/* ========================================
+   FULLCALENDAR CUSTOM STYLING - SPACIOUS
+   ======================================== */
+
+.fc {
+  font-family: var(--font-family) !important;
+}
+
+/* Toolbar Spacing */
+.fc .fc-toolbar {
+  padding: 16px 0 !important;
+  gap: 16px !important;
+  padding: 20px !important;
+}
+
+.fc-toolbar-title {
+  font-size: var(--font-size-2xl) !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+/* Buttons */
+.fc-button {
+  background: var(--bg-light) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+  padding: 10px 16px !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: var(--font-size-base) !important;
+  font-weight: 500 !important;
+  text-transform: capitalize !important;
+  transition: all 0.2s !important;
+}
+
+.fc-button:hover {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
+}
+
+.fc-button:focus {
+  box-shadow: none !important;
+}
+
+.fc-button-active {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
+}
+
+/* Calendar Headers - More Padding */
+.fc .fc-col-header-cell {
+  padding: 16px 8px !important;
+  font-size: var(--font-size-sm) !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  background: var(--bg-light) !important;
+  border-color: var(--border-light) !important;
+}
+
+.fc-col-header-cell-cushion {
+  color: var(--text-secondary) !important;
+  text-decoration: none !important;
+  padding: 4px !important;
+}
+
+/* Day Grid Cells - More Space */
+.fc .fc-daygrid-day {
+  padding: 4px !important;
+  min-height: 120px !important;
+}
+
+.fc-daygrid-day-top {
+  padding: 8px !important;
+}
+
+.fc-daygrid-day-number {
+  padding: 6px 8px !important;
+  color: var(--text-primary) !important;
+  text-decoration: none !important;
+  font-weight: 500 !important;
+  font-size: var(--font-size-base) !important;
+}
+
+/* Time Grid - Spacious Slots */
+.fc .fc-timegrid-slot {
+  height: 2em !important; /* Changed from 4em to 2em */
+  border-color: var(--border-light) !important;
+}
+
+.fc-timegrid-slot-label {
+  padding: 8px 12px !important;
+}
+
+.fc-timegrid-slot-label-cushion {
+  color: var(--text-secondary) !important;
+  text-decoration: none !important;
+  font-size: var(--font-size-sm) !important;
+}
+
+/* Time Axis - Better Spacing */
+.fc .fc-timegrid-axis {
+  padding: 8px !important;
+  background-color: var(--bg-card) !important;
+  border-color: var(--border) !important;
+}
+
+/* Day Cells Border */
+.fc .fc-timegrid-col {
+  border-color: var(--border-light) !important;
+}
+
+/* Today Highlight */
+.fc-daygrid-day.fc-day-today,
+.fc-timegrid-col.fc-day-today {
+  background: var(--primary-light) !important;
+}
+
+.fc-day-today .fc-daygrid-day-number {
+  background: var(--primary) !important;
+  color: white !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Events - More Padding */
+.fc-event {
+  border: none !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 8px 10px !important;
+  font-size: var(--font-size-sm) !important;
+  background: var(--primary) !important;
+  margin: 2px 4px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+}
+
+.fc-event:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.fc-event-title {
+  /* font-weight: 500 !important; */
+  padding: 2px 0 !important;
+}
+
+.fc-event-time {
+  font-weight: 600 !important;
+}
+
+/* Event in Day Grid */
+.fc-daygrid-event {
+  padding: 6px 8px !important;
+  margin: 2px 4px 4px !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+/* Event Resizer - More Visible */
+.fc-event-resizer {
+  height: 12px !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm) !important;
+}
+
+.fc-event-resizer:hover {
+  background: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Border Styling */
+.fc .fc-scrollgrid {
+  border-color: var(--border-light) !important;
+  border-radius: var(--radius-md) !important;
+  overflow: hidden !important;
+}
+
+.fc .fc-scrollgrid-section > * {
+  border-color: var(--border-light) !important;
+}
+
+/* Week View - Better Cell Spacing */
+.fc-timegrid-event {
+  border-radius: var(--radius-sm) !important;
+  padding: 4px 8px !important;
+}
+
+.fc-timegrid-event .fc-event-main {
+  padding: 4px 0 !important;
+}
+
+/* All Day Section (if shown) */
+.fc .fc-timegrid-divider {
+  padding: 8px 0 !important;
+  border-color: var(--border-light) !important;
+}
+
+/* Scrollbars */
+.fc-scroller::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.fc-scroller::-webkit-scrollbar-track {
+  background: var(--bg-light);
+}
+
+.fc-scroller::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--text-light);
+}
+
+/* More Events Link */
+.fc-daygrid-more-link {
+  color: var(--primary) !important;
+  font-weight: 600 !important;
+  font-size: var(--font-size-sm) !important;
+  padding: 4px 8px !important;
+}
+
+.fc-daygrid-more-link:hover {
+  background: var(--primary-light) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+/* Popover for More Events */
+.fc-popover {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.fc-popover-header {
+  background: var(--bg-light) !important;
+  padding: 12px 16px !important;
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+.fc-popover-title {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+
+.fc-popover-close {
+  color: var(--text-secondary) !important;
+  font-size: 20px !important;
+}
+
+/* Month View - Better Spacing */
+.fc-daygrid-day-frame {
+  padding: 8px !important;
+  min-height: 100px !important;
+}
+
+.fc-daygrid-event-harness {
+  margin: 2px 4px !important;
+}
+
+/* Selection Highlight */
+.fc-highlight {
+  background: var(--primary-light) !important;
+  opacity: 0.4 !important;
+}
+
+/* Now Indicator */
+.fc .fc-timegrid-now-indicator-line {
+  border-color: var(--danger) !important;
+  border-width: 2px !important;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: var(--danger) !important;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .appointments-container .page-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-lg);
+  }
+
+  .appointments-container .page-header-left {
+    min-width: unset;
+  }
+
+  .appointments-container .page-header-right {
+    width: 100%;
+  }
+
+  .fc .fc-timegrid-slot {
+    height: 3.5em !important;
+  }
+
+  .fc-event {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+  }
+
+  .calendar-wrapper {
+    padding: var(--space-lg);
+  }
+
+  .fc .fc-toolbar {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .fc .fc-toolbar-chunk {
+    display: flex !important;
+    justify-content: center !important;
+  }
+}

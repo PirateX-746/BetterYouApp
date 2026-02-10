@@ -1,0 +1,90 @@
+/* ========================================
+   THEME VARIABLES & COLOR SYSTEM
+   ======================================== */
+
+:root {
+    /* Primary Colors */
+    --primary: #5B8DEF;
+    --primary-light: #E8F1FF;
+    --primary-hover: #4A7DD9;
+    
+    /* Status Colors */
+    --success: #52C41A;
+    --success-light: #E7F7E0;
+    --warning: #FAAD14;
+    --warning-light: #FFF7E6;
+    --danger: #EF4444;
+    --danger-light: #FEF2F2;
+    --purple: #9333EA;
+    --purple-light: #F3E8FF;
+    
+    /* Text Colors */
+    --text-primary: #1F1F1F;
+    --text-secondary: #5F6368;
+    --text-light: #9AA0A6;
+    --text-disabled: #BFBFBF;
+    
+    /* Background Colors */
+    --bg-page: #F8F9FA;
+    --bg-card: #FFFFFF;
+    --bg-light: #F5F7FA;
+    --bg-hover: #F0F2F5;
+    
+    /* Border & Divider */
+    --border: #E8EAED;
+    --border-light: #F0F0F0;
+    
+    /* Shadows */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+    
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    
+    /* Spacing */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 20px;
+    --space-2xl: 24px;
+    --space-3xl: 32px;
+    
+    /* Typography */
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-size-xs: 12px;
+    --font-size-sm: 13px;
+    --font-size-base: 14px;
+    --font-size-lg: 16px;
+    --font-size-xl: 18px;
+    --font-size-2xl: 20px;
+    --font-size-3xl: 24px;
+    --font-size-4xl: 32px;
+}
+
+/* Dark Theme */
+.dark-theme {
+    --primary: #6B9DF7;
+    --primary-light: #1E2A3A;
+    --primary-hover: #5A8DF0;
+    
+    --success: #73D13D;
+    --warning: #FFC53D;
+    --danger: #FF4D4F;
+    
+    --text-primary: #E8EAED;
+    --text-secondary: #9AA0A6;
+    --text-light: #5F6368;
+    
+    --bg-page: #0F0F0F;
+    --bg-card: #1A1A1A;
+    --bg-light: #262626;
+    --bg-hover: #2A2A2A;
+    
+    --border: #2A2A2A;
+    --border-light: #333333;
+}
