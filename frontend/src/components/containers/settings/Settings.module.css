@@ -1,0 +1,430 @@
+/* ========================================
+   SETTINGS PAGE SPECIFIC STYLES
+   ======================================== */
+
+.settingsContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.settingsLayout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: var(--space-2xl);
+}
+
+.pageHeader {
+    margin-bottom: var(--space-3xl);
+}
+
+.pageTitle {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    letter-spacing: -0.5px;
+}
+
+.pageSubtitle {
+    font-size: var(--font-size-base);
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.settingsSidebar {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    border: 1px solid var(--border-light);
+    height: fit-content;
+    position: sticky;
+    top: 24px;
+    padding: 10px;
+}
+
+.settingsNav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.settingsNavItem {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    width: 100%;
+}
+
+.settingsNavItem:hover {
+    background: var(--bg-light);
+    color: var(--primary);
+}
+
+.settingsNavItem.active {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.settingsNavItem svg {
+    flex-shrink: 0;
+}
+
+/* Settings Content */
+.settingsContent {
+    min-height: 500px;
+}
+
+.settingsTab {
+    display: none;
+}
+
+.settingsTab.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Settings Form */
+.settingsForm {
+    padding: var(--space-2xl);
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-md);
+    margin-top: var(--space-2xl);
+    padding-top: var(--space-2xl);
+    border-top: 1px solid var(--border-light);
+}
+
+/* Profile Photo - Enhanced */
+.profilePhotoSection {
+    margin-bottom: 32px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+
+.profilePhotoWrapper {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+
+.profilePhoto {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 600;
+}
+
+/* Settings List (for toggles) */
+.settingsList {
+    padding: var(--space-2xl);
+}
+
+.settingsItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-xl) 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.settingsItem:last-child {
+    border-bottom: none;
+}
+
+.settingsItemContent {
+    flex: 1;
+}
+
+.settingsItemTitle {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.settingsItemDescription {
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+/* Toggle Switch */
+.toggleSwitch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.toggleSwitch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggleSlider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-light);
+    transition: 0.3s;
+    border-radius: 24px;
+    border: 2px solid var(--border);
+}
+
+.toggleSlider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.toggleSwitch input:checked+.toggleSlider {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+.toggleSwitch input:checked+.toggleSlider:before {
+    transform: translateX(24px);
+}
+
+.toggleSwitch input:focus+.toggleSlider {
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.formLabel {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.formInput {
+    width: 100%;
+    padding: var(--space-md);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-base);
+    background: var(--bg-card);
+    transition: border 0.2s, box-shadow 0.2s;
+}
+
+.formInput:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.primaryButton {
+    background: var(--primary);
+    color: white;
+    padding: var(--space-md) var(--space-xl);
+    border-radius: var(--radius-sm);
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.primaryButton:hover {
+    opacity: 0.9;
+}
+
+
+
+/* ========================================
+   RESPONSIVE STYLES
+   ======================================== */
+@media (max-width: 992px) {
+    .settingsLayout {
+        grid-template-columns: 1fr;
+        gap: var(--space-xl);
+    }
+
+    .settingsSidebar {
+        position: relative;
+        top: 0;
+    }
+
+    .settingsNav {
+        flex-direction: row;
+        overflow-x: auto;
+        gap: var(--space-sm);
+        padding-bottom: var(--space-sm);
+    }
+
+    .settingsNavItem {
+        white-space: nowrap;
+        flex-shrink: 0;
+        padding: var(--space-sm) var(--space-md);
+        font-size: 14px;
+    }
+
+    .settingsNavItem svg {
+        display: none;
+    }
+
+    .settingsForm {
+        padding: var(--space-xl);
+    }
+
+    .settingsList {
+        padding: var(--space-xl);
+    }
+}
+
+@media (max-width: 768px) {
+    .settingsContainer {
+        padding: 0;
+    }
+
+    .profilePhotoWrapper {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .profilePhoto {
+        width: 80px;
+        height: 80px;
+        font-size: 32px;
+    }
+
+    .formActions {
+        flex-direction: column-reverse;
+        gap: var(--space-sm);
+    }
+
+    .formActions button {
+        width: 100%;
+    }
+
+    .notificationContainer {
+        left: 16px;
+        right: 16px;
+        top: 16px;
+    }
+
+    .notification {
+        min-width: auto;
+        max-width: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .settingsForm {
+        padding: var(--space-lg);
+    }
+
+    .settingsList {
+        padding: var(--space-lg);
+    }
+
+    .settingsItem {
+        padding: var(--space-lg) 0;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-md);
+    }
+
+    .settingsItemContent {
+        margin-bottom: var(--space-sm);
+    }
+
+    .profilePhotoSection {
+        margin-bottom: var(--space-xl);
+        padding-bottom: var(--space-xl);
+    }
+}
+
+/* ========================================
+   COMPACT MODE ADJUSTMENTS
+   ======================================== */
+.canvas.compactMode .settingsLayout {
+    gap: var(--space-lg);
+}
+
+.canvas.compactMode .settingsSidebar {
+    padding: var(--space-md);
+}
+
+.canvas.compact-mode .settingsNavItem {
+    padding: var(--space-sm) var(--space-md);
+    font-size: 13px;
+}
+
+.canvas.compactMode .settingsForm,
+.canvas.compactMode .settingsList {
+    padding: var(--space-lg);
+}
+
+.canvas.compactMode .settingsItem {
+    padding: var(--space-md) 0;
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+@media print {
+
+    .settingsSidebar,
+    .formActions,
+    .toggleSwitch,
+    .notificationContainer {
+        display: none !important;
+    }
+
+    .settingsLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .settingsTab {
+        display: block !important;
+    }
+}

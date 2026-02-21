@@ -18,11 +18,38 @@ export class Patient {
   @Prop({ required: true, unique: true })
   email: string;
 
+  @Prop({
+    required: true,
+    unique: true,
+    index: true
+  })
+  mrn: string;
+
   @Prop({ required: true })
   password: string;
 
+  @Prop({
+    unique: true,
+    sparse: true,
+    minlength: 10,
+    maxlength: 15,
+  })
+  phoneNo?: string;
+
   @Prop({ required: true })
   gender: string;
+
+  @Prop({ required: true })
+  bloodGroup: string;
+
+  @Prop({ type: Date })
+  lastVisit?: Date;
+
+  @Prop()
+  healthCondition?: string;
+
+  @Prop()
+  allergies?: string;
 
   @Prop({ default: Role.PATIENT })
   role: Role;

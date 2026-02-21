@@ -13,7 +13,7 @@ import { AppointmentsService } from './appointments.service';
 
 @Controller('appointments')
 export class AppointmentsController {
-  constructor(private readonly appointmentsService: AppointmentsService) {}
+  constructor(private readonly appointmentsService: AppointmentsService) { }
 
   @Get('practitioner/:id')
   getByPractitioner(@Param('id') id: string) {
@@ -35,5 +35,10 @@ export class AppointmentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id') id: string) {
     return this.appointmentsService.deleteById(id);
+  }
+
+  @Get('patient/:id')
+  getByPatient(@Param('id') id: string) {
+    return this.appointmentsService.findByPatient(id);
   }
 }

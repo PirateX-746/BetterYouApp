@@ -8,7 +8,7 @@ export class AppointmentsService {
   constructor(
     @InjectModel(Appointment.name)
     private readonly appointmentModel: Model<AppointmentDocument>,
-  ) {}
+  ) { }
 
   /* =====================================================
      BASIC VALIDATIONS
@@ -128,5 +128,24 @@ export class AppointmentsService {
 
   async deleteById(id: string) {
     return this.appointmentModel.findByIdAndDelete(new Types.ObjectId(id));
+  }
+
+  async findByPatient(patientId: string) {
+    const patientObjectId = new Types.ObjectId(patientId);
+
+    const appointments = await this.appointmentModel
+      .find({ patientId: patientObjectId })
+      .sort({ start: -1 })
+      .exec();
+
+    return appointments.map((a) => ({
+      _id: a._id.toString(),
+      title: a.title,
+      start: a.start,
+      end: a.end,
+      practitionerId: a.practitionerId?.toString(),
+      notes: a.notes,
+      status: a.status,
+    }));
   }
 }

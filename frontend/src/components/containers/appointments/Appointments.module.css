@@ -1,0 +1,144 @@
+/* ========================================
+   APPOINTMENTS PAGE SPECIFIC STYLES
+   ======================================== */
+
+.appointmentsContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-xl);
+    animation: fadeIn 0.3s ease;
+}
+
+/* Header Layout */
+.pageHeaderActions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3xl);
+    gap: var(--space-2xl);
+    flex-wrap: wrap;
+}
+
+.pageHeaderLeft {
+    flex: 1;
+    min-width: 250px;
+}
+
+.pageHeaderRight {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    flex-shrink: 0;
+}
+
+/* Calendar Card */
+.calendarWrapper {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: var(--space-2xl);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ========================================
+   FULLCALENDAR CUSTOM STYLING
+   ======================================== */
+
+.fc {
+    font-family: var(--font-family) !important;
+}
+
+/* Toolbar */
+.fc .fc-toolbar {
+    padding: 16px 0 !important;
+}
+
+.fc .fc-toolbar-title {
+    font-size: var(--font-size-2xl) !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+}
+
+/* Buttons */
+.fc .fc-button {
+    background: var(--bg-light) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    padding: 8px 14px !important;
+    border-radius: var(--radius-sm) !important;
+    font-size: var(--font-size-sm) !important;
+    font-weight: 500 !important;
+    text-transform: capitalize !important;
+    transition: all 0.2s ease !important;
+}
+
+.fc .fc-button:hover {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #fff !important;
+}
+
+.fc .fc-button-active {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #fff !important;
+}
+
+/* Day Headers */
+.fc .fc-col-header-cell {
+    padding: 14px 8px !important;
+    font-size: var(--font-size-sm) !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    background: var(--bg-light) !important;
+    border-color: var(--border-light) !important;
+}
+
+/* Time Slots */
+.fc .fc-timegrid-slot {
+    height: 2.5em !important;
+    border-color: var(--border-light) !important;
+}
+
+/* Today Highlight */
+.fc .fc-day-today {
+    background: var(--primary-light) !important;
+}
+
+/* Events */
+.fc .fc-event {
+    border: none !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 6px 8px !important;
+    font-size: var(--font-size-sm) !important;
+    background: var(--primary) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.fc .fc-event:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Scrollbars */
+.fc-scroller::-webkit-scrollbar {
+    width: 8px;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .pageHeaderActions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .calendarWrapper {
+        padding: var(--space-lg);
+    }
+}

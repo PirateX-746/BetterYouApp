@@ -1,0 +1,188 @@
+/* Layout.module.css */
+
+/* ========================================
+   LAYOUT
+======================================== */
+
+.canvas {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--bg-page);
+}
+
+/* ========================================
+   TOP NAV
+======================================== */
+
+.topNav {
+    background: var(--bg-card);
+    height: 72px;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.logo {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+}
+
+.hamburgerBtn {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+    color: var(--text-secondary);
+}
+
+.hamburgerBtn:hover {
+    background: var(--bg-hover);
+    color: var(--primary);
+}
+
+.navDatetimeGroup {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.logoutBtn {
+    padding: 10px 20px;
+    background: var(--bg-light);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logoutBtn:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* ========================================
+   MAIN LAYOUT
+======================================== */
+
+.main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 72px);
+}
+
+.leftPanel {
+    width: 240px;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.navLinks {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 6px 0;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.navLinks:hover {
+    background: var(--bg-light);
+    color: var(--primary);
+}
+
+.active {
+    background: var(--primary);
+    color: white;
+}
+
+.mainContent {
+    flex: 1;
+    padding: 32px;
+    overflow-y: auto;
+    background: var(--bg-page);
+}
+
+/* ========================================
+   LOADING
+======================================== */
+
+.loadingContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 80px 20px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ========================================
+   RESPONSIVE
+======================================== */
+
+@media (max-width: 768px) {
+
+    .hamburgerBtn {
+        display: block;
+    }
+
+    .topNav {
+        height: 60px;
+        padding: 0 16px;
+    }
+
+    .leftPanel {
+        position: fixed;
+        left: -260px;
+        top: 60px;
+        height: calc(100vh - 60px);
+        z-index: 50;
+        transition: left 0.3s;
+        box-shadow: var(--shadow-md);
+    }
+
+    .leftPanelOpen {
+        left: 0;
+    }
+
+    .mainContent {
+        padding: 20px;
+    }
+
+    .main {
+        height: calc(100vh - 60px);
+    }
+}

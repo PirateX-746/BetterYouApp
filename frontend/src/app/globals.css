@@ -17,6 +17,46 @@
   --danger: #ef4444;
   --purple: #9333ea;
 
+
+  /* ========================================
+   EXTENDED BRAND COLORS
+======================================== */
+
+  /* Blue Variants */
+  --blue: #3b82f6;
+  --blue-light: #dbeafe;
+  --blue-dark: #1e40af;
+
+  /* Teal (great medical tone) */
+  --teal: #14b8a6;
+  --teal-light: #ccfbf1;
+  --teal-dark: #0f766e;
+
+  /* Indigo (premium SaaS look) */
+  --indigo: #6366f1;
+  --indigo-light: #e0e7ff;
+  --indigo-dark: #3730a3;
+
+  /* Soft Orange (better than harsh yellow) */
+  --orange: #f97316;
+  --orange-light: #ffedd5;
+  --orange-dark: #9a3412;
+
+  /* Soft Pink (alerts / emotional states) */
+  --rose: #f43f5e;
+  --rose-light: #ffe4e6;
+  --rose-dark: #9f1239;
+
+  /* Cyan (clinical / lab feel) */
+  --cyan: #06b6d4;
+  --cyan-light: #cffafe;
+  --cyan-dark: #155e75;
+
+  /* Neutral Accent */
+  --slate: #64748b;
+  --slate-light: #f1f5f9;
+  --slate-dark: #1e293b;
+
   /* Background */
   --bg-page: #f8f9fa;
   --bg-card: #ffffff;
@@ -44,9 +84,12 @@
   --radius-lg: 8px;
 
   /* Status light backgrounds */
-  --success-light: #dcfce7; /* green-50 */
-  --warning-light: #fef3c7; /* yellow-100 */
-  --purple-light: #f3e8ff; /* purple-100 */
+  --success-light: #dcfce7;
+  /* green-50 */
+  --warning-light: #fef3c7;
+  /* yellow-100 */
+  --purple-light: #f3e8ff;
+  /* purple-100 */
 }
 
 /* ========================================
@@ -61,6 +104,16 @@
   --warning: #ffc53d;
   --danger: #ff4d4f;
 
+
+  --blue-light: #1e3a8a33;
+  --teal-light: #134e4a33;
+  --indigo-light: #312e8133;
+  --orange-light: #7c2d1233;
+  --rose-light: #7f1d1d33;
+  --cyan-light: #164e6333;
+  --slate-light: #33415533;
+
+
   --bg-page: #0f0f0f;
   --bg-card: #1a1a1a;
   --bg-light: #262626;
@@ -72,4 +125,275 @@
 
   --border: #2a2a2a;
   --border-light: #333333;
+}
+
+button,
+a,
+[role="button"],
+.clickable {
+  transition:
+    transform 0.18s cubic-bezier(.34, 1.56, .64, 1),
+    box-shadow 0.18s ease;
+}
+
+button:active,
+a:active,
+[role="button"]:active,
+.clickable:active {
+  transform: scaleX(0.97) scaleY(0.9);
+}
+
+/* ===============================
+   GLOBAL PRINT SYSTEM
+=============================== */
+
+@media print {
+
+  @page {
+    size: A4;
+    margin: 20mm 20mm 25mm 20mm;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-document,
+  #printable-document * {
+    visibility: visible;
+  }
+
+  #printable-document {
+    position: relative;
+    left: 0;
+    top: 0;
+    width: 100%;
+    min-height: 100%;
+    background: white;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Avoid ugly splits */
+  .section-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Better print layout */
+  .section-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+}
+
+
+
+
+.letterhead {
+  margin-bottom: 30px;
+}
+
+.letterhead-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.clinic-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0;
+}
+
+.clinic-tagline {
+  font-size: 13px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.clinic-contact {
+  font-size: 12px;
+  text-align: right;
+  opacity: 0.8;
+}
+
+.letterhead-divider {
+  height: 2px;
+  background: var(--primary);
+  margin-top: 15px;
+}
+
+.document-meta {
+  margin-bottom: 30px;
+}
+
+.meta-sub {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.document-content {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.section-block {
+  margin-bottom: 30px;
+}
+
+.section-title {
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  color: var(--primary);
+  letter-spacing: 0.5px;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 40px;
+}
+
+.field-label {
+  font-size: 11px;
+  opacity: 0.6;
+  margin-bottom: 4px;
+}
+
+.field-value {
+  font-size: 13px;
+}
+
+.paragraph-text {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.letter-footer {
+  margin-top: 60px;
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+}
+
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes floatSlow {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-fadeInLeft {
+  animation: fadeInLeft 1s ease forwards;
+}
+
+.animate-fadeInRight {
+  animation: fadeInRight 1s ease forwards;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-floatSlow {
+  animation: floatSlow 4s ease-in-out infinite;
+}
+
+.animate-marquee {
+  animation: marquee 15s linear infinite;
+}
+
+.gradient-bg {
+  background: linear-gradient(-45deg,
+      var(--primary),
+      var(--teal-dark),
+      var(--indigo-dark),
+      var(--primary));
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
 }

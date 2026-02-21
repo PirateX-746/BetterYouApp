@@ -9,6 +9,7 @@ import { PatientsModule } from './patients/patients.module';
 import { PractitionersModule } from './practitioners/practitioners.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { AppointmentsModule } from './appointments/appointments.module';
+import { DocumentsModule } from './documents/documents.module';
 
 @Module({
   imports: [
@@ -24,9 +25,10 @@ import { AppointmentsModule } from './appointments/appointments.module';
     PractitionersModule,
     AvailabilityModule,
     AppointmentsModule,
+    DocumentsModule,
   ],
 
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

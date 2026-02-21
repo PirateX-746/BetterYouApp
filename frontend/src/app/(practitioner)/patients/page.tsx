@@ -1,7 +1,9 @@
-export default function DashboardPage() {
+import PatientsPage from "@/components/containers/patients/PatientsPage";
+
+export default function Page() {
   return (
-    <div className="space-y-8">
-      <h1>Patients</h1>
+    <div className="patients-container">
+      <PatientsPage />
     </div>
   );
 }

@@ -1,0 +1,647 @@
+/* ========================================
+   PATIENT PROFILE SPA STYLES
+   ======================================== */
+
+.patientContainer {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--space-2xl);
+    animation: fadeIn 0.3s ease;
+}
+
+/* Smooth Entry */
+/* @keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+} */
+
+/* Back Button */
+.backBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: var(--bg-page);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 24px;
+}
+
+.backBtn:hover {
+    background: var(--bg-hover);
+    transform: translateX(-4px);
+}
+
+.editButton {
+    display: flex;
+    gap: 8px;
+    flex-direction: row;
+    background-color: var(--primary);
+    color: white;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border);
+}
+
+.printButton {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-direction: row;
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border);
+}
+
+/* Profile Header Card */
+.profileHeaderCard {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 32px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 32px;
+    align-items: start;
+}
+
+
+
+.profileAvatarSection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.profileAvatarLg {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 4px solid var(--bg-page);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.profileAvatarLg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profileAvatarImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatarPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #5B8DEF, #3B82F6);
+    color: white;
+    font-size: 36px;
+    font-weight: 700;
+}
+
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.statusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.statusActive {
+    background: #D1FAE5;
+    color: #065F46;
+}
+
+.statusActive .statusDot {
+    background: #10B981;
+}
+
+.statusInactive {
+    background: #FEE2E2;
+    color: #991B1B;
+}
+
+.statusInactive .statusDot {
+    background: #EF4444;
+}
+
+.statusFollowUp {
+    background: #FED7AA;
+    color: #9A3412;
+}
+
+.statusFollowUp .statusDot {
+    background: #F59E0B;
+}
+
+/* Profile Header Info */
+.profileHeaderInfo {
+    flex: 1;
+}
+
+.profileName {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary, #111827);
+    margin: 0 0 8px 0;
+}
+
+.patientId {
+    padding: 4px 12px;
+    background: var(--bg-tertiary, #f3f4f6);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 16px;
+    display: inline-block;
+}
+
+.profileDetailsRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.detailChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-page);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+    border: 1px solid var(--border);
+}
+
+.detailChip svg {
+    color: var(--primary-color);
+}
+
+/* Profile Actions */
+.profileActions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Info Cards Grid */
+.infoCardsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.infoCard {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    transition: all 0.2s ease;
+}
+
+.infoCard:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.infoIcon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.infoLabel {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.infoValue {
+    font-size: 16px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Tabs */
+.profileTabs {
+    display: flex;
+    gap: 8px;
+    background: var(--bg-card);
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+    overflow-x: auto;
+}
+
+.tabBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.tabBtn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.tabBtn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.tabBtn.active svg {
+    stroke: white;
+}
+
+/* Tab Content Area */
+.tabContentArea {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 32px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    min-height: 400px;
+}
+
+/* Loading Spinner */
+.loadingSpinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 16px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--bg-tertiary);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Overview Content */
+.overviewContent h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.overviewGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 24px;
+}
+
+.overviewCard {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid var(--border);
+}
+
+.overviewCard h4 {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+/* Records Section */
+.recordsSection {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.sectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.sectionHeader h3 {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.btnSm {
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+/* Record Card */
+.recordCard {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    margin-bottom: 16px;
+    transition: all 0.2s ease;
+}
+
+.recordCard:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.recordHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.recordDate {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+    font-weight: 500;
+}
+
+.recordCard h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.recordNotes {
+    font-size: 14px;
+    color: var(--text-secondary, #6b7280);
+    line-height: 1.6;
+}
+
+/* Prescriptions Grid */
+.prescriptionsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.prescriptionCard {
+    background: var(--bg-secondary, #f9fafb);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.2s ease;
+}
+
+.prescriptionCard:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.prescriptionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 12px;
+}
+
+.prescriptionCard h4 {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.prescriptionDetails p {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+/* Appointments List */
+.appointmentsList {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.appointmentCard {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg-secondary, #f9fafb);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.2s ease;
+}
+
+.appointmentCard:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.appointmentIcon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #DBEAFE;
+    color: #1E40AF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.appointmentDetails {
+    flex: 1;
+}
+
+.appointmentDetails h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.appointmentDetails p {
+    font-size: 14px;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 8px;
+}
+
+/* Empty State */
+.emptyState {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.emptyIcon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.emptyState h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.emptyState p {
+    font-size: 14px;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 24px;
+}
+
+/* Badges */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badgeGreen {
+    background: #D1FAE5;
+    color: #065F46;
+}
+
+.badgeGray {
+    background: #F3F4F6;
+    color: #4B5563;
+}
+
+.badgeBlue {
+    background: #DBEAFE;
+    color: #1E40AF;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .profileHeaderCard {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .profileAvatarSection {
+        flex-direction: row;
+        justify-content: flex-start;
+    }
+
+    .profileActions {
+        flex-direction: row;
+    }
+}
+
+@media (max-width: 768px) {
+    .profileHeaderCard {
+        padding: 24px;
+    }
+
+    .infoCardsGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .tabContentArea {
+        padding: 20px;
+    }
+
+    .prescriptionsGrid {
+        grid-template-columns: 1fr;
+    }
+}
