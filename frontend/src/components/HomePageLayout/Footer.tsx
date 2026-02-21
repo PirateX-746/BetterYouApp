@@ -62,11 +62,11 @@ export default function Footer() {
                             <a href="#" className="hover:text-white transition-colors">
                                 About
                             </a>
-                            <a href="#" className="hover:text-white transition-colors">
+                            <a href="/patientLogin" className="hover:text-white transition-colors">
                                 Book Appointment
                             </a>
-                            <a href="#" className="hover:text-white transition-colors">
-                                Patient Portal
+                            <a href="/practitionerLogin" className="hover:text-white transition-colors">
+                                Practitioner Portal
                             </a>
                             <a href="#" className="hover:text-white transition-colors">
                                 Privacy Policy

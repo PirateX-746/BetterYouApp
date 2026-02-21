@@ -10,5 +10,5 @@ export async function logout() {
   cookieStore.delete("role");
   cookieStore.delete("name");
 
-  redirect("/login");
+  redirect("/");
 }
