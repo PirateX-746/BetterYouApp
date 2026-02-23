@@ -62,11 +62,7 @@ function formatDate(date?: string) {
   COMPONENT
 ======================================== */
 
-export default function AppointmentHistory({
-    patientId,
-}: {
-    patientId: string;
-}) {
+export default function AppointmentHistory(patientId: string) {
     const [patients, setPatients] = useState<Patient[]>([]);
     const [search, setSearch] = useState("");
     const [open, setOpen] = useState(false);
@@ -77,7 +73,11 @@ export default function AppointmentHistory({
     useEffect(() => {
         const fetchPatients = async () => {
             try {
-                const res = await api.get("/patients");
+                const res = await api.get("/patients", {
+                    params: {
+                        patientId,
+                    },
+                });
 
                 const data = res.data;
 
