@@ -52,16 +52,37 @@ export default function PatientSignup() {
 
         try {
             const payload = {
-                ...formData,
-                role: "PATIENT",
-                isActive: true,
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                dateOfBirth: formData.dateOfBirth,
+                email: formData.email,
+                password: formData.password,
+                gender: formData.gender,
+                phoneNo: formData.phoneNo,
+                bloodGroup: formData.bloodGroup,
+                allergies: formData.allergies || undefined,
+                healthCondition: formData.healthCondition || undefined,
             };
 
-            // await fetch("/api/auth/patient-signup", { method: "POST", body: JSON.stringify(payload) })
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/patients`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
 
-            router.push("/auth/patient-login");
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.message || "Signup failed");
+            }
+
+            // Success → redirect
+            router.push(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`);
+
         } catch (err: any) {
-            setError("Something went wrong.");
+            setError(err.message || "Something went wrong.");
         } finally {
             setLoading(false);
         }

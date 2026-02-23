@@ -7,7 +7,8 @@ export interface LoginPayload {
 }
 
 export async function login(data: any) {
-  // console.log("LOGIN PAYLOAD 👉", data);
+  console.log("API URL 👉", process.env.NEXT_PUBLIC_API_URL);
+  console.log("LOGIN PAYLOAD 👉", data);
 
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
@@ -19,9 +20,14 @@ export async function login(data: any) {
   );
 
   if (!res.ok) {
-    const err = await res.json();
-    console.error("LOGIN ERROR 👉", err);
-    throw new Error("Login failed");
+    let message = "Login failed";
+
+    try {
+      const err = await res.json();
+      message = err.message || message;
+    } catch { }
+
+    throw new Error(message);
   }
 
   return res.json();

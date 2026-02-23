@@ -1,4 +1,10 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+// src/patients/patients.service.ts
+
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -14,40 +20,50 @@ export class PatientsService {
     private readonly patientModel: Model<PatientDocument>,
   ) { }
 
+  /* ===============================
+     GENERATE MRN (Better Version)
+     =============================== */
   private async generateMRN(): Promise<string> {
     const year = new Date().getFullYear();
 
-    const count = await this.patientModel.countDocuments();
-    const nextNumber = count + 1;
+    // Count only patients created this year
+    const startOfYear = new Date(`${year}-01-01`);
+    const endOfYear = new Date(`${year + 1}-01-01`);
 
-    const paddedNumber = String(nextNumber).padStart(4, '0');
+    const count = await this.patientModel.countDocuments({
+      createdAt: { $gte: startOfYear, $lt: endOfYear },
+    });
 
-    return `MRN-${year}-${paddedNumber}`;
+    const padded = String(count + 1).padStart(4, '0');
+
+    return `MRN-${year}-${padded}`;
   }
 
   /* ===============================
      CREATE PATIENT
      =============================== */
   async create(dto: CreatePatientDto) {
-    // Check duplicate email
-    const existing = await this.patientModel.findOne({ email: dto.email });
+    // 🔹 Check duplicate email or phone
+    const existing = await this.patientModel.findOne({
+      $or: [{ email: dto.email }, { phoneNo: dto.phoneNo }],
+    });
+
     if (existing) {
-      throw new ConflictException('Patient already exists');
+      if (existing.email === dto.email) {
+        throw new ConflictException('Email already registered');
+      }
+      if (existing.phoneNo === dto.phoneNo) {
+        throw new ConflictException('Phone number already registered');
+      }
     }
-    // Generate MRN
+
+    // 🔹 Generate MRN
     const mrn = await this.generateMRN();
 
-    // Check duplicate phoneNo
-    const existingPhone = await this.patientModel.findOne({ phoneNo: dto.phoneNo });
-
-    if (existingPhone) {
-      throw new ConflictException('Phone number already exists');
-    }
-
-    // Hash password
+    // 🔹 Hash password
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    const patient = new this.patientModel({
+    const patient = await this.patientModel.create({
       ...dto,
       mrn,
       password: hashedPassword,
@@ -57,31 +73,34 @@ export class PatientsService {
       isActive: dto.isActive ?? true,
     });
 
-    const saved = await patient.save();
-
-    // Remove password before returning
-    const { password, ...result } = saved.toObject();
+    const { password, ...result } = patient.toObject();
     return result;
   }
 
   /* ===============================
-     GET ALL PATIENTS
+     GET ALL ACTIVE PATIENTS
      =============================== */
   async findAll() {
     return this.patientModel
       .find({ isActive: true })
-      .select('-password') // hide password
-      .sort({ createdAt: -1 });
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .lean();
   }
 
   /* ===============================
      GET PATIENT BY ID
      =============================== */
   async findById(id: string) {
-    const patient = await this.patientModel.findById(id).select('-password');
+    const patient = await this.patientModel
+      .findById(id)
+      .select('-password')
+      .lean();
+
     if (!patient) {
       throw new NotFoundException('Patient not found');
     }
+
     return patient;
   }
 }
