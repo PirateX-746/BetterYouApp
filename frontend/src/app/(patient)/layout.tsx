@@ -2,7 +2,7 @@
 
 import { ReactNode } from "react";
 import Link from "next/link";
-import { Home, Calendar, User, MessageSquare } from "lucide-react";
+import { Home, Calendar, User, MessageSquare, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 export default function AppLayout({
@@ -17,6 +17,7 @@ export default function AppLayout({
         { href: "/appointments", icon: Calendar, label: "Appointments" },
         { href: "/messages", icon: MessageSquare, label: "Messages" },
         { href: "/profile", icon: User, label: "Profile" },
+        { href: "/logout", icon: LogOut, label: "Logout" },
     ];
 
     return (
