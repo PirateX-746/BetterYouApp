@@ -66,7 +66,7 @@ export default function InitialEvaluationForm({ patientId }: Props) {
     useEffect(() => {
         if (!patientId) return;
 
-        fetch(`/api/patients/${patientId}`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/patients/${patientId}`)
             .then((res) => res.json())
             .then(setPatient)
             .catch(() => setPatient(null))
@@ -133,7 +133,7 @@ export default function InitialEvaluationForm({ patientId }: Props) {
     return (
         <>
             <GoBackButton
-                fallbackPath={`/patients/${patientId}`}
+                fallbackPath={`${process.env.NEXT_PUBLIC_API_URL}/patients/${patientId}`}
                 label="Back to Patient"
             />
 

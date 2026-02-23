@@ -74,15 +74,26 @@ export default function PatientsPage() {
   /* Fetch patients */
   useEffect(() => {
     const fetchPatients = async () => {
-      try {
-        const res = await fetch("/api/patients");
-        const data = await res.json();
-        setPatients(Array.isArray(data) ? data : []);
-      } catch {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/patients`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        console.error("API Error:", res.status);
         setPatients([]);
-      } finally {
-        setLoading(false);
+        return;
       }
+
+      const data = await res.json();
+      console.log("Patients:", data);
+
+      setPatients(Array.isArray(data) ? data : data.patients ?? []);
     };
 
     fetchPatients();

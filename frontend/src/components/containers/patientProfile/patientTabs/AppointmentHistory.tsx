@@ -79,7 +79,7 @@ export default function AppointmentHistory({ patientId }: Props) {
                 const token = localStorage.getItem("token");
 
                 const res = await fetch(
-                    `/api/appointments/patient/${patientId}`,
+                    `${process.env.NEXT_PUBLIC_API_URL}/appointments/patient/${patientId}`,
                     {
                         headers: {
                             Authorization: `Bearer ${token}`

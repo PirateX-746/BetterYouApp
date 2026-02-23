@@ -105,7 +105,12 @@ export default function MedicalDocuments({ patientId }: Props) {
         async function fetchPatient() {
             try {
                 const res = await fetch(
-                    `/api/patients/${patientId}`
+                    `${process.env.NEXT_PUBLIC_API_URL}/patients/${patientId}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${localStorage.getItem("token")}`
+                        }
+                    }
                 );
                 if (!res.ok) throw new Error("Failed to fetch patient");
                 const data = await res.json();
@@ -126,7 +131,12 @@ export default function MedicalDocuments({ patientId }: Props) {
         async function fetchDocuments() {
             try {
                 const res = await fetch(
-                    `/api/documents/patient/${patientId}`
+                    `${process.env.NEXT_PUBLIC_API_URL}/documents/patient/${patientId}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${localStorage.getItem("token")}`
+                        }
+                    }
                 );
                 if (!res.ok) throw new Error("Failed to fetch documents");
                 const data = await res.json();
@@ -144,7 +154,12 @@ export default function MedicalDocuments({ patientId }: Props) {
     const openDocument = async (id: string) => {
         try {
             const res = await fetch(
-                `/api/documents/${id}`
+                `${process.env.NEXT_PUBLIC_API_URL}/documents/${id}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem("token")}`
+                    }
+                }
             );
             if (!res.ok) throw new Error("Failed to fetch document");
             const data = await res.json();

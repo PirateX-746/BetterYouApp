@@ -56,7 +56,7 @@ export default function RiskAssessmentForm({ patientId }: Props) {
     return (
         <>
             <GoBackButton
-                fallbackPath="/documents"
+                fallbackPath={`${process.env.NEXT_PUBLIC_API_URL}/documents`}
                 label="Back to Patient" />
             <div className="max-w-5xl space-y-8">
 
