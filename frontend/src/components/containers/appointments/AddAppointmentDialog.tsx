@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CalendarEvent } from "./AppointmentsClient";
+import { api } from "@/lib/api";
 
 type Patient = {
   _id: string;
@@ -65,9 +66,8 @@ export default function AddAppointmentDialog({
 
     const fetchPatients = async () => {
       setLoadingPatients(true);
-      const res = await fetch("api/patients");
-      const data = await res.json();
-      setPatients(Array.isArray(data) ? data : []);
+      const res = await api.get("/patients");
+      setPatients(Array.isArray(res.data) ? res.data : []);
       setLoadingPatients(false);
     };
 
