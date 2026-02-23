@@ -69,29 +69,39 @@ export class AuthService {
   }
 
   //LOGIN + JWT
-
   async login(loginDto: LoginDto) {
     const { email, password, role } = loginDto;
 
-    console.log('Incoming role:', loginDto.role);
-    // console.log('Role after normalize:', role?.toUpperCase());
+    console.log("Incoming email:", email);
+    console.log("Incoming password:", password);
+    console.log("Incoming role:", role);
 
     let user: any;
 
-    if (role === 'practitioner') {
+    if (role.toLowerCase() === 'practitioner') {
       user = await this.practitionerModel.findOne({ email });
+      console.log("Looking in practitioner collection");
     } else {
       user = await this.patientModel.findOne({ email });
+      console.log("Looking in patient collection");
     }
+
+    console.log("User found:", !!user);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    console.log("Stored hash:", user.password);
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log("Password valid:", isPasswordValid);
+
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    console.log("LOGIN SUCCESS");
 
     const payload = {
       sub: user._id.toString(),
@@ -102,7 +112,7 @@ export class AuthService {
 
     return {
       access_token: accessToken,
-      id: user._id.toString(), // ✅ THIS IS THE FIX
+      id: user._id.toString(),
       role: user.role,
       name:
         user.role === Role.PRACTITIONER
