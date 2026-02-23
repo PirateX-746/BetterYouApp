@@ -66,7 +66,13 @@ export default function AppointmentsClient() {
 
     try {
       const res = await fetch(
-        `/api/appointments/practitioner/${practitionerId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/appointments/practitioner/${practitionerId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
       );
 
       if (!res.ok) {
@@ -145,8 +151,8 @@ export default function AppointmentsClient() {
     if (!practitionerId) return;
 
     const url = id
-      ? `/api/appointments/${id}`
-      : "/api/appointments";
+      ? `${process.env.NEXT_PUBLIC_API_URL}/appointments/${id}`
+      : `${process.env.NEXT_PUBLIC_API_URL}/appointments`;
 
     try {
       const res = await fetch(url, {
@@ -181,7 +187,7 @@ export default function AppointmentsClient() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/appointments/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/appointments/${id}`, {
         method: "DELETE",
       });
 
@@ -207,7 +213,7 @@ export default function AppointmentsClient() {
 
     try {
       const res = await fetch(
-        `/api/appointments/${event.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/appointments/${event.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

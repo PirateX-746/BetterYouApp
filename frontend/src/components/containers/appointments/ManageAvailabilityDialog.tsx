@@ -47,7 +47,13 @@ export default function ManageAvailabilityDialog({
   const fetchBlockedSlots = async () => {
     try {
       const res = await fetch(
-        `/api/availability/${practitionerId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/availability/${practitionerId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
       );
       const data = await res.json();
       setBlockedSlots(data);
@@ -78,7 +84,7 @@ export default function ManageAvailabilityDialog({
     setLoading(true);
 
     try {
-      const res = await fetch("/api/availability", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/availability`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
