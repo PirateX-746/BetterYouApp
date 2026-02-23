@@ -68,41 +68,63 @@ export class AuthService {
     return result;
   }
 
-  //LOGIN + JWT
+  //Login
+  // ===========================
+  // LOGIN WITH FULL VALIDATION
+  // ===========================
   async login(loginDto: LoginDto) {
     const { email, password, role } = loginDto;
 
-    console.log("Incoming email:", email);
-    console.log("Incoming password:", password);
-    console.log("Incoming role:", role);
+    // 1️⃣ Basic Validation
+    if (!email || !password || !role) {
+      throw new BadRequestException('Email, password and role are required');
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    if (
+      role !== Role.PATIENT &&
+      role !== Role.PRACTITIONER
+    ) {
+      throw new UnauthorizedException('Invalid role selected');
+    }
 
     let user: any;
 
-    if (role.toLowerCase() === 'practitioner') {
-      user = await this.practitionerModel.findOne({ email });
-      console.log("Looking in practitioner collection");
+    // 2️⃣ Fetch User From Correct Collection
+    if (role === Role.PRACTITIONER) {
+      user = await this.practitionerModel.findOne({
+        email: normalizedEmail,
+      });
     } else {
-      user = await this.patientModel.findOne({ email });
-      console.log("Looking in patient collection");
+      user = await this.patientModel.findOne({
+        email: normalizedEmail,
+      });
     }
 
-    console.log("User found:", !!user);
-
+    // 3️⃣ User Exists?
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    console.log("Stored hash:", user.password);
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log("Password valid:", isPasswordValid);
+    // 4️⃣ Password Match?
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password,
+    );
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    console.log("LOGIN SUCCESS");
+    // 5️⃣ Double Role Safety Check
+    if (user.role !== role) {
+      throw new UnauthorizedException(
+        'You are trying to access the wrong portal',
+      );
+    }
 
+    // 6️⃣ Generate JWT
     const payload = {
       sub: user._id.toString(),
       role: user.role,
