@@ -1,218 +1,285 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-    Calendar,
-    Clock,
-    ChevronDown,
-    ChevronUp,
-    Stethoscope,
-    User
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import PatientStyle from "./Patients.module.css";
+import ViewButton from "../../patients/ViewButton";
+import EditButton from "../../patients/EditButton";
+import DeleteButton from "../../patients/DeleteButton";
+import { useRouter } from "next/navigation";
+import { User } from "lucide-react";
+import { api } from "@/lib/api";
 
-type Appointment = {
+/* ========================================
+  TYPES
+======================================== */
+
+type Patient = {
     _id: string;
-    title: string;
-    start: string;
-    end: string;
-    status?: string;
-    notes?: string;
-    type?: string;
-    doctor?: {
-        firstName?: string;
-        lastName?: string;
-    };
+    avatar?: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    age?: number;
+    dateOfBirth?: string;
+    gender?: "male" | "female" | "other";
+    phoneNo?: string;
+    email?: string;
+    lastVisit?: string;
 };
 
-type Props = {
-    patientId: string;
+type PatientView = Patient & {
+    displayName: string;
 };
 
-/* =============================
-   FORMATTERS
-============================= */
+/* ========================================
+  UTILS
+======================================== */
 
-const formatDate = (value?: string) => {
-    if (!value) return "—";
-    const date = new Date(value);
-    if (isNaN(date.getTime())) return "—";
+function getDisplayName(p: Patient) {
+    const raw =
+        p.name ||
+        `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() ||
+        "Unknown";
 
-    return date.toLocaleDateString("en-IN", {
-        day: "2-digit",
+    return raw
+        .toLowerCase()
+        .split(" ")
+        .filter(Boolean)
+        .map((w) => w[0].toUpperCase() + w.slice(1))
+        .join(" ");
+}
+
+function formatDate(date?: string) {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleDateString(undefined, {
         month: "short",
-        year: "numeric"
+        day: "2-digit",
+        year: "numeric",
     });
-};
+}
 
-const formatTime = (value?: string) => {
-    if (!value) return "";
-    const date = new Date(value);
-    if (isNaN(date.getTime())) return "";
+/* ========================================
+  COMPONENT
+======================================== */
 
-    return date.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit"
-    });
-};
-
-const getStatusColor = (status?: string) => {
-    switch (status?.toLowerCase()) {
-        case "completed":
-            return "bg-green-100 text-green-700";
-        case "cancelled":
-            return "bg-red-100 text-red-700";
-        case "scheduled":
-            return "bg-blue-100 text-blue-700";
-        default:
-            return "bg-gray-100 text-gray-600";
-    }
-};
-
-export default function AppointmentHistory({ patientId }: Props) {
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [expanded, setExpanded] = useState<string | null>(null);
+export default function AppointmentHistory({
+    patientId,
+}: {
+    patientId: string;
+}) {
+    const [patients, setPatients] = useState<Patient[]>([]);
+    const [search, setSearch] = useState("");
+    const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
+    /* Fetch patients */
     useEffect(() => {
-        const fetchAppointments = async () => {
+        const fetchPatients = async () => {
             try {
-                const token = localStorage.getItem("token");
+                const res = await api.get("/patients");
 
-                const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/appointments/patient/${patientId}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        }
-                    }
+                const data = res.data;
+
+                setPatients(
+                    Array.isArray(data) ? data : data?.patients ?? []
                 );
-
-                if (!res.ok) throw new Error("Failed to fetch");
-
-                const data = await res.json();
-
-                const sorted = data.sort(
-                    (a: Appointment, b: Appointment) =>
-                        new Date(b.start).getTime() -
-                        new Date(a.start).getTime()
+            } catch (err: any) {
+                console.error(
+                    "API Error:",
+                    err.response?.status,
+                    err.response?.data
                 );
-
-                setAppointments(sorted);
-            } catch (err) {
-                console.error(err);
+                setPatients([]);
             } finally {
                 setLoading(false);
             }
         };
 
-        if (patientId) fetchAppointments();
-    }, [patientId]);
+        fetchPatients();
+    }, []);
 
-    const toggle = (id: string) => {
-        setExpanded(expanded === id ? null : id);
-    };
+    const filteredPatients: PatientView[] = useMemo(() => {
+        return patients
+            .map((p) => ({ ...p, displayName: getDisplayName(p) }))
+            .filter((p) =>
+                p.displayName.toLowerCase().includes(search.toLowerCase())
+            );
+    }, [patients, search]);
 
-    if (loading) {
-        return <p className="text-gray-500">Loading appointments...</p>;
+    function calculateAge(dateOfBirth?: string): string {
+        if (!dateOfBirth) return "—";
+
+        const birthDate = new Date(dateOfBirth);
+        const today = new Date();
+
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+
+        if (
+            monthDiff < 0 ||
+            (monthDiff === 0 && today.getDate() < birthDate.getDate())
+        ) {
+            age--;
+        }
+
+        return `${age} years`;
     }
 
-    if (appointments.length === 0) {
+    if (loading) {
         return (
-            <div className="bg-white p-6 shadow">
-                <h3 className="text-lg font-semibold">Appointment History</h3>
-                <p className="text-gray-500 mt-2">No appointment records yet.</p>
-            </div>
+            <p className="text-sm text-text-secondary">
+                Loading patients…
+            </p>
         );
     }
 
-    // Group by date
-    const grouped = appointments.reduce((acc: any, appt) => {
-        const date = formatDate(appt.start);
-        if (!acc[date]) acc[date] = [];
-        acc[date].push(appt);
-        return acc;
-    }, {});
-
     return (
-        <div>
-            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-gray-600" />
-                Appointment Timeline
-            </h2>
+        <div className={PatientStyle.patientsContainer}>
+            <div className={PatientStyle.pageHeaderActions}>
+                <div className={PatientStyle.pageHeaderLeft}>
+                    <h1 className="text-2xl font-semibold text-text-primary">
+                        Patients
+                    </h1>
+                    <p className="text-text-secondary py-1">
+                        Manage your patient records
+                    </p>
+                </div>
 
-            <div className="relative border-l border-gray-200 ml-4 space-y-10">
-                {Object.entries(grouped).map(([date, items]) => (
-                    <div key={date}>
-                        {/* 🔥 Sticky Date Header */}
-                        <div className="sticky top-0 bg-white z-10 py-2 pl-2 text-sm font-semibold text-gray-600">
-                            {date}
-                        </div>
+                <div className={`${PatientStyle.pageHeaderRight} p-6`}>
+                    <input
+                        type="text"
+                        className={`${PatientStyle.searchInput} p-2`}
+                        placeholder="Search patients..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
 
-                        <div className="space-y-6">
-                            {(items as Appointment[]).map((appt) => {
+                    <button
+                        className={PatientStyle.addPatientBtn}
+                        onClick={() => setOpen(true)}
+                    >
+                        + Add Patient
+                    </button>
+                </div>
+            </div>
 
-                                return (
-                                    <div key={appt._id} className="relative">
-                                        {/* Timeline Dot */}
-                                        <div className="absolute -left-[26px] top-3 w-8 h-8 bg-white border border-gray-200 rounded-sm flex items-center justify-center shadow-sm">
-                                            <Stethoscope className="w-4 h-4 text-blue-600" />
+            <div style={{ position: "relative" }}>
+                <div className={PatientStyle.scrollIndicator}>
+                    ← Scroll to see more →
+                </div>
+
+                <div className={PatientStyle.tableWrapper}>
+                    <table className={PatientStyle.dataTable}>
+                        <thead>
+                            <tr>
+                                <th>Patient Name</th>
+                                <th>Age</th>
+                                <th>Gender</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Last Visit</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {filteredPatients.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8}>
+                                        <div className="empty-state">
+                                            <div className="empty-state-icon">👥</div>
+                                            <div className="empty-state-title">
+                                                No Patients Found
+                                            </div>
+                                            <div className="empty-state-description">
+                                                Start by adding your first patient
+                                            </div>
                                         </div>
-
-                                        {/* Card */}
-                                        <div className="bg-gray-50 hover:bg-gray-100 transition-all rounded-sm p-5 border-l-4 border-blue-400 shadow-sm">
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredPatients.map((p) => (
+                                    <tr key={p._id}>
+                                        <td>
                                             <div
-                                                className="flex justify-between cursor-pointer"
-                                                onClick={() => toggle(appt._id)}
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 12,
+                                                }}
                                             >
-                                                <div>
-                                                    <h3 className="font-semibold text-gray-800">
-                                                        {appt.type
-                                                            ? `${appt.type} Appointment`
-                                                            : appt.title}
-                                                    </h3>
-
-                                                    <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                                                        <Clock className="w-4 h-4" />
-                                                        {formatTime(appt.start)} -{" "}
-                                                        {formatTime(appt.end)}
-                                                    </div>
-
-                                                    {appt.status && (
-                                                        <span
-                                                            className={`inline-block mt-2 text-xs px-2 py-1 rounded-sm ${getStatusColor(
-                                                                appt.status
-                                                            )}`}
-                                                        >
-                                                            {appt.status}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {expanded === appt._id ? (
-                                                    <ChevronUp className="w-4 h-4 text-gray-500" />
+                                                {p.avatar ? (
+                                                    <img
+                                                        src={p.avatar}
+                                                        alt={p.displayName}
+                                                        className={PatientStyle.tableAvatar}
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = "none";
+                                                        }}
+                                                    />
                                                 ) : (
-                                                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                                                    <div
+                                                        className={
+                                                            PatientStyle.tableAvatarFallback
+                                                        }
+                                                    >
+                                                        <User size={18} strokeWidth={2} />
+                                                    </div>
                                                 )}
-                                            </div>
 
-                                            {/* 🔥 Smooth Animated Expand */}
-                                            <div
-                                                className={`overflow-hidden transition-all duration-300 ease-in-out ${expanded === appt._id
-                                                    ? "max-h-40 opacity-100 mt-4"
-                                                    : "max-h-0 opacity-0"
-                                                    }`}
-                                            >
-                                                <div className="pt-4 border-t text-sm text-gray-700">
-                                                    {appt.notes || "No additional notes available."}
-                                                </div>
+                                                <span>{p.displayName}</span>
                                             </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ))}
+                                        </td>
+
+                                        <td>{calculateAge(p.dateOfBirth)}</td>
+
+                                        <td>
+                                            {p.gender ? (
+                                                <span
+                                                    className={`${PatientStyle.badge} ${p.gender.toLowerCase() === "male"
+                                                        ? PatientStyle.badgeBlue
+                                                        : PatientStyle.badgePurple
+                                                        }`}
+                                                >
+                                                    {p.gender.charAt(0).toUpperCase() +
+                                                        p.gender.slice(1)}
+                                                </span>
+                                            ) : (
+                                                "—"
+                                            )}
+                                        </td>
+
+                                        <td>{p.phoneNo ?? "—"}</td>
+                                        <td>{p.email ?? "—"}</td>
+                                        <td>{formatDate(p.lastVisit)}</td>
+
+                                        <td>
+                                            <span
+                                                className={`${PatientStyle.badge} ${PatientStyle.badgeGreen}`}
+                                            >
+                                                Active
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            <div style={{ display: "flex", gap: 8 }}>
+                                                <ViewButton
+                                                    onClick={() =>
+                                                        router.push(`/patients/${p._id}`)
+                                                    }
+                                                />
+                                                <EditButton onClick={() => { }} />
+                                                <DeleteButton onClick={() => { }} />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

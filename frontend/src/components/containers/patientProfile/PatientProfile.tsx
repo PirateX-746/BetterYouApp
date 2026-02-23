@@ -23,6 +23,7 @@ import {
     Pill,
 } from "lucide-react";
 import AppointmentHistory from "./patientTabs/AppointmentHistory";
+import { api } from "@/lib/api";
 
 type Patient = {
     _id?: string;
@@ -60,10 +61,10 @@ export default function PatientProfilePage() {
 
         const fetchPatient = async () => {
             try {
-                const res = await fetch(`/api/patients/${id}`);
-                if (!res.ok) throw new Error("Patient not found");
+                const res = await api.get(`/patients/${id}`);
+                if (!res.data) throw new Error("Patient not found");
 
-                const data = await res.json();
+                const data = res.data;
                 setPatient(data);
             } catch (err) {
                 console.error(err);
