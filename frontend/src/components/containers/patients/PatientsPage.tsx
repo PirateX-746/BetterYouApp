@@ -7,6 +7,7 @@ import EditButton from "./EditButton";
 import DeleteButton from "./DeleteButton";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
+import { api } from "@/lib/api";
 
 
 /* ========================================
@@ -74,26 +75,19 @@ export default function PatientsPage() {
   /* Fetch patients */
   useEffect(() => {
     const fetchPatients = async () => {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/patients`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      try {
+        const res = await api.get("/patients");
 
-      if (!res.ok) {
-        console.error("API Error:", res.status);
+        console.log("Patients:", res.data);
+        setPatients(
+          Array.isArray(res.data) ? res.data : res.data.patients ?? []
+        );
+      } catch (err: any) {
+        console.error("API Error:", err.response?.status);
         setPatients([]);
-        return;
+      } finally {
+        setLoading(false);
       }
-
-      const data = await res.json();
-      console.log("Patients:", data);
-
-      setPatients(Array.isArray(data) ? data : data.patients ?? []);
     };
 
     fetchPatients();
