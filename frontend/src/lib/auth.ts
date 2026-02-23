@@ -10,14 +10,11 @@ export async function login(data: any) {
   console.log("API URL 👉", process.env.NEXT_PUBLIC_API_URL);
   console.log("LOGIN PAYLOAD 👉", data);
 
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }
-  );
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
 
   if (!res.ok) {
     let message = "Login failed";

@@ -28,7 +28,7 @@ export class AuthService {
     private readonly practitionerModel: Model<Practitioner>,
 
     private readonly jwtService: JwtService, // ✅ REQUIRED
-  ) {}
+  ) { }
 
   //Patient Signup
 
@@ -72,6 +72,9 @@ export class AuthService {
 
   async login(loginDto: LoginDto) {
     const { email, password, role } = loginDto;
+
+    console.log('Incoming role:', loginDto.role);
+    // console.log('Role after normalize:', role?.toUpperCase());
 
     let user: any;
 
