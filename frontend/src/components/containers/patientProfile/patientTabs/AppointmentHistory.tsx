@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import PatientStyle from "./Patients.module.css";
+import PatientStyle from "./PatientProfile.module.css";
 import ViewButton from "../../patients/ViewButton";
 import EditButton from "../../patients/EditButton";
 import DeleteButton from "../../patients/DeleteButton";
