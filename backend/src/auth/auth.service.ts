@@ -33,13 +33,15 @@ export class AuthService {
   //Patient Signup
 
   async patientSignup(dto: PatientSignupDto) {
-    const exists = await this.patientModel.findOne({ email: dto.email });
+    const normalizedEmail = dto.email.toLowerCase().trim();
+    const exists = await this.patientModel.findOne({ email: normalizedEmail });
     if (exists) {
       throw new BadRequestException('Patient already exists');
     }
 
     const patient = await this.patientModel.create({
       ...dto,
+      email: normalizedEmail,
       password: await bcrypt.hash(dto.password, SALT_ROUNDS),
       dateOfBirth: new Date(dto.dateOfBirth),
       role: Role.PATIENT,
@@ -52,13 +54,15 @@ export class AuthService {
   //Practitioner Signup
 
   async practitionerSignup(dto: PractitionerSignupDto) {
-    const exists = await this.practitionerModel.findOne({ email: dto.email });
+    const normalizedEmail = dto.email.toLowerCase().trim();
+    const exists = await this.practitionerModel.findOne({ email: normalizedEmail });
     if (exists) {
       throw new BadRequestException('Practitioner already exists');
     }
 
     const practitioner = await this.practitionerModel.create({
       ...dto,
+      email: normalizedEmail,
       password: await bcrypt.hash(dto.password, SALT_ROUNDS),
       dateOfBirth: new Date(dto.dateOfBirth),
       role: Role.PRACTITIONER,
@@ -104,21 +108,27 @@ export class AuthService {
 
     // 3️⃣ User Exists?
     if (!user) {
+      console.log(`[AuthService] Password/User check failed: User not found for email: ${normalizedEmail}`);
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    console.log(`[AuthService] Found user, password hash length: ${user.password?.length}`);
 
     // 4️⃣ Password Match?
     const isPasswordValid = await bcrypt.compare(
       password,
       user.password,
     );
+    console.log("isPasswordValid", isPasswordValid);
 
     if (!isPasswordValid) {
+      console.log(`[AuthService] Password/User check failed: Invalid password for email: ${normalizedEmail}`);
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // 5️⃣ Double Role Safety Check
-    if (user.role !== role) {
+    if (user.role.toLowerCase() !== role.toLowerCase()) {
+      console.log(`[AuthService] Role mismatch: User has "${user.role}", attempted login as "${role}"`);
       throw new UnauthorizedException(
         'You are trying to access the wrong portal',
       );
@@ -131,7 +141,7 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload);
-
+    console.log("Logged in user role:", user.role);
     return {
       access_token: accessToken,
       id: user._id.toString(),

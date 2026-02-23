@@ -16,17 +16,21 @@ export default function PractitionerTopbar({
   open,
   onToggle,
 }: TopbarProps) {
-  const [doctorName, setDoctorName] = useState<string>("Doctor");
+  const [doctorName, setDoctorName] = useState<string>("User");
+  const [role, setRole] = useState<string>("");
 
-  // Read cookie on client
+  // Read cookies on client
   useEffect(() => {
-    const match = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("name="));
+    const cookies = document.cookie.split("; ");
 
-    if (match) {
-      const value = decodeURIComponent(match.split("=")[1]);
-      setDoctorName(value);
+    const nameCookie = cookies.find((row) => row.startsWith("name="));
+    if (nameCookie) {
+      setDoctorName(decodeURIComponent(nameCookie.split("=")[1]));
+    }
+
+    const roleCookie = cookies.find((row) => row.startsWith("role="));
+    if (roleCookie) {
+      setRole(decodeURIComponent(roleCookie.split("=")[1]).toLowerCase());
     }
   }, []);
 
@@ -51,9 +55,9 @@ export default function PractitionerTopbar({
       <div className="flex items-center gap-6">
         <ThemeToggle />
 
-        {/* Doctor Name */}
+        {/* User Name & Role */}
         <span className="text-text-secondary text-sm">
-          Dr. {doctorName}
+          {role === "practitioner" ? `Dr. ${doctorName}` : doctorName}
         </span>
 
         {/* Logout */}
