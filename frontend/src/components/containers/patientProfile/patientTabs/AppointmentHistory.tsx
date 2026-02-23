@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import PatientStyle from "./PatientProfile.module.css";
-import ViewButton from "../../patients/ViewButton";
-import EditButton from "../../patients/EditButton";
-import DeleteButton from "../../patients/DeleteButton";
+import PatientStyle from "@/components/containers/patients/Patients.module.css";
+import ViewButton from "@/components/containers/patients/ViewButton";
+import EditButton from "@/components/containers/patients/EditButton";
+import DeleteButton from "@/components/containers/patients/DeleteButton";
 import { useRouter } from "next/navigation";
-import { User } from "lucide-react";
 import { api } from "@/lib/api";
+import { User } from "lucide-react";
 
 /* ========================================
   TYPES
@@ -62,7 +62,7 @@ function formatDate(date?: string) {
   COMPONENT
 ======================================== */
 
-export default function AppointmentHistory(patientId: string) {
+export default function AppointmentHistory({ patientId }: { patientId: string }) {
     const [patients, setPatients] = useState<Patient[]>([]);
     const [search, setSearch] = useState("");
     const [open, setOpen] = useState(false);
