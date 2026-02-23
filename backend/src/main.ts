@@ -7,7 +7,10 @@ async function bootstrap() {
   const port = process.env.PORT || 3001;
 
   app.enableCors({
-    origin: process.env.FRONTEND_URL,
+    origin: [
+      'http://localhost:3000',
+      process.env.FRONTEND_URL, // Vercel domain
+    ],
     credentials: true,
   });
 
