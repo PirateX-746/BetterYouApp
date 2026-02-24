@@ -6,7 +6,7 @@ export default function Settings() {
     return (
         <GlassCard>
             <h2 className="text-2xl font-semibold text-gray-800 mb-8">
-                My Settings
+                My Settings - Manage settings here...
             </h2>
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
