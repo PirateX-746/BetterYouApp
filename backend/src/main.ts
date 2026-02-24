@@ -8,7 +8,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       "http://localhost:3000",
-      "https://better-you-app-chi.vercel.app"
+      "https://better-you-app-bay.vercel.app"
     ],
     credentials: true,
   });
