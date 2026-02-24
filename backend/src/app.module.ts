@@ -10,6 +10,7 @@ import { PractitionersModule } from './practitioners/practitioners.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { DocumentsModule } from './documents/documents.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { DocumentsModule } from './documents/documents.module';
     AvailabilityModule,
     AppointmentsModule,
     DocumentsModule,
+    ChatModule,
   ],
 
   controllers: [AppController],

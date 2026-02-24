@@ -8,6 +8,7 @@ import {
   Users,
   Settings,
   Stethoscope,
+  MessageCircle,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -19,7 +20,9 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Appointments", href: "/appointmentsPractitioner", icon: CalendarCheck },
   { label: "Patients", href: "/patients", icon: Users },
+  { label: "Messages", href: "/messages", icon: MessageCircle },
   { label: "Settings", href: "/settings", icon: Settings },
+
 ];
 
 export default function PractitionerSidebar({

@@ -1,36 +1,54 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import GlassCard from "@/components/GlassCard";
 import { api } from "@/lib/api";
+import toast from "react-hot-toast";
 
 type Appointment = {
     id: string;
     title: string;
     start: string;
     end: string;
-    practitionerId: string;
-    patientId: string;
+    notes?: string;
     status: string;
     deleted?: boolean;
 };
 
 type FilterType = "all" | "upcoming" | "past" | "cancelled";
-type ViewType = "list" | "timeline";
 
 export default function AppointmentsPage() {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [filter, setFilter] = useState<FilterType>("all");
-    const [view, setView] = useState<ViewType>("list");
+    const [loading, setLoading] = useState(true);
+
+    const [modalOpen, setModalOpen] = useState(false);
+    const [editingAppointment, setEditingAppointment] =
+        useState<Appointment | null>(null);
+
+    const [title, setTitle] = useState("");
+    const [start, setStart] = useState("");
+    const [end, setEnd] = useState("");
+    const [notes, setNotes] = useState("");
+
+    /* ================= FETCH + SOCKET ================= */
 
     useEffect(() => {
         const userId = localStorage.getItem("userId");
-        if (!userId) return;
+        if (!userId) {
+            setLoading(false);
+            return;
+        }
 
         const fetchAppointments = async () => {
-            const res = await api.get(`/appointments/patient/${userId}`);
-            setAppointments(res.data);
+            try {
+                const res = await api.get(`/appointments/patient/${userId}`);
+                setAppointments(res.data || []);
+            } catch (err) {
+                toast.error("Failed to load appointments");
+            } finally {
+                setLoading(false);
+            }
         };
 
         fetchAppointments();
@@ -42,14 +60,13 @@ export default function AppointmentsPage() {
         socket.on("appointmentUpdated", (incoming: Appointment) => {
             setAppointments((prev) => {
                 if (incoming.deleted) {
-                    return prev.filter((appt) => appt.id !== incoming.id);
+                    return prev.filter((a) => a.id !== incoming.id);
                 }
 
-                const exists = prev.find((appt) => appt.id === incoming.id);
-
+                const exists = prev.find((a) => a.id === incoming.id);
                 if (exists) {
-                    return prev.map((appt) =>
-                        appt.id === incoming.id ? incoming : appt
+                    return prev.map((a) =>
+                        a.id === incoming.id ? incoming : a
                     );
                 }
 
@@ -62,119 +79,260 @@ export default function AppointmentsPage() {
         };
     }, []);
 
-    const now = new Date();
+    const now = Date.now();
+
+    const normalizedAppointments = useMemo(
+        () =>
+            appointments.map((a) => ({
+                ...a,
+                startTime: new Date(a.start).getTime(),
+                endTime: new Date(a.end).getTime(),
+                normalizedStatus: a.status.toLowerCase(),
+            })),
+        [appointments]
+    );
 
     const filteredAppointments = useMemo(() => {
-        return appointments.filter((appt) => {
-            const start = new Date(appt.start);
+        let filtered = normalizedAppointments;
 
-            if (filter === "upcoming") return start > now;
-            if (filter === "past") return start < now;
-            if (filter === "cancelled") return appt.status === "cancelled";
+        if (filter === "upcoming") {
+            filtered = filtered.filter((a) => a.startTime > now);
+        }
 
-            return true;
+        if (filter === "past") {
+            filtered = filtered.filter((a) => a.startTime < now);
+        }
+
+        if (filter === "cancelled") {
+            filtered = filtered.filter(
+                (a) => a.normalizedStatus === "cancelled"
+            );
+        }
+
+        return filtered.sort((a, b) => b.startTime - a.startTime);
+    }, [normalizedAppointments, filter, now]);
+
+    /* ================= MODAL HELPERS ================= */
+
+    const openNewModal = () => {
+        setEditingAppointment(null);
+        setTitle("");
+        setNotes("");
+        const defaultStart = new Date();
+        defaultStart.setMinutes(defaultStart.getMinutes() + 30);
+        const defaultEnd = new Date(defaultStart.getTime() + 60 * 60000);
+
+        setStart(defaultStart.toISOString().slice(0, 16));
+        setEnd(defaultEnd.toISOString().slice(0, 16));
+        setModalOpen(true);
+    };
+
+    const openReschedule = (appt: Appointment) => {
+        setEditingAppointment(appt);
+        setTitle(appt.title);
+        setStart(appt.start.slice(0, 16));
+        setEnd(appt.end.slice(0, 16));
+        setNotes(appt.notes || "");
+        setModalOpen(true);
+    };
+
+    /* ================= AUTO END TIME ================= */
+
+    useEffect(() => {
+        if (!start) return;
+
+        const startDate = new Date(start);
+        const autoEnd = new Date(startDate.getTime() + 60 * 60000);
+        setEnd(autoEnd.toISOString().slice(0, 16));
+    }, [start]);
+
+    /* ================= OVERLAP CHECK ================= */
+
+    const isOverlapping = (newStart: Date, newEnd: Date) => {
+        return normalizedAppointments.some((appt) => {
+            if (
+                editingAppointment &&
+                appt.id === editingAppointment.id
+            )
+                return false;
+
+            return (
+                newStart < new Date(appt.end) &&
+                newEnd > new Date(appt.start)
+            );
         });
-    }, [appointments, filter]);
+    };
 
-    const renderListView = () => (
-        <div className="space-y-5">
-            {filteredAppointments.map((appt) => {
-                const start = new Date(appt.start);
+    /* ================= SUBMIT ================= */
 
-                return (
-                    <GlassCard key={appt.id}>
-                        <div className="flex justify-between items-center">
+    const handleSubmit = async () => {
+        if (!title || !start || !end) {
+            toast.error("All required fields must be filled");
+            return;
+        }
+
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+
+        if (startDate < new Date()) {
+            toast.error("Cannot select past time");
+            return;
+        }
+
+        if (endDate <= startDate) {
+            toast.error("End must be after start");
+            return;
+        }
+
+        if (isOverlapping(startDate, endDate)) {
+            toast.error("Time overlaps with another appointment");
+            return;
+        }
+
+        const payload = {
+            title,
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+            notes,
+        };
+
+        try {
+            if (editingAppointment) {
+                await api.put(
+                    `/appointments/${editingAppointment.id}`,
+                    payload
+                );
+                toast.success("Appointment updated");
+            } else {
+                await api.post(`/appointments`, payload);
+                toast.success("Appointment created");
+            }
+
+            setModalOpen(false);
+        } catch {
+            toast.error("Operation failed");
+        }
+    };
+
+    /* ================= UI ================= */
+
+    if (loading) {
+        return <div className="p-8">Loading...</div>;
+    }
+
+    return (
+        <div className="p-8 space-y-8 bg-[#F8FAFC] min-h-screen">
+
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-semibold">
+                    Appointments
+                </h1>
+
+                <button
+                    onClick={openNewModal}
+                    className="px-4 py-2 bg-[#2563EB] text-white rounded-md text-sm hover:bg-[#1D4ED8]"
+                >
+                    + New Appointment
+                </button>
+            </div>
+
+            <div className="space-y-4">
+                {filteredAppointments.map((appt) => {
+                    const isUpcoming =
+                        appt.startTime > now &&
+                        appt.normalizedStatus !== "cancelled";
+
+                    return (
+                        <div
+                            key={appt.id}
+                            className="bg-white border border-gray-200 rounded-md p-5 flex justify-between items-center"
+                        >
                             <div>
-                                <p className="font-semibold">{appt.title}</p>
+                                <p className="font-medium">{appt.title}</p>
                                 <p className="text-sm text-gray-500">
-                                    {start.toLocaleDateString()} •{" "}
-                                    {start.toLocaleTimeString([], {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                    })}
+                                    {new Date(appt.startTime).toLocaleString()}
                                 </p>
                             </div>
 
-                            <span className="text-blue-500 text-sm font-medium">
-                                {appt.status}
-                            </span>
+                            <div className="flex gap-3 items-center">
+                                <span className="text-xs px-3 py-1 rounded-full bg-blue-50 text-blue-600 capitalize">
+                                    {appt.normalizedStatus}
+                                </span>
+
+                                {isUpcoming && (
+                                    <button
+                                        onClick={() => openReschedule(appt)}
+                                        className="text-sm text-[#2563EB] hover:underline"
+                                    >
+                                        Reschedule
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    </GlassCard>
-                );
-            })}
-        </div>
-    );
+                    );
+                })}
+            </div>
 
-    const renderTimeline = () => {
-        const sorted = [...filteredAppointments].sort(
-            (a, b) =>
-                new Date(a.start).getTime() -
-                new Date(b.start).getTime()
-        );
+            {/* MODAL */}
+            {modalOpen && (
+                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white rounded-md p-6 w-full max-w-md space-y-5 shadow-lg">
 
-        return (
-            <div className="space-y-6">
-                {sorted.map((appt) => (
-                    <div key={appt.id} className="flex gap-4">
-                        <div className="w-1 bg-blue-500 rounded-full" />
-                        <div>
-                            <p className="font-medium">{appt.title}</p>
-                            <p className="text-sm text-gray-500">
-                                {new Date(appt.start).toLocaleString()}
-                            </p>
-                            <p className="text-xs text-blue-500">
-                                {appt.status}
-                            </p>
+                        <h2 className="text-lg font-semibold">
+                            {editingAppointment
+                                ? "Reschedule Appointment"
+                                : "New Appointment"}
+                        </h2>
+
+                        <input
+                            type="text"
+                            placeholder="Title"
+                            className="w-full border border-gray-200 p-2 rounded-md"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                        />
+
+                        <input
+                            type="datetime-local"
+                            min={new Date().toISOString().slice(0, 16)}
+                            className="w-full border border-gray-200 p-2 rounded-md"
+                            value={start}
+                            onChange={(e) => setStart(e.target.value)}
+                        />
+
+                        <input
+                            type="datetime-local"
+                            className="w-full border border-gray-200 p-2 rounded-md"
+                            value={end}
+                            onChange={(e) => setEnd(e.target.value)}
+                        />
+
+                        <textarea
+                            placeholder="Notes (optional)"
+                            className="w-full border border-gray-200 p-2 rounded-md resize-none"
+                            rows={3}
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                        />
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setModalOpen(false)}
+                                className="px-4 py-2 border border-gray-200 rounded-md text-sm"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={handleSubmit}
+                                className="px-4 py-2 bg-[#2563EB] text-white rounded-md text-sm"
+                            >
+                                Save
+                            </button>
                         </div>
                     </div>
-                ))}
-            </div>
-        );
-    };
-
-    return (
-        <div className="space-y-8">
-
-            {/* FILTER TABS */}
-            <div className="flex gap-3 flex-wrap">
-                {["all", "upcoming", "past", "cancelled"].map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => setFilter(tab as FilterType)}
-                        className={`px-4 py-2 rounded-xl text-sm capitalize ${filter === tab
-                            ? "bg-blue-500 text-white"
-                            : "bg-white border border-blue-100"
-                            }`}
-                    >
-                        {tab}
-                    </button>
-                ))}
-            </div>
-
-            {/* VIEW TOGGLE */}
-            <div className="flex gap-3">
-                <button
-                    onClick={() => setView("list")}
-                    className={`px-4 py-2 rounded-xl text-sm ${view === "list"
-                        ? "bg-blue-500 text-white"
-                        : "bg-white border border-blue-100"
-                        }`}
-                >
-                    List View
-                </button>
-
-                <button
-                    onClick={() => setView("timeline")}
-                    className={`px-4 py-2 rounded-xl text-sm ${view === "timeline"
-                        ? "bg-blue-500 text-white"
-                        : "bg-white border border-blue-100"
-                        }`}
-                >
-                    Timeline
-                </button>
-            </div>
-
-            {view === "list" ? renderListView() : renderTimeline()}
+                </div>
+            )}
         </div>
     );
 }
