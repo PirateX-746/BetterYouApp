@@ -5,6 +5,12 @@ import { io, Socket } from "socket.io-client";
 
 /* ================= TYPES ================= */
 
+type Conversation = {
+    _id: string;
+    name: string;
+    unread?: number;
+};
+
 type Message = {
     _id?: string;
     conversationId: string;
@@ -15,16 +21,10 @@ type Message = {
     createdAt: string;
 };
 
-type Conversation = {
-    _id: string;
-    name: string;
-    unread?: number;
-};
-
 /* ================= COMPONENT ================= */
 
 export default function MessagesPage() {
-    const [userId, setUserId] = useState<string | null>(null);
+    const [practitionerId, setPractitionerId] = useState<string | null>(null);
     const API = "/api";
     const [socketUrl, setSocketUrl] = useState("http://localhost:3001");
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -37,16 +37,16 @@ export default function MessagesPage() {
     const [typing, setTyping] = useState(false);
     const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
     const [showNewChat, setShowNewChat] = useState(false);
-    const [allPractitioners, setAllPractitioners] = useState<any[]>([]);
-    const [isLoadingPractitioners, setIsLoadingPractitioners] = useState(false);
+    const [allPatients, setAllPatients] = useState<any[]>([]);
+    const [isLoadingPatients, setIsLoadingPatients] = useState(false);
 
-    const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
     const selectedRef = useRef<Conversation | null>(null);
 
     useEffect(() => {
         const id = localStorage.getItem("userId");
-        console.log('[Patient] userId from localStorage:', id);
-        setUserId(id);
+        console.log('[Practitioner] practitionerId from localStorage:', id);
+        setPractitionerId(id);
 
         if (typeof window !== "undefined") {
             const domain = window.location.hostname;
@@ -58,7 +58,7 @@ export default function MessagesPage() {
         selectedRef.current = selected;
     }, [selected]);
 
-    console.log('[Patient] Render. userId:', userId, 'API:', API, 'selected:', selected?._id);
+    console.log('[Practitioner] Render. practitionerId:', practitionerId, 'API:', API, 'selected:', selected?._id);
 
     /* ================= SAFE FETCH ================= */
 
@@ -77,9 +77,9 @@ export default function MessagesPage() {
     /* ================= FETCH CONVERSATIONS ================= */
 
     const fetchConversations = async () => {
-        if (!userId) return;
-        console.log('[Patient] fetching conversations for:', userId);
-        const data = await safeFetch(`${API}/chat/conversations/${userId}`);
+        if (!practitionerId) return;
+        console.log('[Practitioner] fetching conversations for:', practitionerId);
+        const data = await safeFetch(`${API}/chat/conversations/${practitionerId}`);
 
         if (!Array.isArray(data)) {
             setConversations([]);
@@ -88,8 +88,8 @@ export default function MessagesPage() {
 
         const mapped: Conversation[] = data.map((conv: any) => ({
             _id: conv._id,
-            name: conv.practitionerId?.firstName ? `Dr. ${conv.practitionerId.firstName} ${conv.practitionerId.lastName}` : "Practitioner",
-            unread: conv.unreadForPatient || 0,
+            name: conv.patientId?.firstName ? `${conv.patientId.firstName} ${conv.patientId.lastName}` : "Patient",
+            unread: conv.unreadForPractitioner || 0,
         }));
 
         setConversations(mapped);
@@ -106,36 +106,36 @@ export default function MessagesPage() {
         }
     };
 
-    /* ================= FETCH PRACTITIONERS ================= */
+    /* ================= FETCH ALL PATIENTS ================= */
 
-    const fetchPractitioners = async () => {
-        if (!userId) return;
-        setIsLoadingPractitioners(true);
-        console.log('[Patient] fetching practitioners...');
-        const data = await safeFetch(`${API}/practitioners`);
-        console.log('[Patient] practitioners data:', data);
-        if (Array.isArray(data)) setAllPractitioners(data);
-        setIsLoadingPractitioners(false);
+    const fetchAllPatients = async () => {
+        if (!practitionerId) return;
+        setIsLoadingPatients(true);
+        console.log('[Practitioner] fetching patients...');
+        const data = await safeFetch(`${API}/patients`);
+        console.log('[Practitioner] patients data:', data);
+        if (Array.isArray(data)) setAllPatients(data);
+        setIsLoadingPatients(false);
     };
 
-    /* ================= START CHAT ================= */
+    /* ================= START NEW CHAT ================= */
 
-    const startNewChat = async (practitionerId: string) => {
-        console.log('[Patient] startNewChat called with practitionerId:', practitionerId);
-        if (!userId) {
-            console.error('[Patient] Cannot start chat: userId is null');
+    const startNewChat = async (patientId: string) => {
+        console.log('[Practitioner] startNewChat called with patientId:', patientId);
+        if (!practitionerId) {
+            console.error('[Practitioner] Cannot start chat: practitionerId is null');
             return;
         }
         const conv = await safeFetch(`${API}/chat/conversation`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ patientId: userId, practitionerId }),
+            body: JSON.stringify({ patientId, practitionerId }),
         });
 
-        console.log('[Patient] POST /chat/conversation result:', conv);
+        console.log('[Practitioner] POST /chat/conversation result:', conv);
 
         if (!conv || !conv._id) {
-            console.error("[Patient] Invalid conversation returned:", conv);
+            console.error("[Practitioner] Invalid conversation returned:", conv);
             return;
         }
 
@@ -143,7 +143,7 @@ export default function MessagesPage() {
 
         const newConv: Conversation = {
             _id: conv._id,
-            name: conv.practitionerId?.firstName ? `Dr. ${conv.practitionerId.firstName} ${conv.practitionerId.lastName}` : "Practitioner",
+            name: conv.patientId?.firstName ? `${conv.patientId.firstName} ${conv.patientId.lastName}` : "Patient",
             unread: 0,
         };
 
@@ -155,47 +155,59 @@ export default function MessagesPage() {
 
     useEffect(() => {
         fetchConversations();
-    }, [userId]);
+    }, [practitionerId]);
 
     useEffect(() => {
         if (!selected) return;
         fetchMessages(selected._id);
-        setConversations(prev => prev.map(c => c._id === selected._id ? { ...c, unread: 0 } : c));
+        setConversations(prev =>
+            prev.map(c => (c._id === selected._id ? { ...c, unread: 0 } : c))
+        );
 
-        if (userId) {
+        if (practitionerId) {
             safeFetch(`${API}/chat/reset-unread/${selected._id}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ role: "patient" }),
+                body: JSON.stringify({ role: "practitioner" }),
             });
         }
 
         if (socket) {
-            console.log('[Patient] Auto-joining room:', selected._id);
+            console.log('[Practitioner] Auto-joining room:', selected._id);
             socket.emit("joinConversation", selected._id);
         }
     }, [selected, socket]);
 
-    /* ================= SOCKET ================= */
+    /* ================= SOCKET INIT ================= */
 
     useEffect(() => {
-        if (!userId) return;
-        console.log('[Patient] Connecting socket to:', socketUrl, 'for user:', userId);
-        const s = io(socketUrl, { query: { userId } });
+        if (!practitionerId) return;
+
+        console.log('[Practitioner] Connecting socket to:', socketUrl, 'for user:', practitionerId);
+        const s = io(socketUrl, {
+            query: { userId: practitionerId },
+        });
+
         setSocket(s);
 
         s.on("onlineUsers", setOnlineUsers);
 
         s.on("message", (msg: Message) => {
-            console.log('[Patient] Socket received message:', msg, 'current selectedRef:', selectedRef.current?._id);
+            console.log('[Practitioner] Socket received message:', msg, 'current selectedRef:', selectedRef.current?._id);
             if (msg.conversationId === selectedRef.current?._id) {
                 setMessages(prev => [...prev, msg]);
                 // Emit seen if we are looking at this conversation
-                if (userId && msg.senderId !== userId) {
+                if (practitionerId && msg.senderId !== practitionerId) {
                     s.emit("seen", { messageId: msg._id, conversationId: msg.conversationId });
                 }
             } else {
-                setConversations(prev => prev.map(c => c._id === msg.conversationId ? { ...c, unread: (c.unread || 0) + 1 } : c));
+                setConversations(prev =>
+                    prev.map(c =>
+                        c._id === msg.conversationId
+                            ? { ...c, unread: (c.unread || 0) + 1 }
+                            : c
+                    )
+                );
             }
         });
 
@@ -210,10 +222,10 @@ export default function MessagesPage() {
         });
 
         return () => {
-            console.log('[Patient] Disconnecting socket');
+            console.log('[Practitioner] Disconnecting socket');
             s.disconnect();
         };
-    }, [userId, socketUrl]); // Added socketUrl to avoid reconnection
+    }, [practitionerId, socketUrl]);
 
     /* ================= AUTO SCROLL ================= */
 
@@ -224,10 +236,14 @@ export default function MessagesPage() {
     /* ================= SEND MESSAGE ================= */
 
     const sendMessage = () => {
-        if (!input.trim() || !selected || !socket) return;
+        if (!input.trim() || !selected || !socket) {
+            console.log('[Practitioner] Cannot send: input empty or no selected/socket');
+            return;
+        }
+        console.log('[Practitioner] Sending message to:', selected._id);
         socket.emit("message", {
             conversationId: selected._id,
-            senderId: userId,
+            senderId: practitionerId,
             text: input,
         });
         setInput("");
@@ -236,7 +252,6 @@ export default function MessagesPage() {
     const handleTyping = () => {
         if (!socket || !selected) return;
 
-        // If already typing, clear previous timeout and just let it be
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         else socket.emit("typing", selected._id);
 
@@ -246,11 +261,9 @@ export default function MessagesPage() {
         }, 2000);
     };
 
-    /* ================= DATE GROUPING ================= */
-
     const groupByDate = (msgs: Message[]) => {
         const groups: Record<string, Message[]> = {};
-        msgs.forEach((msg) => {
+        msgs.forEach(msg => {
             const date = new Date(msg.createdAt).toLocaleDateString();
             if (!groups[date]) groups[date] = [];
             groups[date].push(msg);
@@ -263,13 +276,13 @@ export default function MessagesPage() {
     /* ================= UI ================= */
 
     return (
-        <div className="h-screen w-full bg-[#F8FAFC] flex">
+        <div className="h-screen w-full flex bg-[#F8FAFC]">
             {/* LEFT PANEL */}
             <div className={`${selected ? "hidden md:flex" : "flex"} w-full md:w-1/4 bg-white border-r flex-col`}>
                 <div className="p-4 border-b flex justify-between items-center">
                     <span className="font-semibold text-black">Messages</span>
                     <button
-                        onClick={() => { fetchPractitioners(); setShowNewChat(true); }}
+                        onClick={() => { fetchAllPatients(); setShowNewChat(true); }}
                         className="text-xs bg-blue-600 text-white px-2 py-1 rounded"
                     >
                         + New
@@ -277,7 +290,7 @@ export default function MessagesPage() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
-                    {conversations.map((conv) => (
+                    {conversations.map(conv => (
                         <div
                             key={conv._id}
                             onClick={() => {
@@ -315,30 +328,27 @@ export default function MessagesPage() {
                             {Object.entries(groupedMessages).map(([date, msgs]) => (
                                 <div key={date}>
                                     <div className="text-center text-xs text-gray-400 mb-4">{date}</div>
-                                    {msgs.map((msg) => {
-                                        const isMe = msg.senderId === userId;
-                                        return (
-                                            <div key={msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[70%] p-3 rounded-lg ${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-100 text-black rounded-bl-none'}`}>
-                                                    <p className="text-sm">{msg.text}</p>
-                                                    <div className={`text-[10px] mt-1 flex justify-end gap-1 ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
-                                                        <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                        {isMe && (
-                                                            <span>
-                                                                {msg.status === 'seen' ? '✓✓' : msg.status === 'delivered' ? '✓' : '...'}
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                    {msgs.map(msg => (
+                                        <div key={msg._id} className={`flex ${msg.senderId === practitionerId ? "justify-end" : "justify-start"}`}>
+                                            <div className={`px-4 py-2 rounded-lg max-w-xs text-sm ${msg.senderId === practitionerId ? "bg-blue-600 text-white" : "bg-white border text-black"}`}>
+                                                {msg.text}
+                                                <div className={`text-[10px] mt-1 opacity-70 flex justify-end gap-1 ${msg.senderId === practitionerId ? "text-blue-100" : "text-gray-400"}`}>
+                                                    <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                                                    {msg.senderId === practitionerId && (
+                                                        <span>
+                                                            {msg.status === 'seen' ? '✓✓' : msg.status === 'delivered' ? '✓' : '...'}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
-                                        );
-                                    })}
+                                        </div>
+                                    ))}
                                 </div>
                             ))}
                             {typing && (
                                 <div className="flex justify-start mb-4">
                                     <div className="bg-gray-100 text-gray-500 text-xs p-2 rounded-lg animate-pulse">
-                                        Practitioner is typing...
+                                        Patient is typing...
                                     </div>
                                 </div>
                             )}
@@ -350,10 +360,12 @@ export default function MessagesPage() {
                                 value={input}
                                 onChange={(e) => { setInput(e.target.value); handleTyping(); }}
                                 onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                                placeholder="Type a message..."
                                 className="flex-1 border rounded-md px-3 py-2 text-sm text-black"
+                                placeholder="Type a message..."
                             />
-                            <button onClick={sendMessage} className="px-4 bg-blue-600 text-white rounded-md">Send</button>
+                            <button onClick={sendMessage} className="bg-blue-600 text-white px-4 rounded-md">
+                                Send
+                            </button>
                         </div>
                     </>
                 )}
@@ -367,17 +379,18 @@ export default function MessagesPage() {
                             <h2 className="text-xl font-bold text-black">New Chat</h2>
                             <button onClick={() => setShowNewChat(false)} className="text-gray-500 text-2xl">&times;</button>
                         </div>
+                        <p className="text-sm text-gray-500 mb-4 text-black">Select a patient to message</p>
                         <div className="flex-1 overflow-y-auto space-y-2">
-                            {isLoadingPractitioners ? (
-                                <p className="text-center text-gray-400 py-4 text-black">Loading practitioners...</p>
-                            ) : allPractitioners.length === 0 ? (
-                                <p className="text-center text-gray-400 py-4 text-black">No practitioners available</p>
+                            {isLoadingPatients ? (
+                                <p className="text-center text-gray-400 py-4 text-black">Loading patients...</p>
+                            ) : allPatients.length === 0 ? (
+                                <p className="text-center text-gray-400 py-4 text-black">No patients available</p>
                             ) : (
-                                allPractitioners.map((p) => (
+                                allPatients.map((p) => (
                                     <div
                                         key={p._id}
                                         onClick={() => {
-                                            console.log('[Patient] Clicked practitioner:', p._id);
+                                            console.log('[Practitioner] Clicked patient:', p._id);
                                             startNewChat(p._id);
                                         }}
                                         className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer flex items-center gap-3"
@@ -386,8 +399,8 @@ export default function MessagesPage() {
                                             {p.firstName[0]}{p.lastName[0]}
                                         </div>
                                         <div>
-                                            <p className="font-medium text-black">Dr. {p.firstName} {p.lastName}</p>
-                                            <p className="text-xs text-gray-500">{p.specialization}</p>
+                                            <p className="font-medium text-black">{p.firstName} {p.lastName}</p>
+                                            <p className="text-xs text-gray-500">{p.email}</p>
                                         </div>
                                     </div>
                                 )))

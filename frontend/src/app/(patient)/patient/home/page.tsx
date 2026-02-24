@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { api } from "@/lib/api";
-import GlassCard from "@/components/GlassCard";
+import toast from "react-hot-toast";
 
 type Appointment = {
   id: string;
@@ -13,236 +13,231 @@ type Appointment = {
   practitionerId: string;
   patientId: string;
   status: string;
-  deleted?: boolean;
+  createdAt?: string; // IMPORTANT for 48h logic
 };
 
-const mindfulThoughts = [
-  "Small steps every day create big change.",
-  "Your health is your real wealth.",
-  "Breathe in calm. Breathe out stress.",
-  "Consistency beats intensity.",
-  "You deserve care and balance.",
-];
+const HOURS_24 = 24 * 60 * 60 * 1000;
+const HOURS_48 = 48 * 60 * 60 * 1000;
+const HOURS_2 = 2 * 60 * 60 * 1000;
 
 export default function HomePage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [patientName, setPatientName] = useState("");
-  const [greeting, setGreeting] = useState("");
-  const [thought, setThought] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+
+  /* ---------------- FETCH ---------------- */
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
-    const name = localStorage.getItem("name");
 
-    if (!userId) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
-    if (name) setPatientName(name);
-
-    // 🔹 Set greeting safely (client only)
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good Morning");
-    else if (hour < 18) setGreeting("Good Afternoon");
-    else setGreeting("Good Evening");
-
-    // 🔹 Set random thought safely
-    const random =
-      mindfulThoughts[
-      Math.floor(Math.random() * mindfulThoughts.length)
-      ];
-    setThought(random);
-
-    // 🔹 Initial fetch
     const fetchAppointments = async () => {
       try {
         const res = await api.get(`/appointments/patient/${userId}`);
-        setAppointments(res.data);
-      } catch (error) {
-        console.error("Failed to fetch appointments:", error);
+        setAppointments(res.data || []);
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load appointments");
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchAppointments();
 
-    // 🔹 WebSocket
-    const socket: Socket = io("http://localhost:3001", {
+    // WebSocket connection
+    const newSocket = io("http://localhost:3001", {
       query: { patientId: userId },
     });
 
-    socket.on("appointmentUpdated", (incoming: Appointment) => {
+    newSocket.on("appointmentUpdated", (incoming: Appointment) => {
       setAppointments((prev) => {
-        if (incoming.deleted) {
-          return prev.filter((appt) => appt.id !== incoming.id);
-        }
-
-        const exists = prev.find((appt) => appt.id === incoming.id);
-
+        const exists = prev.find((a) => a.id === incoming.id);
         if (exists) {
-          return prev.map((appt) =>
-            appt.id === incoming.id ? incoming : appt
+          return prev.map((a) =>
+            a.id === incoming.id ? incoming : a
           );
         }
-
         return [incoming, ...prev];
       });
+
+      toast.success("Appointment updated");
     });
 
+    setSocket(newSocket);
+
     return () => {
-      socket.disconnect(); // ✅ correct cleanup
+      newSocket.disconnect();
     };
   }, []);
 
-  const now = new Date();
+  /* ---------------- DERIVED ---------------- */
 
-  const todayAppointments = appointments.filter((appt) => {
-    const date = new Date(appt.start);
-    return date.toDateString() === now.toDateString();
-  });
+  const now = Date.now();
 
-  const upcomingAppointments = appointments.filter(
-    (appt) => new Date(appt.start) > now
+  const normalizedAppointments = useMemo(
+    () =>
+      appointments.map((a) => ({
+        ...a,
+        normalizedStatus: a.status.toLowerCase(),
+        startTime: new Date(a.start).getTime(),
+        createdTime: a.createdAt
+          ? new Date(a.createdAt).getTime()
+          : 0,
+      })),
+    [appointments]
   );
 
-  const recentAppointments = appointments.filter(
-    (appt) => new Date(appt.start) < now
-  );
+  const upcomingAppointments = normalizedAppointments
+    .filter((a) => a.startTime > now)
+    .sort((a, b) => a.startTime - b.startTime);
 
-  const handleStatusUpdate = async (id: string, status: string) => {
+  const nextAppointment = upcomingAppointments[0];
+
+  const timeUntilNext =
+    nextAppointment?.startTime
+      ? nextAppointment.startTime - now
+      : 0;
+
+  const timeSinceCreated =
+    nextAppointment?.createdTime
+      ? now - nextAppointment.createdTime
+      : 0;
+
+  const isWithin24Hours =
+    timeUntilNext > 0 && timeUntilNext <= HOURS_24;
+
+  const canConfirm =
+    nextAppointment &&
+    isWithin24Hours &&
+    nextAppointment.normalizedStatus === "scheduled";
+
+  /* ---------------- AUTO CANCEL LOGIC ---------------- */
+
+  useEffect(() => {
+    if (!nextAppointment) return;
+
+    const shouldAutoCancel =
+      nextAppointment.normalizedStatus === "scheduled" &&
+      timeUntilNext <= HOURS_2 &&
+      timeSinceCreated >= HOURS_48;
+
+    if (shouldAutoCancel) {
+      updateStatus(nextAppointment.id, "CANCELLED");
+      toast("Appointment auto-cancelled", {
+        icon: "⚠️",
+      });
+    }
+  }, [nextAppointment]);
+
+  /* ---------------- UPDATE STATUS ---------------- */
+
+  const updateStatus = async (
+    id: string,
+    status: "CONFIRMED" | "CANCELLED"
+  ) => {
     try {
+      setUpdatingId(id);
+
       await api.put(`/appointments/${id}`, { status });
-    } catch (error) {
-      console.error("Failed to update status:", error);
+
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a.id === id ? { ...a, status } : a
+        )
+      );
+
+      toast.success(
+        status === "CONFIRMED"
+          ? "Appointment confirmed"
+          : "Appointment cancelled"
+      );
+    } catch (err) {
+      toast.error("Failed to update appointment");
+    } finally {
+      setUpdatingId(null);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="p-8 text-gray-600">
+        Loading dashboard...
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="p-8 space-y-8 bg-[#F8FAFC] min-h-screen">
 
-      {/* Greeting */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-semibold text-gray-800">
-          {greeting && `Hi ${patientName} 👋 ${greeting}`}
-        </h1>
-        {thought && (
-          <p className="text-gray-500 mt-2 italic">"{thought}"</p>
-        )}
-      </div>
+      <h1 className="text-2xl font-semibold text-[#111827]">
+        Dashboard
+      </h1>
 
-      {/* ================= STATS ================= */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <GlassCard>
-          <p className="text-sm text-gray-500">Total</p>
-          <p className="text-2xl font-semibold">
-            {appointments.length}
-          </p>
-        </GlassCard>
-
-        <GlassCard>
-          <p className="text-sm text-gray-500">Upcoming</p>
-          <p className="text-2xl font-semibold">
-            {upcomingAppointments.length}
-          </p>
-        </GlassCard>
-
-        <GlassCard>
-          <p className="text-sm text-gray-500">Completed</p>
-          <p className="text-2xl font-semibold">
-            {appointments.filter(a => a.status === "completed").length}
-          </p>
-        </GlassCard>
-
-        <GlassCard>
-          <p className="text-sm text-gray-500">Cancelled</p>
-          <p className="text-2xl font-semibold">
-            {appointments.filter(a => a.status === "cancelled").length}
-          </p>
-        </GlassCard>
-      </div>
-
-      {/* ================= NEXT APPOINTMENT ================= */}
-      {upcomingAppointments.length > 0 ? (
-        <GlassCard>
-          <h2 className="text-lg font-semibold mb-4">
-            Your Next Appointment
-          </h2>
-
-          {(() => {
-            const next = upcomingAppointments.sort(
-              (a, b) =>
-                new Date(a.start).getTime() -
-                new Date(b.start).getTime()
-            )[0];
-
-            return (
-              <div className="space-y-2">
-                <p className="text-xl font-semibold text-blue-600">
-                  {next.title}
-                </p>
-                <p className="text-gray-500">
-                  {new Date(next.start).toLocaleString()}
-                </p>
-
-                <div className="flex gap-3 mt-4">
-                  <button className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm">
-                    View Details
-                  </button>
-
-                  <button className="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-sm">
-                    Add to Calendar
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
-        </GlassCard>
-      ) : (
-        <GlassCard>
-          <p className="text-gray-500">
-            No upcoming appointments scheduled.
-          </p>
-        </GlassCard>
-      )}
-
-      {/* ================= QUICK ACTIONS ================= */}
-      <GlassCard>
-        <h2 className="text-lg font-semibold mb-4">
-          Quick Actions
+      {/* Next Appointment */}
+      <div className="bg-white border border-gray-200 rounded-md p-6">
+        <h2 className="text-base font-medium mb-4 text-[#111827]">
+          Next Appointment
         </h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <button className="bg-blue-500 text-white py-3 rounded-xl">
-            Book Appointment
-          </button>
-
-          <button className="bg-white border border-blue-100 py-3 rounded-xl">
-            Message Doctor
-          </button>
-
-          <button className="bg-white border border-blue-100 py-3 rounded-xl">
-            View Records
-          </button>
-        </div>
-      </GlassCard>
-
-      {/* ================= RECENT ACTIVITY ================= */}
-      {recentAppointments.length > 0 && (
-        <GlassCard>
-          <h2 className="text-lg font-semibold mb-4">
-            Recent Activity
-          </h2>
-
-          {recentAppointments.slice(0, 3).map((appt) => (
-            <div
-              key={appt.id}
-              className="border-b border-gray-100 py-3 last:border-none"
-            >
-              <p className="font-medium">{appt.title}</p>
-              <p className="text-sm text-gray-500">
-                {new Date(appt.start).toLocaleString()}
+        {!nextAppointment ? (
+          <p className="text-gray-500">
+            No upcoming appointments.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="bg-[#EFF6FF] border border-[#DBEAFE] rounded-md p-4">
+              <p className="text-sm font-medium text-[#2563EB]">
+                {nextAppointment.title}
+              </p>
+              <p className="text-xs text-gray-600 mt-1">
+                {new Date(
+                  nextAppointment.startTime
+                ).toLocaleString()}
+              </p>
+              <p className="text-xs capitalize mt-1">
+                Status:{" "}
+                {nextAppointment.normalizedStatus}
               </p>
             </div>
-          ))}
-        </GlassCard>
-      )}
+
+            {canConfirm && (
+              <div className="flex gap-3">
+                <button
+                  disabled={updatingId === nextAppointment.id}
+                  onClick={() =>
+                    updateStatus(
+                      nextAppointment.id,
+                      "CONFIRMED"
+                    )
+                  }
+                  className="px-4 py-2 bg-[#2563EB] text-white text-sm rounded-md hover:bg-[#1D4ED8] transition disabled:opacity-50"
+                >
+                  Confirm
+                </button>
+
+                <button
+                  disabled={updatingId === nextAppointment.id}
+                  onClick={() =>
+                    updateStatus(
+                      nextAppointment.id,
+                      "CANCELLED"
+                    )
+                  }
+                  className="px-4 py-2 border border-red-300 text-red-600 text-sm rounded-md hover:bg-red-50 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
