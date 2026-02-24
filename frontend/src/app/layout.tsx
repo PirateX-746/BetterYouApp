@@ -2,7 +2,7 @@ import "@/styles/appointments.css";
 import "@/styles/notifications.css";
 import "./globals.css";
 
-
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ThemeProvider } from "@/components/containers/layout/ThemeProvider";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -12,6 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           {children}
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
