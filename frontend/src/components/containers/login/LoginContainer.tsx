@@ -51,7 +51,7 @@ export default function LoginContainer({ role }: LoginProps) {
       localStorage.setItem("userId", data.id);
 
       router.refresh();
-      router.replace(role === "practitioner" ? "/dashboard" : "/home");
+      router.replace(role === "practitioner" ? "/dashboard" : "/patient/home");
     } catch (err: any) {
       setError(err?.message || "Invalid email or password.");
     } finally {

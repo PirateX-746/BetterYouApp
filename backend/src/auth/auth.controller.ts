@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PatientSignupDto } from './dto/patient-signup.dto';
 import { PractitionerSignupDto } from './dto/practitioner-signup.dto';
@@ -6,7 +6,7 @@ import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('patient/signup')
   patientSignup(@Body() dto: PatientSignupDto) {
@@ -19,7 +19,8 @@ export class AuthController {
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
+  @HttpCode(200)
+  async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
 }
