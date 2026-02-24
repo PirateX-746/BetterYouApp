@@ -397,3 +397,7 @@ a:active,
 html {
   scroll-behavior: smooth;
 }
+
+.input-style {
+  @apply w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all duration-300;
+}

@@ -2,13 +2,15 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Appointment, AppointmentDocument } from './schemas/appointment.schema';
+import { AppointmentsGateway } from './appointments.gateway';
 
 @Injectable()
 export class AppointmentsService {
   constructor(
     @InjectModel(Appointment.name)
     private readonly appointmentModel: Model<AppointmentDocument>,
-  ) { }
+    private readonly gateway: AppointmentsGateway,
+  ) {}
 
   /* =====================================================
      BASIC VALIDATIONS
@@ -18,19 +20,17 @@ export class AppointmentsService {
     const startDate = new Date(start);
     const now = new Date();
 
-    // ❌ Past booking
     if (startDate < now) {
       throw new BadRequestException('Cannot book appointment in the past');
     }
 
-    // ❌ Sunday booking
     if (startDate.getDay() === 0) {
       throw new BadRequestException('Appointments are not allowed on Sunday');
     }
   }
 
   /* =====================================================
-     OVERLAP VALIDATION (CORE LOGIC)
+     OVERLAP VALIDATION
      ===================================================== */
 
   private async ensureNoOverlap(
@@ -45,7 +45,6 @@ export class AppointmentsService {
       end: { $gt: new Date(start) },
     };
 
-    // Exclude current appointment during update
     if (excludeId) {
       query._id = { $ne: new Types.ObjectId(excludeId) };
     }
@@ -60,7 +59,7 @@ export class AppointmentsService {
   }
 
   /* =====================================================
-     CREATE APPOINTMENT
+     CREATE APPOINTMENT (REAL-TIME ENABLED)
      ===================================================== */
 
   async create(data: any) {
@@ -68,11 +67,18 @@ export class AppointmentsService {
 
     await this.ensureNoOverlap(data.practitionerId, data.start, data.end);
 
-    return this.appointmentModel.create({
+    const appointment = await this.appointmentModel.create({
       ...data,
       practitionerId: new Types.ObjectId(data.practitionerId),
       patientId: new Types.ObjectId(data.patientId),
     });
+
+    const formatted = this.formatAppointment(appointment);
+
+    // 🔥 Emit real-time event to patient
+    this.gateway.emitAppointmentUpdate(formatted.patientId, formatted);
+
+    return formatted;
   }
 
   /* =====================================================
@@ -87,48 +93,12 @@ export class AppointmentsService {
       .sort({ start: 1 })
       .exec();
 
-    return appointments.map((a) => ({
-      _id: a._id.toString(),
-      title: a.title,
-      start: a.start,
-      end: a.end,
-      patientId: a.patientId?.toString(),
-      notes: a.notes,
-      status: a.status,
-    }));
+    return appointments.map(this.formatAppointment);
   }
 
   /* =====================================================
-     UPDATE APPOINTMENT
+     FETCH BY PATIENT
      ===================================================== */
-
-  async updateById(id: string, data: any) {
-    this.validateAppointmentDate(data.start);
-
-    await this.ensureNoOverlap(
-      data.practitionerId,
-      data.start,
-      data.end,
-      id, // exclude current appointment
-    );
-
-    // 🚫 patientId & practitionerId are NOT editable
-    const { patientId, practitionerId, ...updatableData } = data;
-
-    return this.appointmentModel.findByIdAndUpdate(
-      new Types.ObjectId(id),
-      updatableData,
-      { new: true },
-    );
-  }
-
-  /* =====================================================
-     DELETE APPOINTMENT
-     ===================================================== */
-
-  async deleteById(id: string) {
-    return this.appointmentModel.findByIdAndDelete(new Types.ObjectId(id));
-  }
 
   async findByPatient(patientId: string) {
     const patientObjectId = new Types.ObjectId(patientId);
@@ -138,14 +108,70 @@ export class AppointmentsService {
       .sort({ start: -1 })
       .exec();
 
-    return appointments.map((a) => ({
-      _id: a._id.toString(),
-      title: a.title,
-      start: a.start,
-      end: a.end,
-      practitionerId: a.practitionerId?.toString(),
-      notes: a.notes,
-      status: a.status,
-    }));
+    return appointments.map(this.formatAppointment);
   }
+
+  /* =====================================================
+     UPDATE APPOINTMENT (REAL-TIME ENABLED)
+     ===================================================== */
+
+  async updateById(id: string, data: any) {
+    this.validateAppointmentDate(data.start);
+
+    await this.ensureNoOverlap(data.practitionerId, data.start, data.end, id);
+
+    const { patientId, practitionerId, ...updatableData } = data;
+
+    const updated = await this.appointmentModel.findByIdAndUpdate(
+      new Types.ObjectId(id),
+      updatableData,
+      { new: true },
+    );
+
+    if (!updated) return null;
+
+    const formatted = this.formatAppointment(updated);
+
+    // 🔥 Emit update event
+    this.gateway.emitAppointmentUpdate(formatted.patientId, formatted);
+
+    return formatted;
+  }
+
+  /* =====================================================
+     DELETE APPOINTMENT (REAL-TIME ENABLED)
+     ===================================================== */
+
+  async deleteById(id: string) {
+    const deleted = await this.appointmentModel.findByIdAndDelete(
+      new Types.ObjectId(id),
+    );
+
+    if (!deleted) return null;
+
+    const formatted = this.formatAppointment(deleted);
+
+    // 🔥 Emit delete event
+    this.gateway.emitAppointmentUpdate(formatted.patientId, {
+      ...formatted,
+      deleted: true,
+    });
+
+    return formatted;
+  }
+
+  /* =====================================================
+     HELPER: FORMAT APPOINTMENT
+     ===================================================== */
+
+  private formatAppointment = (a: AppointmentDocument) => ({
+    id: a._id.toString(),
+    title: a.title,
+    start: a.start,
+    end: a.end,
+    practitionerId: a.practitionerId?.toString(),
+    patientId: a.patientId?.toString(),
+    notes: a.notes,
+    status: a.status,
+  });
 }
