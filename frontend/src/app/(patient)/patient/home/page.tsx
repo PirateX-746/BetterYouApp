@@ -51,7 +51,7 @@ export default function HomePage() {
     fetchAppointments();
 
     // WebSocket connection
-    const newSocket = io("http://localhost:3001", {
+    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001", {
       query: { patientId: userId },
     });
 

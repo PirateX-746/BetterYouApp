@@ -53,7 +53,7 @@ export default function AppointmentsPage() {
 
         fetchAppointments();
 
-        const socket: Socket = io("http://localhost:3001", {
+        const socket: Socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001", {
             query: { patientId: userId },
         });
 
