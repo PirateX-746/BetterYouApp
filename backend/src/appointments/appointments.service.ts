@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Appointment, AppointmentDocument } from './schemas/appointment.schema';
 import { AppointmentsGateway } from './appointments.gateway';
+import { AvailabilityService } from '../availability/availability.service';
 
 @Injectable()
 export class AppointmentsService {
@@ -10,7 +11,8 @@ export class AppointmentsService {
     @InjectModel(Appointment.name)
     private readonly appointmentModel: Model<AppointmentDocument>,
     private readonly gateway: AppointmentsGateway,
-  ) {}
+    private readonly availabilityService: AvailabilityService,
+  ) { }
 
   /* =====================================================
      BASIC VALIDATIONS
@@ -30,7 +32,7 @@ export class AppointmentsService {
   }
 
   /* =====================================================
-     OVERLAP VALIDATION
+     OVERLAP & UNAVAILABILITY VALIDATION
      ===================================================== */
 
   private async ensureNoOverlap(
@@ -39,10 +41,14 @@ export class AppointmentsService {
     end: string,
     excludeId?: string,
   ) {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    // 1. Check Appointment Overlap
     const query: any = {
       practitionerId: new Types.ObjectId(practitionerId),
-      start: { $lt: new Date(end) },
-      end: { $gt: new Date(start) },
+      start: { $lt: endDate },
+      end: { $gt: startDate },
     };
 
     if (excludeId) {
@@ -54,6 +60,37 @@ export class AppointmentsService {
     if (conflict) {
       throw new BadRequestException(
         'This time slot is already booked. Please choose another time.',
+      );
+    }
+
+    // 2. Check Practitioner Availability Exclusion
+    // The format stored for date in availability schema is YYYY-MM-DD
+    const isoDateString = startDate.toISOString().split('T')[0];
+    const requestedStartTime = startDate.toTimeString().slice(0, 5); // HH:mm
+    const requestedEndTime = endDate.toTimeString().slice(0, 5); // HH:mm
+
+    const blockedSlots = await this.availabilityService.fetchBlockedSlots(practitionerId);
+
+    // Filter local memory since "fetchBlockedSlots" grabs all blocks for a pract.
+    const isBlocked = blockedSlots.some((block) => {
+      if (block.date !== isoDateString) return false;
+
+      // Block entire day
+      if (block.blockType === 'day') return true;
+
+      // Block specific slot
+      if (block.blockType === 'slot' && block.startTime && block.endTime) {
+        // Overlapping logic: Start1 < End2 && End1 > Start2
+        // Compare HH:mm string representations lexicographically (works because of leading zeros in 24hr format)
+        return (requestedStartTime < block.endTime && requestedEndTime > block.startTime);
+      }
+
+      return false;
+    });
+
+    if (isBlocked) {
+      throw new BadRequestException(
+        'The practitioner is unavailable during this time. Please select another slot.',
       );
     }
   }
