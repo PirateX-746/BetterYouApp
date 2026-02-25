@@ -26,7 +26,7 @@ type Conversation = {
 export default function MessagesPage() {
     const [userId, setUserId] = useState<string | null>(null);
     const API = "/api";
-    const [socketUrl, setSocketUrl] = useState("http://localhost:3001");
+    const [socketUrl, setSocketUrl] = useState(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001");
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -48,10 +48,7 @@ export default function MessagesPage() {
         console.log('[Patient] userId from localStorage:', id);
         setUserId(id);
 
-        if (typeof window !== "undefined") {
-            const domain = window.location.hostname;
-            setSocketUrl(`${window.location.protocol}//${domain}:3001`);
-        }
+
     }, []);
 
     useEffect(() => {

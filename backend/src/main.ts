@@ -8,6 +8,7 @@ async function bootstrap() {
   const allowedOrigins = [
     process.env.FRONTEND_URL,
     "https://better-you-app-bay.vercel.app",
+    "http://192.168.1.41:3000",
   ];
   app.enableCors({
     origin: allowedOrigins,
