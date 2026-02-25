@@ -27,7 +27,7 @@ export default function PractitionerLayout({
           onToggle={() => setOpen(!open)}
         />
 
-        <main className="pt-16 p-6">{children}</main>
+        <main className="pt-16 p-6 overflow-y-auto overflow-x-hidden">{children}</main>
       </div>
     </>
   );

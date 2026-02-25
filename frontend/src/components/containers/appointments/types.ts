@@ -1,8 +1,10 @@
 // types.ts
 export type BlockedSlot = {
-  id: string;
-  start: string;
-  end?: string;
+  _id: string; // Mongo ID
+  practitionerId: string;
   blockType: "day" | "slot";
+  date: string; // YYYY-MM-DD
+  startTime?: string; // HH:mm
+  endTime?: string; // HH:mm
   reason?: string;
 };

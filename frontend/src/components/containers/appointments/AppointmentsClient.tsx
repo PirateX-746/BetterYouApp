@@ -180,9 +180,10 @@ export default function AppointmentsClient() {
 
       Helpers.showNotification("Appointment rescheduled", "success");
       await fetchAppointments();
-    } catch {
+    } catch (err: any) {
       info.revert(); // ⛔ restore original slot
-      Helpers.showNotification("This time slot is already booked", "error");
+      const msg = err.response?.data?.message || "Operation failed";
+      Helpers.showNotification(msg, "error");
     }
   };
 
@@ -204,7 +205,7 @@ export default function AppointmentsClient() {
   }
 
   return (
-    <div className="space-y-6 lg:space-y-8 animate-fadeInLeft max-w-7xl mx-auto">
+    <div className="space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary">

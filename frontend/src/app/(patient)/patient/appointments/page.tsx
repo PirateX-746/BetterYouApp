@@ -212,8 +212,9 @@ export default function AppointmentsPage() {
             }
 
             setModalOpen(false);
-        } catch {
-            toast.error("Operation failed");
+        } catch (err: any) {
+            const msg = err.response?.data?.message || "Operation failed";
+            toast.error(msg);
         }
     };
 

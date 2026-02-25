@@ -265,7 +265,7 @@ export default function MessagesPage() {
     /* ================= UI ================= */
 
     return (
-        <div className="h-[calc(100vh-64px)] w-full flex bg-bg-page overflow-hidden">
+        <div className="h-[calc(100vh-100px)] w-full flex bg-bg-page overflow-hidden">
             {/* LEFT PANEL */}
             <div className={`${selected ? "hidden md:flex" : "flex"} w-full md:w-1/3 lg:w-1/4 bg-bg-card border-r border-border flex-col transition-all duration-300`}>
                 <div className="p-4 border-b border-border flex justify-between items-center bg-bg-card z-10">
