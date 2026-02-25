@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { Socket } from "socket.io-client";
+import { socketUrl, createSocket } from "@/lib/socket";
 import { api } from "@/lib/api";
 import { Message, Conversation } from "@/types/chat";
 
@@ -10,7 +11,6 @@ import { Message, Conversation } from "@/types/chat";
 export default function MessagesPage() {
     const [practitionerId, setPractitionerId] = useState<string | null>(null);
     const API = "/api";
-    const [socketUrl, setSocketUrl] = useState("http://localhost:3001");
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -33,10 +33,7 @@ export default function MessagesPage() {
         setPractitionerId(id);
 
         if (typeof window !== "undefined") {
-            const hostname = window.location.hostname;
-            const url = `http://${hostname}:3001`;
-            console.log('[Practitioner] Setting socket URL to:', url);
-            setSocketUrl(url);
+            console.log('[Practitioner] Using socket URL:', socketUrl);
         }
     }, []);
 
@@ -173,9 +170,7 @@ export default function MessagesPage() {
         if (!practitionerId) return;
 
         console.log('[Practitioner] Connecting socket to:', socketUrl, 'for user:', practitionerId);
-        const s = io(socketUrl, {
-            query: { userId: practitionerId },
-        });
+        const s = createSocket({ userId: practitionerId });
 
         setSocket(s);
 

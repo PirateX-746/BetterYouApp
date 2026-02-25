@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { Socket } from "socket.io-client";
+import { createSocket, socketUrl } from "@/lib/socket";
 import { api } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Calendar } from "lucide-react";
@@ -51,13 +52,12 @@ export default function HomePage() {
 
     fetchAppointments();
 
-    const hostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
-    const socketUrl = `http://${hostname}:3001`;
+    if (typeof window !== "undefined") {
+      console.log('[Patient Home] Using socket URL:', socketUrl);
+    }
 
     // WebSocket connection
-    const newSocket = io(socketUrl, {
-      query: { patientId: userId },
-    });
+    const newSocket = createSocket({ patientId: userId });
 
     newSocket.on("appointmentUpdated", (incoming: Appointment) => {
       setAppointments((prev) => {

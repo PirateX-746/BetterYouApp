@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { Socket } from "socket.io-client";
+import { createSocket, socketUrl } from "@/lib/socket";
 import { api } from "@/lib/api";
 import toast from "react-hot-toast";
 
@@ -53,12 +54,10 @@ export default function AppointmentsPage() {
 
         fetchAppointments();
 
-        const hostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
-        const socketUrl = `http://${hostname}:3001`;
-
-        const socket: Socket = io(socketUrl, {
-            query: { patientId: userId },
-        });
+        if (typeof window !== "undefined") {
+            console.log('[Patient Appointments] Using socket URL:', socketUrl);
+        }
+        const socket: Socket = createSocket({ patientId: userId });
 
         socket.on("appointmentUpdated", (incoming: Appointment) => {
             setAppointments((prev) => {
