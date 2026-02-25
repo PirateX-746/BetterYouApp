@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
     allowedDevOrigins: [
         "localhost",
-        "192.168.1.61",
+        "192.168.1.41",
         "0.0.0.0",
     ],
     async rewrites() {

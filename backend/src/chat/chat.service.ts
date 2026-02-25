@@ -86,13 +86,20 @@ export class ChatService {
     /* ================= GET USER CONVERSATIONS ================= */
 
     async getUserConversations(userId: string) {
-        return this.conversationModel
+        console.log('[ChatService] Fetching conversations for user:', userId);
+        const conversations = await this.conversationModel
             .find({
                 $or: [{ patientId: userId }, { practitionerId: userId }],
             })
             .populate('patientId', 'firstName lastName')
             .populate('practitionerId', 'firstName lastName')
             .sort({ updatedAt: -1 });
+
+        console.log(`[ChatService] Found ${conversations.length} conversations for user: ${userId}`);
+        if (conversations.length > 0) {
+            console.log('[ChatService] Sample conversation patientId:', conversations[0].patientId);
+        }
+        return conversations;
     }
 
     /* ================= INCREMENT UNREAD ================= */

@@ -1,7 +1,5 @@
 "use client";
 
-import styles from "./Patients.module.css";
-
 type Props = {
     onClick?: () => void;
     title?: string;
@@ -10,7 +8,7 @@ type Props = {
 export default function ViewButton({ onClick, title = "View" }: Props) {
     return (
         <button
-            className={`${styles.actionBtn} ${styles.secondary}`}
+            className="flex items-center justify-center w-8 h-8 rounded-md border border-border bg-bg-light text-text-secondary hover:text-primary hover:bg-bg-hover transition-colors"
             onClick={onClick}
             title={title}
         >

@@ -1,6 +1,5 @@
 "use client";
 
-import styles from "./Patients.module.css";
 
 type Props = {
   onView?: () => void;

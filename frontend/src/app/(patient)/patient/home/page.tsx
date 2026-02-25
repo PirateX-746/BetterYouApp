@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { api } from "@/lib/api";
 import toast from "react-hot-toast";
+import { Calendar } from "lucide-react";
 
 type Appointment = {
   id: string;
@@ -50,8 +51,11 @@ export default function HomePage() {
 
     fetchAppointments();
 
+    const hostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
+    const socketUrl = `http://${hostname}:3001`;
+
     // WebSocket connection
-    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001", {
+    const newSocket = io(socketUrl, {
       query: { patientId: userId },
     });
 
@@ -166,43 +170,46 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="p-8 text-gray-600">
-        Loading dashboard...
+      <div className="flex h-full items-center justify-center text-text-secondary">
+        <p className="animate-pulse">Loading dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-8 space-y-8 bg-[#F8FAFC] min-h-screen">
+    <div className="space-y-6 lg:space-y-8 animate-fadeInLeft">
 
-      <h1 className="text-2xl font-semibold text-[#111827]">
+      <h1 className="text-2xl font-semibold text-text-primary">
         Dashboard
       </h1>
 
       {/* Next Appointment */}
-      <div className="bg-white border border-gray-200 rounded-md p-6">
-        <h2 className="text-base font-medium mb-4 text-[#111827]">
+      <div className="bg-bg-card border border-border shadow-sm rounded-lg p-6 transition-all hover:shadow-md">
+        <h2 className="text-lg font-medium mb-4 text-text-primary flex items-center gap-2">
           Next Appointment
         </h2>
 
         {!nextAppointment ? (
-          <p className="text-gray-500">
-            No upcoming appointments.
-          </p>
+          <div className="text-center py-6 text-text-secondary">
+            <p>No upcoming appointments.</p>
+          </div>
         ) : (
-          <div className="space-y-4">
-            <div className="bg-[#EFF6FF] border border-[#DBEAFE] rounded-md p-4">
-              <p className="text-sm font-medium text-[#2563EB]">
+          <div className="space-y-5">
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-5">
+              <p className="text-base font-semibold text-primary">
                 {nextAppointment.title}
               </p>
-              <p className="text-xs text-gray-600 mt-1">
+              <p className="text-sm text-text-secondary mt-1 flex items-center gap-2">
+                <Calendar size={14} className="opacity-70" />
                 {new Date(
                   nextAppointment.startTime
                 ).toLocaleString()}
               </p>
-              <p className="text-xs capitalize mt-1">
-                Status:{" "}
-                {nextAppointment.normalizedStatus}
+              <p className="text-sm capitalize mt-2 flex items-center gap-2">
+                <span className="font-medium text-text-primary">Status:</span>{" "}
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-success-light text-success">
+                  {nextAppointment.normalizedStatus}
+                </span>
               </p>
             </div>
 
@@ -216,7 +223,7 @@ export default function HomePage() {
                       "CONFIRMED"
                     )
                   }
-                  className="px-4 py-2 bg-[#2563EB] text-white text-sm rounded-md hover:bg-[#1D4ED8] transition disabled:opacity-50"
+                  className="flex-1 sm:flex-none px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary-hover transition shadow-sm disabled:opacity-50"
                 >
                   Confirm
                 </button>
@@ -229,7 +236,7 @@ export default function HomePage() {
                       "CANCELLED"
                     )
                   }
-                  className="px-4 py-2 border border-red-300 text-red-600 text-sm rounded-md hover:bg-red-50 transition disabled:opacity-50"
+                  className="flex-1 sm:flex-none px-5 py-2.5 border border-danger text-danger text-sm font-medium rounded-md hover:bg-danger/10 transition disabled:opacity-50"
                 >
                   Cancel
                 </button>

@@ -1,7 +1,5 @@
 "use client";
 
-import styles from "./Patients.module.css";
-
 type Props = {
     onClick?: () => void;
     title?: string;
@@ -10,7 +8,7 @@ type Props = {
 export default function DeleteButton({ onClick, title = "Delete" }: Props) {
     return (
         <button
-            className={`${styles.actionBtn} ${styles.danger}`}
+            className="flex items-center justify-center w-8 h-8 rounded-md border border-danger/20 bg-danger/10 text-danger hover:bg-danger hover:text-white transition-colors"
             onClick={onClick}
             title={title}
         >

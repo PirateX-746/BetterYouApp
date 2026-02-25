@@ -6,23 +6,11 @@ import timeGridPlugin from "@fullcalendar/timegrid/index.js";
 import dayGridPlugin from "@fullcalendar/daygrid/index.js";
 import interactionPlugin from "@fullcalendar/interaction/index.js";
 import { Helpers } from "@/utils/helpers";
+import { api } from "@/lib/api";
+import { CalendarEvent } from "@/types/appointment";
 import AddAppointmentDialog from "./AddAppointmentDialog";
 import { Button } from "@/components/ui/button";
 import ManageAvailabilityDialog from "./ManageAvailabilityDialog";
-
-/* =====================================================
-   TYPES
-   ===================================================== */
-
-export type CalendarEvent = {
-  id: string;
-  title: string;
-  start: string;
-  end: string;
-  patientId: string;
-  notes?: string;
-  status?: string;
-};
 
 /* =====================================================
    COMPONENT
@@ -65,21 +53,8 @@ export default function AppointmentsClient() {
     if (!practitionerId) return;
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/appointments/practitioner/${practitionerId}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch appointments");
-      }
-
-      const data = await res.json();
+      const res = await api.get(`/appointments/practitioner/${practitionerId}`);
+      const data = res.data;
 
       if (!Array.isArray(data)) {
         setEvents([]);
@@ -150,23 +125,10 @@ export default function AppointmentsClient() {
   const handleSave = async (payload: any, id?: string) => {
     if (!practitionerId) return;
 
-    const url = id
-      ? `${process.env.NEXT_PUBLIC_API_URL}/appointments/${id}`
-      : `${process.env.NEXT_PUBLIC_API_URL}/appointments`;
-
     try {
-      const res = await fetch(url, {
-        method: id ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          practitionerId,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Save failed");
-      }
+      const res = id
+        ? await api.put(`/appointments/${id}`, { ...payload, practitionerId })
+        : await api.post(`/appointments`, { ...payload, practitionerId });
 
       Helpers.showNotification(
         id
@@ -187,13 +149,7 @@ export default function AppointmentsClient() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/appointments/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) {
-        throw new Error("Delete failed");
-      }
+      await api.delete(`/appointments/${id}`);
 
       Helpers.showNotification("Appointment deleted successfully", "success");
       await fetchAppointments();
@@ -212,26 +168,15 @@ export default function AppointmentsClient() {
     const event = info.event;
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/appointments/${event.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: event.title,
-            start: event.start.toISOString(),
-            end: event.end
-              ? event.end.toISOString()
-              : event.start.toISOString(),
-            notes: event.extendedProps.notes,
-            practitionerId,
-          }),
-        },
-      );
-
-      if (!res.ok) {
-        throw new Error("Overlap or invalid update");
-      }
+      await api.put(`/appointments/${event.id}`, {
+        title: event.title,
+        start: event.start.toISOString(),
+        end: event.end
+          ? event.end.toISOString()
+          : event.start.toISOString(),
+        notes: event.extendedProps.notes,
+        practitionerId,
+      });
 
       Helpers.showNotification("Appointment rescheduled", "success");
       await fetchAppointments();
@@ -259,24 +204,24 @@ export default function AppointmentsClient() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 lg:space-y-8 animate-fadeInLeft max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary">
             Appointments
           </h1>
-          <p className="text-text-secondary py-1">
+          <p className="text-text-secondary mt-1 text-sm">
             Available: 10:00 AM - 6:00 PM | Click on calendar to schedule
           </p>
         </div>
 
         {/* 👇 THIS IS WHERE THE BUTTON GOES */}
-        <Button variant="secondary" onClick={() => setAvailabilityOpen(true)}>
+        <Button variant="secondary" onClick={() => setAvailabilityOpen(true)} className="w-full sm:w-auto bg-primary/10 text-primary hover:bg-primary/20 border-0">
           Manage Availability
         </Button>
       </div>
 
-      <div className="bg-[var(--bg-card)] p-6 border border-[var(--border-light)]">
+      <div className="bg-bg-card p-4 sm:p-6 lg:p-8 rounded-xl border border-border shadow-sm overflow-hidden">
         <FullCalendar
           plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"

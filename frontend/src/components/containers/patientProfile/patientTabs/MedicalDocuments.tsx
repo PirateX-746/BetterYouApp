@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { DOCUMENT_TYPES } from "@/lib/documentTypes";
+import { api } from "@/lib/api";
 
 /* ========================================
    TYPES
@@ -104,17 +105,8 @@ export default function MedicalDocuments({ patientId }: Props) {
     useEffect(() => {
         async function fetchPatient() {
             try {
-                const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/patients/${patientId}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${localStorage.getItem("token")}`
-                        }
-                    }
-                );
-                if (!res.ok) throw new Error("Failed to fetch patient");
-                const data = await res.json();
-                setPatient(data);
+                const res = await api.get(`/patients/${patientId}`);
+                setPatient(res.data);
             } catch (error) {
                 console.error(error);
             }
@@ -130,17 +122,8 @@ export default function MedicalDocuments({ patientId }: Props) {
     useEffect(() => {
         async function fetchDocuments() {
             try {
-                const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/documents/patient/${patientId}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${localStorage.getItem("token")}`
-                        }
-                    }
-                );
-                if (!res.ok) throw new Error("Failed to fetch documents");
-                const data = await res.json();
-                setDocuments(data);
+                const res = await api.get(`/documents/patient/${patientId}`);
+                setDocuments(res.data);
             } catch (error) {
                 console.error(error);
             } finally {
@@ -153,17 +136,8 @@ export default function MedicalDocuments({ patientId }: Props) {
 
     const openDocument = async (id: string) => {
         try {
-            const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/documents/${id}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem("token")}`
-                    }
-                }
-            );
-            if (!res.ok) throw new Error("Failed to fetch document");
-            const data = await res.json();
-            setSelectedDoc(data);
+            const res = await api.get(`/documents/${id}`);
+            setSelectedDoc(res.data);
         } catch (error) {
             console.error(error);
         }

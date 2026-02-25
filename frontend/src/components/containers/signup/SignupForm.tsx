@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
 
 export default function PatientSignup() {
     const router = useRouter();
@@ -64,25 +65,13 @@ export default function PatientSignup() {
                 healthCondition: formData.healthCondition || undefined,
             };
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/patients`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.message || "Signup failed");
-            }
+            await api.post(`/patients`, payload);
 
             // Success → redirect
-            router.push(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`);
+            router.push(`/patientLogin`);
 
         } catch (err: any) {
-            setError(err.message || "Something went wrong.");
+            setError(err.response?.data?.message || err.message || "Something went wrong.");
         } finally {
             setLoading(false);
         }
@@ -136,7 +125,7 @@ export default function PatientSignup() {
                             required
                             disabled={loading}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                            className={`input-style ${theme.focus}`}
                         />
                         <input
                             name="lastName"
@@ -144,7 +133,7 @@ export default function PatientSignup() {
                             required
                             disabled={loading}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                            className={`input-style ${theme.focus}`}
                         />
                     </div>
 
@@ -156,7 +145,7 @@ export default function PatientSignup() {
                             required
                             disabled={loading}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                            className={`input-style ${theme.focus}`}
                         />
 
                         <select
@@ -164,7 +153,7 @@ export default function PatientSignup() {
                             required
                             disabled={loading}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                            className={`input-style ${theme.focus}`}
                         >
                             <option value="">Select Gender</option>
                             <option>Male</option>
@@ -182,7 +171,7 @@ export default function PatientSignup() {
                             required
                             disabled={loading}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                            className={`input-style ${theme.focus}`}
                         />
 
                         <input
@@ -191,7 +180,7 @@ export default function PatientSignup() {
                             required
                             disabled={loading}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                            className={`input-style ${theme.focus}`}
                         />
                     </div>
 
@@ -202,7 +191,7 @@ export default function PatientSignup() {
                             required
                             disabled={loading}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                            className={`input-style ${theme.focus}`}
                         >
                             <option value="">Blood Group</option>
                             <option>A+</option>
@@ -220,7 +209,7 @@ export default function PatientSignup() {
                             placeholder="Allergies (Optional)"
                             disabled={loading}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                            className={`input-style ${theme.focus}`}
                         />
                     </div>
 
@@ -229,7 +218,7 @@ export default function PatientSignup() {
                         placeholder="Health Condition (Optional)"
                         disabled={loading}
                         onChange={handleChange}
-                        className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                        className={`input-style ${theme.focus}`}
                     />
 
                     {/* Password */}
@@ -241,7 +230,7 @@ export default function PatientSignup() {
                             required
                             disabled={loading}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                            className={`input-style ${theme.focus}`}
                         />
                         <input
                             type="password"
@@ -250,7 +239,7 @@ export default function PatientSignup() {
                             required
                             disabled={loading}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 rounded-xl bg-white/80 border border-gray-200 ${theme.focus} focus:ring-2 outline-none transition`}
+                            className={`input-style ${theme.focus}`}
                         />
                     </div>
 

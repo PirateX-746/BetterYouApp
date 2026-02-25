@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarEvent } from "./AppointmentsClient";
+import { CalendarEvent } from "@/types/appointment";
 import { api } from "@/lib/api";
 
 type Patient = {
