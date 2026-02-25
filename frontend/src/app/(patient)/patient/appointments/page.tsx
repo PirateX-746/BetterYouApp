@@ -53,7 +53,10 @@ export default function AppointmentsPage() {
 
         fetchAppointments();
 
-        const socket: Socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001", {
+        const hostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
+        const socketUrl = `http://${hostname}:3001`;
+
+        const socket: Socket = io(socketUrl, {
             query: { patientId: userId },
         });
 
@@ -221,16 +224,16 @@ export default function AppointmentsPage() {
     }
 
     return (
-        <div className="p-8 space-y-8 bg-[#F8FAFC] min-h-screen">
+        <div className="space-y-8 animate-fadeInLeft">
 
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-semibold">
+            <div className="flex justify-between items-center bg-bg-card p-6 rounded-lg border border-border">
+                <h1 className="text-2xl font-semibold text-text-primary">
                     Appointments
                 </h1>
 
                 <button
                     onClick={openNewModal}
-                    className="px-4 py-2 bg-[#2563EB] text-white rounded-md text-sm hover:bg-[#1D4ED8]"
+                    className="btn btn-primary"
                 >
                     + New Appointment
                 </button>

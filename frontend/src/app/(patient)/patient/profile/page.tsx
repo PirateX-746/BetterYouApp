@@ -44,8 +44,8 @@ export default function PatientProfile() {
   if (loading) return <SkeletonLoader />;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto bg-white border rounded-2xl p-8">
+    <div className="animate-fadeInLeft">
+      <div className="max-w-4xl mx-auto bg-bg-card border border-border shadow-sm rounded-2xl p-8">
 
         {/* Header */}
         <div className="flex items-start justify-between border-b pb-6">
@@ -56,7 +56,7 @@ export default function PatientProfile() {
             >
               <img
                 src={avatarPreview}
-                className="w-24 h-24 rounded-full object-cover border"
+                className="w-24 h-24 rounded-full object-cover border border-border"
               />
               {editMode && (
                 <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center text-white">
@@ -80,23 +80,23 @@ export default function PatientProfile() {
                     onChange={(e) =>
                       handleChange("firstName", e.target.value)
                     }
-                    className="border-b text-xl font-semibold outline-none"
+                    className="border-b border-border text-xl font-semibold outline-none bg-transparent"
                   />
                   <input
                     value={patient.lastName}
                     onChange={(e) =>
                       handleChange("lastName", e.target.value)
                     }
-                    className="border-b text-xl font-semibold outline-none"
+                    className="border-b border-border text-xl font-semibold outline-none bg-transparent"
                   />
                 </div>
               ) : (
-                <h1 className="text-2xl font-semibold text-gray-800">
+                <h1 className="text-2xl font-semibold text-text-primary">
                   {patient.firstName} {patient.lastName}
                 </h1>
               )}
 
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-text-secondary mt-1">
                 Last Visit: {patient.lastVisit}
               </p>
             </div>
@@ -104,7 +104,7 @@ export default function PatientProfile() {
 
           <button
             onClick={() => setEditMode(!editMode)}
-            className="flex items-center gap-2 text-sm border px-4 py-2 rounded-lg hover:bg-gray-100 transition"
+            className="flex items-center gap-2 text-sm border border-border px-4 py-2 rounded-lg hover:bg-bg-hover transition text-text-primary"
           >
             {editMode ? <Save size={16} /> : <Edit3 size={16} />}
             {editMode ? "Save" : "Edit"}
@@ -112,14 +112,14 @@ export default function PatientProfile() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-6 mt-6 border-b text-sm">
+        <div className="flex gap-6 mt-6 border-b border-border text-sm">
           {["overview", "appointments", "prescriptions"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`pb-3 capitalize transition ${activeTab === tab
-                  ? "border-b-2 border-gray-900 text-gray-900 font-medium"
-                  : "text-gray-500"
+                ? "border-b-2 border-primary text-text-primary font-medium"
+                : "text-text-secondary hover:text-text-primary"
                 }`}
             >
               {tab}
@@ -168,7 +168,7 @@ export default function PatientProfile() {
 
           {activeTab === "appointments" && <Timeline />}
           {activeTab === "prescriptions" && (
-            <p className="text-gray-500 text-sm">
+            <p className="text-text-secondary text-sm">
               No prescriptions available.
             </p>
           )}
@@ -182,16 +182,16 @@ export default function PatientProfile() {
 
 function EditableField({ label, value, editMode, onChange }: any) {
   return (
-    <div className="border rounded-xl p-4">
-      <p className="text-xs text-gray-500">{label}</p>
+    <div className="border border-border rounded-xl p-4 bg-bg-light">
+      <p className="text-xs text-text-secondary">{label}</p>
       {editMode ? (
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="mt-1 w-full border-b outline-none font-medium"
+          className="mt-1 w-full border-b border-border outline-none font-medium bg-transparent"
         />
       ) : (
-        <p className="mt-1 font-medium text-gray-800">{value}</p>
+        <p className="mt-1 font-medium text-text-primary">{value}</p>
       )}
     </div>
   );
@@ -207,9 +207,9 @@ function Timeline() {
   return (
     <div className="space-y-4">
       {visits.map((visit, index) => (
-        <div key={index} className="border-l-2 pl-4">
-          <p className="font-medium text-gray-800">{visit.note}</p>
-          <p className="text-xs text-gray-500">{visit.date}</p>
+        <div key={index} className="border-l-2 border-border pl-4">
+          <p className="font-medium text-text-primary">{visit.note}</p>
+          <p className="text-xs text-text-secondary">{visit.date}</p>
         </div>
       ))}
     </div>
@@ -218,10 +218,10 @@ function Timeline() {
 
 function SkeletonLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="flex items-center justify-center p-8">
       <div className="animate-pulse space-y-4">
-        <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto"></div>
-        <div className="h-5 bg-gray-200 rounded w-40 mx-auto"></div>
+        <div className="w-24 h-24 bg-bg-light border border-border rounded-full mx-auto"></div>
+        <div className="h-5 bg-bg-light border border-border rounded w-40 mx-auto"></div>
       </div>
     </div>
   );

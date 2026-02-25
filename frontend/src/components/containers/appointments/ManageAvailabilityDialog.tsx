@@ -16,6 +16,7 @@ import {
   SelectValue,
   SelectContent,
 } from "@/components/ui/select";
+import { api } from "@/lib/api";
 import { Helpers } from "@/utils/helpers";
 import { BlockedSlot } from "./types";
 
@@ -46,17 +47,8 @@ export default function ManageAvailabilityDialog({
 
   const fetchBlockedSlots = async () => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/availability/${practitionerId}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      const data = await res.json();
-      setBlockedSlots(data);
+      const res = await api.get(`/availability/${practitionerId}`);
+      setBlockedSlots(res.data);
     } catch {
       Helpers.showNotification("Failed to load blocked slots", "error");
     }
@@ -84,20 +76,14 @@ export default function ManageAvailabilityDialog({
     setLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/availability`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          practitionerId,
-          blockType,
-          date,
-          startTime: blockType === "slot" ? startTime : null,
-          endTime: blockType === "slot" ? endTime : null,
-          reason,
-        }),
+      await api.post(`/availability`, {
+        practitionerId,
+        blockType,
+        date,
+        startTime: blockType === "slot" ? startTime : null,
+        endTime: blockType === "slot" ? endTime : null,
+        reason,
       });
-
-      if (!res.ok) throw new Error();
 
       Helpers.showNotification("Slot blocked successfully", "success");
       setDate("");
@@ -122,9 +108,7 @@ export default function ManageAvailabilityDialog({
     if (!confirm("Remove this blocked slot?")) return;
 
     try {
-      await fetch(`/api/availability/${id}`, {
-        method: "DELETE",
-      });
+      await api.delete(`/availability/${id}`);
 
       Helpers.showNotification("Blocked slot removed", "success");
       await fetchBlockedSlots();

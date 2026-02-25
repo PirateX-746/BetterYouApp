@@ -22,7 +22,7 @@ export default function MobileBottomNav() {
     ];
 
     return (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 flex justify-around items-center z-50">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-bg-card border-t border-border h-16 flex justify-around items-center z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
 
             {navItems.map((item, index) => {
                 const Icon = item.icon;
@@ -36,15 +36,15 @@ export default function MobileBottomNav() {
                     >
                         <Icon
                             size={22}
-                            className={`transition ${active
-                                    ? "text-[#2563EB]"
-                                    : "text-gray-400"
+                            className={`transition-colors duration-200 ${active
+                                ? "text-primary"
+                                : "text-text-disabled"
                                 }`}
                         />
 
                         {/* Active Indicator */}
                         {active && (
-                            <div className="w-1 h-1 bg-[#2563EB] rounded-full mt-1"></div>
+                            <div className="absolute -bottom-1 w-1 h-1 bg-primary rounded-full mt-1"></div>
                         )}
                     </Link>
                 );

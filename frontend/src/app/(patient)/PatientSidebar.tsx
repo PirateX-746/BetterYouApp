@@ -23,11 +23,11 @@ export default function PatientSidebar() {
     ];
 
     return (
-        <div className="w-64 h-screen bg-white border-r border-gray-200 p-6 flex flex-col justify-between">
+        <div className="w-64 h-screen bg-bg-card border-r border-border p-6 flex flex-col justify-between hidden md:flex">
 
             <div>
-                <h1 className="text-lg font-semibold text-[#111827] mb-8">
-                    Better<span className="text-[#2563EB]">You</span>
+                <h1 className="text-lg font-semibold text-text-primary mb-8 flex items-center gap-2">
+                    <span className="text-primary">Better</span>You
                 </h1>
 
                 <nav className="space-y-2">
@@ -40,8 +40,8 @@ export default function PatientSidebar() {
                                 key={item.name}
                                 href={item.href}
                                 className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition ${active
-                                        ? "bg-[#EFF6FF] text-[#2563EB] font-medium"
-                                        : "text-gray-600 hover:bg-gray-100"
+                                    ? "bg-primary text-white font-medium shadow-sm"
+                                    : "text-text-secondary hover:bg-bg-hover"
                                     }`}
                             >
                                 <Icon size={18} />
@@ -52,7 +52,7 @@ export default function PatientSidebar() {
                 </nav>
             </div>
 
-            <button className="flex items-center gap-3 px-3 py-2 text-sm text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-md transition">
+            <button className="flex items-center gap-3 px-3 py-2 text-sm text-text-secondary hover:bg-danger/10 hover:text-danger rounded-md transition">
                 <LogOut size={18} />
                 Logout
             </button>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import GoBackButton from "@/components/common/goBackButton/GoBackButton";
+import { api } from "@/lib/api";
 
 /* ================= TYPES ================= */
 
@@ -66,9 +67,8 @@ export default function InitialEvaluationForm({ patientId }: Props) {
     useEffect(() => {
         if (!patientId) return;
 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/patients/${patientId}`)
-            .then((res) => res.json())
-            .then(setPatient)
+        api.get(`/patients/${patientId}`)
+            .then((res) => setPatient(res.data))
             .catch(() => setPatient(null))
             .finally(() => setLoading(false));
     }, [patientId]);

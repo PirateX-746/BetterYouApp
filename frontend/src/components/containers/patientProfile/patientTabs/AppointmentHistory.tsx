@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import PatientStyle from "@/components/containers/patients/Patients.module.css";
 import ViewButton from "@/components/containers/patients/ViewButton";
 import EditButton from "@/components/containers/patients/EditButton";
 import DeleteButton from "@/components/containers/patients/DeleteButton";
@@ -135,9 +134,9 @@ export default function AppointmentHistory({ patientId }: { patientId: string })
     }
 
     return (
-        <div className={PatientStyle.patientsContainer}>
-            <div className={PatientStyle.pageHeaderActions}>
-                <div className={PatientStyle.pageHeaderLeft}>
+        <div className="space-y-6 animate-fadeInLeft">
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                <div>
                     <h1 className="text-2xl font-semibold text-text-primary">
                         Patients
                     </h1>
@@ -146,17 +145,17 @@ export default function AppointmentHistory({ patientId }: { patientId: string })
                     </p>
                 </div>
 
-                <div className={`${PatientStyle.pageHeaderRight} p-6`}>
+                <div className="flex gap-4 p-6">
                     <input
                         type="text"
-                        className={`${PatientStyle.searchInput} p-2`}
+                        className="input-style p-2"
                         placeholder="Search patients..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
 
                     <button
-                        className={PatientStyle.addPatientBtn}
+                        className="btn btn-primary whitespace-nowrap"
                         onClick={() => setOpen(true)}
                     >
                         + Add Patient
@@ -164,36 +163,36 @@ export default function AppointmentHistory({ patientId }: { patientId: string })
                 </div>
             </div>
 
-            <div style={{ position: "relative" }}>
-                <div className={PatientStyle.scrollIndicator}>
+            <div className="relative">
+                <div className="text-xs text-text-secondary mb-2 block md:hidden">
                     ← Scroll to see more →
                 </div>
 
-                <div className={PatientStyle.tableWrapper}>
-                    <table className={PatientStyle.dataTable}>
-                        <thead>
+                <div className="overflow-x-auto bg-bg-card border border-border rounded-xl shadow-sm">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="bg-bg-light border-b border-border text-text-secondary font-medium">
                             <tr>
-                                <th>Patient Name</th>
-                                <th>Age</th>
-                                <th>Gender</th>
-                                <th>Phone</th>
-                                <th>Email</th>
-                                <th>Last Visit</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th className="px-6 py-4">Patient Name</th>
+                                <th className="px-6 py-4">Age</th>
+                                <th className="px-6 py-4">Gender</th>
+                                <th className="px-6 py-4">Phone</th>
+                                <th className="px-6 py-4">Email</th>
+                                <th className="px-6 py-4">Last Visit</th>
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4">Actions</th>
                             </tr>
                         </thead>
 
-                        <tbody>
+                        <tbody className="divide-y divide-border">
                             {filteredPatients.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8}>
-                                        <div className="empty-state">
-                                            <div className="empty-state-icon">👥</div>
-                                            <div className="empty-state-title">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-text-secondary">
+                                        <div className="flex flex-col items-center justify-center gap-2">
+                                            <div className="text-4xl mb-2">👥</div>
+                                            <div className="text-lg font-medium text-text-primary">
                                                 No Patients Found
                                             </div>
-                                            <div className="empty-state-description">
+                                            <div className="text-sm">
                                                 Start by adding your first patient
                                             </div>
                                         </div>
@@ -201,46 +200,36 @@ export default function AppointmentHistory({ patientId }: { patientId: string })
                                 </tr>
                             ) : (
                                 filteredPatients.map((p) => (
-                                    <tr key={p._id}>
-                                        <td>
-                                            <div
-                                                style={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: 12,
-                                                }}
-                                            >
+                                    <tr key={p._id} className="hover:bg-bg-hover transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
                                                 {p.avatar ? (
                                                     <img
                                                         src={p.avatar}
                                                         alt={p.displayName}
-                                                        className={PatientStyle.tableAvatar}
+                                                        className="w-10 h-10 rounded-full object-cover border border-border"
                                                         onError={(e) => {
                                                             e.currentTarget.style.display = "none";
                                                         }}
                                                     />
                                                 ) : (
-                                                    <div
-                                                        className={
-                                                            PatientStyle.tableAvatarFallback
-                                                        }
-                                                    >
+                                                    <div className="w-10 h-10 rounded-full bg-primary-light text-primary flex items-center justify-center">
                                                         <User size={18} strokeWidth={2} />
                                                     </div>
                                                 )}
 
-                                                <span>{p.displayName}</span>
+                                                <span className="font-medium text-text-primary">{p.displayName}</span>
                                             </div>
                                         </td>
 
-                                        <td>{calculateAge(p.dateOfBirth)}</td>
+                                        <td className="px-6 py-4">{calculateAge(p.dateOfBirth)}</td>
 
-                                        <td>
+                                        <td className="px-6 py-4">
                                             {p.gender ? (
                                                 <span
-                                                    className={`${PatientStyle.badge} ${p.gender.toLowerCase() === "male"
-                                                        ? PatientStyle.badgeBlue
-                                                        : PatientStyle.badgePurple
+                                                    className={`badge ${p.gender.toLowerCase() === "male"
+                                                        ? 'badge-primary'
+                                                        : 'badge-warning'
                                                         }`}
                                                 >
                                                     {p.gender.charAt(0).toUpperCase() +
@@ -251,28 +240,24 @@ export default function AppointmentHistory({ patientId }: { patientId: string })
                                             )}
                                         </td>
 
-                                        <td>{p.phoneNo ?? "—"}</td>
-                                        <td>{p.email ?? "—"}</td>
-                                        <td>{formatDate(p.lastVisit)}</td>
+                                        <td className="px-6 py-4">{p.phoneNo ?? "—"}</td>
+                                        <td className="px-6 py-4">{p.email ?? "—"}</td>
+                                        <td className="px-6 py-4">{formatDate(p.lastVisit)}</td>
 
-                                        <td>
-                                            <span
-                                                className={`${PatientStyle.badge} ${PatientStyle.badgeGreen}`}
-                                            >
+                                        <td className="px-6 py-4">
+                                            <span className="badge badge-success">
                                                 Active
                                             </span>
                                         </td>
 
-                                        <td>
-                                            <div style={{ display: "flex", gap: 8 }}>
-                                                <ViewButton
-                                                    onClick={() =>
-                                                        router.push(`/patients/${p._id}`)
-                                                    }
-                                                />
-                                                <EditButton onClick={() => { }} />
-                                                <DeleteButton onClick={() => { }} />
-                                            </div>
+                                        <td className="px-6 py-4 flex gap-2">
+                                            <ViewButton
+                                                onClick={() =>
+                                                    router.push(`/patients/${p._id}`)
+                                                }
+                                            />
+                                            <EditButton onClick={() => { }} />
+                                            <DeleteButton onClick={() => { }} />
                                         </td>
                                     </tr>
                                 ))

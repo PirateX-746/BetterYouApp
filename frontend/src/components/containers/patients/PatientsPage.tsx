@@ -1,36 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import PatientStyle from "./Patients.module.css"
 import ViewButton from "./ViewButton";
 import EditButton from "./EditButton";
 import DeleteButton from "./DeleteButton";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
 import { api } from "@/lib/api";
+import { Patient, PatientView } from "@/types/patient";
 
-
-/* ========================================
-  TYPES
-======================================== */
-
-type Patient = {
-  _id: string;
-  avatar?: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  age?: number;
-  dateOfBirth?: string;
-  gender?: "male" | "female" | "other";
-  phoneNo?: string;
-  email?: string;
-  lastVisit?: string;
-};
-
-type PatientView = Patient & {
-  displayName: string;
-};
 
 /* ========================================
   UTILS
@@ -78,7 +56,6 @@ export default function PatientsPage() {
       try {
         const res = await api.get("/patients");
 
-        console.log("Patients:", res.data);
         setPatients(
           Array.isArray(res.data) ? res.data : res.data.patients ?? []
         );
@@ -127,64 +104,64 @@ export default function PatientsPage() {
 
 
   return (
-    <div className={PatientStyle.patientsContainer}>
+    <div className="space-y-6 lg:space-y-8 animate-fadeInLeft max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className={PatientStyle.pageHeaderActions}>
-        <div className={PatientStyle.pageHeaderLeft}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
           <h1 className="text-2xl font-semibold text-text-primary">Patients</h1>
-          <p className="text-text-secondary py-1">Manage your patient records</p>
+          <p className="text-text-secondary mt-1 text-sm">Manage your patient records</p>
         </div>
 
-        <div className={`${PatientStyle.pageHeaderRight} p-6`}>
+        <div className="flex flex-col sm:flex-row gap-3">
 
           <input
             type="text"
-            className={`${PatientStyle.searchInput} p-2`}
+            className="input-style sm:w-64"
             placeholder="Search patients..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
 
 
-          <button className={PatientStyle.addPatientBtn} onClick={() => setOpen(true)}>
+          <button className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary-hover transition shadow-sm" onClick={() => setOpen(true)}>
             + Add Patient
           </button>
         </div>
       </div>
 
       {/* Scroll Indicator */}
-      <div style={{ position: "relative" }}>
-        <div className={PatientStyle.scrollIndicator}>
+      <div className="relative">
+        <div className="text-xs text-text-secondary mb-2 md:hidden text-center italic">
           ← Scroll to see more →
         </div>
 
         {/* Table */}
-        <div className={PatientStyle.tableWrapper}>
-          <table className={PatientStyle.dataTable}>
-            <thead>
+        <div className="bg-bg-card border border-border rounded-xl shadow-sm overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead className="bg-bg-light text-text-secondary text-xs uppercase tracking-wider border-b border-border">
               <tr>
-                <th>Patient Name</th>
-                <th>Age</th>
-                <th>Gender</th>
-                <th>Phone</th>
-                <th>Email</th>
-                <th>Last Visit</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th className="p-4 font-medium">Patient Name</th>
+                <th className="p-4 font-medium">Age</th>
+                <th className="p-4 font-medium">Gender</th>
+                <th className="p-4 font-medium">Phone</th>
+                <th className="p-4 font-medium">Email</th>
+                <th className="p-4 font-medium">Last Visit</th>
+                <th className="p-4 font-medium">Status</th>
+                <th className="p-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
 
-            <tbody>
+            <tbody className="divide-y divide-border">
               {filteredPatients.length === 0 ? (
 
                 <tr>
-                  <td colSpan={8}>
-                    <div className="empty-state">
-                      <div className="empty-state-icon">👥</div>
-                      <div className="empty-state-title">
+                  <td colSpan={8} className="p-8 text-center">
+                    <div className="flex flex-col items-center justify-center text-text-secondary space-y-2">
+                      <User className="h-12 w-12 text-border-light" />
+                      <div className="text-lg font-medium text-text-primary">
                         No Patients Found
                       </div>
-                      <div className="empty-state-description">
+                      <div className="text-sm">
                         Start by adding your first patient
                       </div>
                     </div>
@@ -192,68 +169,66 @@ export default function PatientsPage() {
                 </tr>
               ) : (
                 filteredPatients.map((p) => (
-                  <tr key={p._id}>
+                  <tr key={p._id} className="hover:bg-bg-hover transition-colors">
                     {/* Patient Name + Avatar */}
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
                         {p.avatar ? (
                           <img
                             src={p.avatar}
                             alt={p.displayName}
-                            className={PatientStyle.tableAvatar}
+                            className="w-10 h-10 rounded-full object-cover border border-border"
                             onError={(e) => {
                               e.currentTarget.style.display = "none";
                             }}
                           />
                         ) : (
-                          <div className={PatientStyle.tableAvatarFallback}>
+                          <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
                             <User size={18} strokeWidth={2} />
                           </div>
                         )}
 
-                        <span>{p.displayName}</span>
+                        <span className="font-medium text-text-primary">{p.displayName}</span>
                       </div>
                     </td>
 
 
-                    <td data-label="Age">
+                    <td className="p-4 text-text-secondary text-sm">
                       {calculateAge(p.dateOfBirth)}
                     </td>
 
-                    <td data-label="Gender">
+                    <td className="p-4 text-sm">
                       {p.gender ? (
                         <span
-                          className={`${PatientStyle.badge} ${p.gender.toLowerCase() === "male"
-                            ? PatientStyle.badgeBlue
-                            : PatientStyle.badgePurple
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${p.gender.toLowerCase() === "male"
+                            ? "bg-blue-light text-blue-dark"
+                            : "bg-purple-light text-purple"
                             }`}
                         >
                           {p.gender.charAt(0).toUpperCase() +
                             p.gender.slice(1)}
                         </span>
                       ) : (
-                        "—"
+                        <span className="text-text-disabled">—</span>
                       )}
                     </td>
 
-                    <td data-label="Phone">{p.phoneNo ?? "—"}</td>
+                    <td className="p-4 text-text-secondary text-sm">{p.phoneNo ?? "—"}</td>
 
-                    <td data-label="Email">{p.email ?? "—"}</td>
+                    <td className="p-4 text-text-secondary text-sm">{p.email ?? "—"}</td>
 
-                    <td data-label="Last Visit">
+                    <td className="p-4 text-text-secondary text-sm">
                       {formatDate(p.lastVisit)}
                     </td>
 
-                    <td data-label="Status">
-                      <span
-                        className={`${PatientStyle.badge} ${PatientStyle.badgeGreen}`}
-                      >
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-success-light text-success">
                         Active
                       </span>
                     </td>
 
-                    <td data-label="Actions">
-                      <div style={{ display: "flex", gap: 8 }}>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-2">
                         <ViewButton
                           onClick={() =>
                             router.push(`/patients/${p._id}`)
