@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { Socket } from "socket.io-client";
+import { socketUrl, createSocket } from "@/lib/socket";
 import { api } from "@/lib/api";
 import { Message, Conversation } from "@/types/chat";
 
@@ -11,7 +12,6 @@ import { Message, Conversation } from "@/types/chat";
 export default function MessagesPage() {
     const [userId, setUserId] = useState<string | null>(null);
     const API = "/api";
-    const [socketUrl, setSocketUrl] = useState("http://localhost:3001");
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -34,10 +34,7 @@ export default function MessagesPage() {
         setUserId(id);
 
         if (typeof window !== "undefined") {
-            const hostname = window.location.hostname;
-            const url = `http://${hostname}:3001`;
-            console.log('[Patient] Setting socket URL to:', url);
-            setSocketUrl(url);
+            console.log('[Patient] Using socket URL:', socketUrl);
         }
     }, []);
 
@@ -171,7 +168,7 @@ export default function MessagesPage() {
     useEffect(() => {
         if (!userId) return;
         console.log('[Patient] Connecting socket to:', socketUrl, 'for user:', userId);
-        const s = io(socketUrl, { query: { userId } });
+        const s = createSocket({ userId });
         setSocket(s);
 
         s.on("onlineUsers", setOnlineUsers);
