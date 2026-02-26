@@ -9,15 +9,17 @@ import { io, Socket } from "socket.io-client";
  */
 
 const getSocketUrl = (): string => {
-    if (process.env.NEXT_PUBLIC_API_URL) {
-        return process.env.NEXT_PUBLIC_API_URL;
+    if (process.env.NEXT_PUBLIC_BACKEND_URL) {
+        return process.env.NEXT_PUBLIC_BACKEND_URL;
     }
 
     // Local development fallback
     return "http://localhost:3001";
 };
+console.log("🔌 Socket connecting to:", getSocketUrl());
 
 export const socketUrl = getSocketUrl();
+console.log("🔌 Socket connecting to:", socketUrl);
 
 export const createSocket = (query?: any): Socket => {
     return io(socketUrl, {

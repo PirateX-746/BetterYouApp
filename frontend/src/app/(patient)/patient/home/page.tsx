@@ -177,7 +177,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="space-y-6 lg:space-y-8 animate-fadeInLeft">
+    <div className="space-y-6 lg:space-y-8 p-2">
 
       <h1 className="text-2xl font-semibold text-text-primary">
         Dashboard

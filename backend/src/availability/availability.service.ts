@@ -11,6 +11,9 @@ export class AvailabilityService {
     ) { }
 
     async fetchBlockedSlots(practitionerId: string) {
+        if (!practitionerId || !Types.ObjectId.isValid(practitionerId)) {
+            throw new BadRequestException('Invalid practitioner ID');
+        }
         return this.availabilityModel.find({ practitionerId: new Types.ObjectId(practitionerId) }).exec();
     }
 
@@ -19,6 +22,11 @@ export class AvailabilityService {
 
         if (!practitionerId || !blockType || !date) {
             throw new BadRequestException('PractitionerId, blockType, and date are required.');
+        }
+
+        // Validate practitioner ID is a valid ObjectId
+        if (!Types.ObjectId.isValid(practitionerId)) {
+            throw new BadRequestException('Invalid practitioner ID format.');
         }
 
         if (blockType === 'slot' && (!startTime || !endTime)) {
@@ -56,6 +64,9 @@ export class AvailabilityService {
     }
 
     async deleteBlock(blockId: string) {
+        if (!blockId || !Types.ObjectId.isValid(blockId)) {
+            throw new BadRequestException('Invalid block ID');
+        }
         const deleted = await this.availabilityModel.findByIdAndDelete(new Types.ObjectId(blockId));
         if (!deleted) {
             throw new BadRequestException('Block not found');

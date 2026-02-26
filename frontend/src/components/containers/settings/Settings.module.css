@@ -1,102 +1,135 @@
 /* ========================================
-   SETTINGS PAGE SPECIFIC STYLES
+   SETTINGS PAGE – PREMIUM DESIGN
    ======================================== */
 
 .settingsContainer {
-    max-width: 1200px;
+    max-width: 960px;
     margin: 0 auto;
 }
 
-.settingsLayout {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    gap: var(--space-2xl);
-}
-
+/* ---- Header ---- */
 .pageHeader {
-    margin-bottom: var(--space-3xl);
+    margin-bottom: 32px;
 }
 
 .pageTitle {
-    font-size: var(--font-size-lg);
-    font-weight: 600;
+    font-size: 22px;
+    font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 6px;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.4px;
 }
 
 .pageSubtitle {
-    font-size: var(--font-size-base);
+    font-size: 14px;
     color: var(--text-light);
-    font-weight: 500;
+    margin-top: 4px;
 }
 
+/* ---- Layout ---- */
+.settingsLayout {
+    display: flex;
+    gap: 28px;
+    align-items: flex-start;
+}
+
+/* ---- Sidebar ---- */
 .settingsSidebar {
+    width: 220px;
+    flex-shrink: 0;
     background: var(--bg-card);
-    border-radius: var(--radius-md);
-    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border-light);
-    height: fit-content;
+    padding: 8px;
     position: sticky;
     top: 24px;
-    padding: 10px;
 }
 
-.settingsNav {
+.settingsSidebarNav {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 
-.settingsNavItem {
+.navItem {
     display: flex;
     align-items: center;
-    gap: var(--space-md);
-    padding: var(--space-md) var(--space-lg);
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
     border: none;
     background: transparent;
-    color: var(--text-secondary);
-    font-size: var(--font-size-base);
-    font-weight: 500;
-    border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all 0.2s;
-    text-align: left;
-    width: 100%;
+    transition: all 0.15s ease;
 }
 
-.settingsNavItem:hover {
-    background: var(--bg-light);
-    color: var(--primary);
+.navItem:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
 }
 
-.settingsNavItem.active {
+.navItemActive {
     background: var(--primary-light);
     color: var(--primary);
+    font-weight: 600;
 }
 
-.settingsNavItem svg {
+.navIcon {
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
+    opacity: 0.7;
 }
 
-/* Settings Content */
-.settingsContent {
-    min-height: 500px;
+.navItemActive .navIcon {
+    opacity: 1;
 }
 
-.settingsTab {
-    display: none;
+/* ---- Content Panel ---- */
+.contentPanel {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+    width: 100%;
+    margin-bottom: 60px;
+
 }
 
-.settingsTab.active {
-    display: block;
-    animation: fadeIn 0.3s ease;
+.tabHeader {
+    padding: 24px 28px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.tabTitle {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.tabDescription {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-bottom: 20px;
+}
+
+.tabBody {
+    padding: 28px;
+    animation: fadeIn 0.25s ease;
+    justify-content: center;
 }
 
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(6px);
     }
 
     to {
@@ -105,58 +138,120 @@
     }
 }
 
-/* Settings Form */
-.settingsForm {
-    padding: var(--space-2xl);
+/* ---- Form Styles ---- */
+.formGroup {
+    margin-bottom: 20px;
 }
 
+.formLabel {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.formHint {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 4px;
+}
+
+.formInput {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    transition: border 0.2s, box-shadow 0.2s;
+}
+
+.formInput:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.formRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* ---- Buttons ---- */
 .formActions {
     display: flex;
     justify-content: flex-end;
-    gap: var(--space-md);
-    margin-top: var(--space-2xl);
-    padding-top: var(--space-2xl);
+    gap: 10px;
+    margin-top: 28px;
+    padding-top: 20px;
     border-top: 1px solid var(--border-light);
 }
 
-/* Profile Photo - Enhanced */
-.profilePhotoSection {
-    margin-bottom: 32px;
-    padding-bottom: 32px;
-    border-bottom: 1px solid var(--border-light);
-}
-
-
-.profilePhotoWrapper {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-
-.profilePhoto {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    background: var(--primary-light);
-    color: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 40px;
+.primaryButton {
+    background: var(--primary);
+    color: white;
+    padding: 10px 22px;
+    border-radius: var(--radius-md);
+    border: none;
+    font-size: 14px;
     font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
 }
 
-/* Settings List (for toggles) */
+.primaryButton:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 2px 8px rgba(91, 141, 239, 0.25);
+}
+
+.secondaryButton {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 10px 22px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.secondaryButton:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.dangerButton {
+    background: transparent;
+    color: var(--danger);
+    padding: 10px 22px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--danger);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dangerButton:hover {
+    background: var(--danger);
+    color: white;
+}
+
+/* ---- Settings List (Toggle Items) ---- */
 .settingsList {
-    padding: var(--space-2xl);
+    display: flex;
+    flex-direction: column;
 }
 
 .settingsItem {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--space-xl) 0;
+    padding: 18px 0;
     border-bottom: 1px solid var(--border-light);
 }
 
@@ -166,25 +261,27 @@
 
 .settingsItemContent {
     flex: 1;
+    margin-right: 16px;
 }
 
 .settingsItemTitle {
-    font-size: var(--font-size-base);
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .settingsItemDescription {
     font-size: 13px;
     color: var(--text-light);
+    line-height: 1.4;
 }
 
-/* Toggle Switch */
+/* ---- Toggle Switch ---- */
 .toggleSwitch {
     position: relative;
     display: inline-block;
-    width: 48px;
+    width: 44px;
     height: 24px;
     flex-shrink: 0;
 }
@@ -198,233 +295,215 @@
 .toggleSlider {
     position: absolute;
     cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--bg-light);
-    transition: 0.3s;
-    border-radius: 24px;
+    inset: 0;
+    background: var(--bg-light);
     border: 2px solid var(--border);
+    border-radius: 24px;
+    transition: 0.3s;
 }
 
-.toggleSlider:before {
-    position: absolute;
+.toggleSlider::before {
     content: "";
+    position: absolute;
     height: 16px;
     width: 16px;
     left: 2px;
     bottom: 2px;
-    background-color: white;
-    transition: 0.3s;
+    background: white;
     border-radius: 50%;
+    transition: 0.3s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .toggleSwitch input:checked+.toggleSlider {
-    background-color: var(--primary);
+    background: var(--primary);
     border-color: var(--primary);
 }
 
-.toggleSwitch input:checked+.toggleSlider:before {
-    transform: translateX(24px);
+.toggleSwitch input:checked+.toggleSlider::before {
+    transform: translateX(20px);
 }
 
 .toggleSwitch input:focus+.toggleSlider {
     box-shadow: 0 0 0 3px var(--primary-light);
 }
 
-
-.formGroup {
+/* ---- Profile Photo ---- */
+.profilePhotoSection {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-light);
 }
 
-.formLabel {
-    font-size: var(--font-size-sm);
+.profilePhoto {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-light), var(--indigo-light));
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.profilePhotoInfo h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.profilePhotoInfo p {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-bottom: 10px;
+}
+
+.uploadButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-page);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.uploadButton:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--primary);
+}
+
+/* ---- Info Card (read-only block) ---- */
+.infoCard {
+    background: var(--bg-page);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    border: 1px solid var(--border-light);
+}
+
+.infoRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.infoRow:not(:last-child) {
+    border-bottom: 1px solid var(--border-light);
+}
+
+.infoLabel {
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+.infoValue {
+    font-size: 13px;
     font-weight: 500;
     color: var(--text-primary);
 }
 
-.formInput {
-    width: 100%;
-    padding: var(--space-md);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-base);
-    background: var(--bg-card);
-    transition: border 0.2s, box-shadow 0.2s;
+/* ---- Danger Zone ---- */
+.dangerZone {
+    margin-top: 32px;
+    padding: 20px;
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-md);
+    background: rgba(239, 68, 68, 0.04);
 }
 
-.formInput:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-light);
+.dangerZoneTitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--danger);
+    margin-bottom: 4px;
 }
 
-.primaryButton {
-    background: var(--primary);
-    color: white;
-    padding: var(--space-md) var(--space-xl);
-    border-radius: var(--radius-sm);
-    border: none;
-    font-weight: 500;
-    cursor: pointer;
-    transition: 0.2s;
+.dangerZoneDescription {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-bottom: 14px;
 }
-
-.primaryButton:hover {
-    opacity: 0.9;
-}
-
-
 
 /* ========================================
-   RESPONSIVE STYLES
+   RESPONSIVE
    ======================================== */
-@media (max-width: 992px) {
+@media (max-width: 768px) {
     .settingsLayout {
-        grid-template-columns: 1fr;
-        gap: var(--space-xl);
+        flex-direction: column;
     }
 
     .settingsSidebar {
+        width: 100%;
         position: relative;
         top: 0;
     }
 
-    .settingsNav {
+    .settingsSidebarNav {
         flex-direction: row;
         overflow-x: auto;
-        gap: var(--space-sm);
-        padding-bottom: var(--space-sm);
+        gap: 4px;
+        padding-bottom: 2px;
     }
 
-    .settingsNavItem {
+    .navItem {
         white-space: nowrap;
         flex-shrink: 0;
-        padding: var(--space-sm) var(--space-md);
-        font-size: 14px;
+        padding: 8px 12px;
+        font-size: 13px;
     }
 
-    .settingsNavItem svg {
+    .navIcon {
         display: none;
     }
 
-    .settingsForm {
-        padding: var(--space-xl);
+    .tabBody {
+        padding: 20px;
     }
 
-    .settingsList {
-        padding: var(--space-xl);
-    }
-}
-
-@media (max-width: 768px) {
-    .settingsContainer {
-        padding: 0;
+    .formRow {
+        grid-template-columns: 1fr;
     }
 
-    .profilePhotoWrapper {
+    .profilePhotoSection {
         flex-direction: column;
         text-align: center;
     }
 
-    .profilePhoto {
-        width: 80px;
-        height: 80px;
-        font-size: 32px;
-    }
-
     .formActions {
         flex-direction: column-reverse;
-        gap: var(--space-sm);
     }
 
     .formActions button {
         width: 100%;
     }
-
-    .notificationContainer {
-        left: 16px;
-        right: 16px;
-        top: 16px;
-    }
-
-    .notification {
-        min-width: auto;
-        max-width: none;
-    }
-}
-
-@media (max-width: 576px) {
-    .settingsForm {
-        padding: var(--space-lg);
-    }
-
-    .settingsList {
-        padding: var(--space-lg);
-    }
-
-    .settingsItem {
-        padding: var(--space-lg) 0;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--space-md);
-    }
-
-    .settingsItemContent {
-        margin-bottom: var(--space-sm);
-    }
-
-    .profilePhotoSection {
-        margin-bottom: var(--space-xl);
-        padding-bottom: var(--space-xl);
-    }
 }
 
 /* ========================================
-   COMPACT MODE ADJUSTMENTS
-   ======================================== */
-.canvas.compactMode .settingsLayout {
-    gap: var(--space-lg);
-}
-
-.canvas.compactMode .settingsSidebar {
-    padding: var(--space-md);
-}
-
-.canvas.compact-mode .settingsNavItem {
-    padding: var(--space-sm) var(--space-md);
-    font-size: 13px;
-}
-
-.canvas.compactMode .settingsForm,
-.canvas.compactMode .settingsList {
-    padding: var(--space-lg);
-}
-
-.canvas.compactMode .settingsItem {
-    padding: var(--space-md) 0;
-}
-
-/* ========================================
-   PRINT STYLES
+   PRINT
    ======================================== */
 @media print {
 
     .settingsSidebar,
     .formActions,
-    .toggleSwitch,
-    .notificationContainer {
+    .toggleSwitch {
         display: none !important;
     }
 
     .settingsLayout {
-        grid-template-columns: 1fr;
-    }
-
-    .settingsTab {
-        display: block !important;
+        display: block;
     }
 }

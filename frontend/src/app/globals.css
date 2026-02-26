@@ -17,7 +17,6 @@
   --danger: #ef4444;
   --purple: #9333ea;
 
-
   /* ========================================
    EXTENDED BRAND COLORS
 ======================================== */
@@ -104,7 +103,6 @@
   --warning: #ffc53d;
   --danger: #ff4d4f;
 
-
   --blue-light: #1e3a8a33;
   --teal-light: #134e4a33;
   --indigo-light: #312e8133;
@@ -112,7 +110,6 @@
   --rose-light: #7f1d1d33;
   --cyan-light: #164e6333;
   --slate-light: #33415533;
-
 
   --bg-page: #0f0f0f;
   --bg-card: #1a1a1a;
@@ -132,7 +129,7 @@ a,
 [role="button"],
 .clickable {
   transition:
-    transform 0.18s cubic-bezier(.34, 1.56, .64, 1),
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 0.18s ease;
 }
 
@@ -148,7 +145,6 @@ a:active,
 =============================== */
 
 @media print {
-
   @page {
     size: A4;
     margin: 20mm 20mm 25mm 20mm;
@@ -194,11 +190,7 @@ a:active,
     grid-template-columns: 1fr !important;
     gap: 8px !important;
   }
-
 }
-
-
-
 
 .letterhead {
   margin-bottom: 30px;
@@ -290,7 +282,6 @@ a:active,
   color: #666;
   text-align: center;
 }
-
 
 @keyframes fadeInLeft {
   from {
@@ -398,6 +389,15 @@ a:active,
   @apply w-full px-4 py-3 rounded-xl bg-bg-light border border-border focus:border-primary focus:ring-2 focus:ring-primary-light outline-none transition-all duration-300 text-text-primary placeholder:text-text-disabled;
 }
 
+/* FullCalendar blocked slot styling */
+.blocked-slot {
+  background-color: #fee2e2 !important;
+  /* light red */
+  border: 1px solid rgba(239, 68, 68, 0.08) !important;
+  pointer-events: none;
+  /* prevent clicks on blocked background */
+}
+
 /* ===============================
    COMMON UI COMPONENTS
 =============================== */
@@ -452,4 +452,10 @@ a:active,
 
 .btn-lg {
   @apply px-6 py-3 text-base;
+}
+
+
+html,
+body {
+  height: 100%;
 }
