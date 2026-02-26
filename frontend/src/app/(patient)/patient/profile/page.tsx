@@ -41,11 +41,11 @@ export default function PatientProfile() {
     }
   };
 
-  if (loading) return <SkeletonLoader />;
+  // if (loading) return <SkeletonLoader />;
 
   return (
-    <div className="animate-fadeInLeft">
-      <div className="max-w-4xl mx-auto bg-bg-card border border-border shadow-sm rounded-2xl p-8">
+    <div>
+      <div className="max-w-4xl mx-auto bg-bg-card border border-border shadow-sm rounded-sm p-8">
 
         {/* Header */}
         <div className="flex items-start justify-between border-b pb-6">

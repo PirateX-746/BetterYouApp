@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import ViewButton from "./ViewButton";
 import EditButton from "./EditButton";
 import DeleteButton from "./DeleteButton";
+import AddPatientModal from "./AddPatientModal";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
 import { api } from "@/lib/api";
@@ -245,6 +246,12 @@ export default function PatientsPage() {
           </table>
         </div>
       </div>
+
+      <AddPatientModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onCreated={(p) => setPatients((prev) => [p, ...prev])}
+      />
     </div >
   );
 

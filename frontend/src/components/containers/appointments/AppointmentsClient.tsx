@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid/index.js";
 import dayGridPlugin from "@fullcalendar/daygrid/index.js";
@@ -12,26 +12,20 @@ import AddAppointmentDialog from "./AddAppointmentDialog";
 import { Button } from "@/components/ui/button";
 import ManageAvailabilityDialog from "./ManageAvailabilityDialog";
 
-/* =====================================================
-   COMPONENT
-   ===================================================== */
-
 export default function AppointmentsClient() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [blockedSlots, setBlockedSlots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [practitionerId, setPractitionerId] = useState<string | null>(null);
 
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
-
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null,
   );
 
-  /* =====================================================
-     READ PRACTITIONER ID (SAFE)
-     ===================================================== */
+  /* ================= READ PRACTITIONER ================= */
 
   useEffect(() => {
     const id = localStorage.getItem("userId");
@@ -45,25 +39,22 @@ export default function AppointmentsClient() {
     setPractitionerId(id);
   }, []);
 
-  /* =====================================================
-     FETCH APPOINTMENTS (SAFE)
-     ===================================================== */
+  /* ================= FETCH APPOINTMENTS ================= */
 
   const fetchAppointments = useCallback(async () => {
     if (!practitionerId) return;
 
     try {
       const res = await api.get(`/appointments/practitioner/${practitionerId}`);
-      const data = res.data;
 
-      if (!Array.isArray(data)) {
+      if (!Array.isArray(res.data)) {
         setEvents([]);
         return;
       }
 
       setEvents(
-        data.map((a: any) => ({
-          id: a._id,
+        res.data.map((a: any) => ({
+          id: a._id || a.id,
           title: a.title,
           start: a.start,
           end: a.end,
@@ -73,12 +64,20 @@ export default function AppointmentsClient() {
         })),
       );
     } catch (error) {
-      console.error("Fetch appointments error:", error);
-      Helpers.showNotification(
-        "Unable to load appointments. Please check server.",
-        "error",
-      );
+      console.error(error);
+      Helpers.showNotification("Failed to load appointments", "error");
       setEvents([]);
+    }
+  }, [practitionerId]);
+
+  const fetchBlockedSlots = useCallback(async () => {
+    if (!practitionerId) return;
+
+    try {
+      const res = await api.get(`/availability/${practitionerId}`);
+      setBlockedSlots(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setBlockedSlots([]);
     }
   }, [practitionerId]);
 
@@ -86,12 +85,37 @@ export default function AppointmentsClient() {
     if (!practitionerId) return;
 
     setLoading(true);
-    fetchAppointments().finally(() => setLoading(false));
-  }, [fetchAppointments, practitionerId]);
+    Promise.all([fetchAppointments(), fetchBlockedSlots()]).finally(() =>
+      setLoading(false),
+    );
+  }, [practitionerId, fetchAppointments, fetchBlockedSlots]);
 
-  /* =====================================================
-     CREATE
-     ===================================================== */
+  /* ================= CREATE ================= */
+
+  // Prevent selecting blocked slots
+  const selectAllow = (selectInfo: any) => {
+    const selStart = selectInfo.start;
+    const selEnd = selectInfo.end;
+
+    // Check if selection overlaps any blocked slot
+    for (const block of blockedSlots) {
+      if (block.blockType === "day") {
+        const isoDate = selStart.toISOString().split("T")[0];
+        if (isoDate === block.date) {
+          Helpers.showNotification("This day is completely blocked", "error");
+          return false;
+        }
+      } else if (block.blockType === "slot") {
+        const blockStart = new Date(`${block.date}T${block.startTime}`);
+        const blockEnd = new Date(`${block.date}T${block.endTime}`);
+        if (selStart < blockEnd && selEnd > blockStart) {
+          Helpers.showNotification("This time slot is blocked", "error");
+          return false;
+        }
+      }
+    }
+    return true;
+  };
 
   const handleSlotSelect = (info: any) => {
     setSelectedDate(info.start);
@@ -99,159 +123,218 @@ export default function AppointmentsClient() {
     setDialogOpen(true);
   };
 
-  /* =====================================================
-     EDIT
-     ===================================================== */
+  /* ================= EDIT ================= */
 
   const handleEventClick = (info: any) => {
+    if (String(info.event.id).startsWith("block-")) return;
+
+    const start = info.event.start;
+    const end = info.event.end ?? new Date(start.getTime() + 30 * 60000);
+
     setSelectedEvent({
       id: info.event.id,
       title: info.event.title,
-      start: info.event.start.toISOString(),
-      end: info.event.end?.toISOString() ?? info.event.start.toISOString(),
+      start: start.toISOString(),
+      end: end.toISOString(),
       patientId: info.event.extendedProps.patientId,
       notes: info.event.extendedProps.notes,
       status: info.event.extendedProps.status,
     });
 
-    setSelectedDate(info.event.start);
+    setSelectedDate(start);
     setDialogOpen(true);
   };
 
-  /* =====================================================
-     CREATE / UPDATE (DIALOG)
-     ===================================================== */
+  /* ================= SAVE ================= */
 
   const handleSave = async (payload: any, id?: string) => {
     if (!practitionerId) return;
 
     try {
-      const res = id
-        ? await api.put(`/appointments/${id}`, { ...payload, practitionerId })
-        : await api.post(`/appointments`, { ...payload, practitionerId });
+      if (id) {
+        await api.put(`/appointments/${id}`, {
+          ...payload,
+          practitionerId,
+        });
+      } else {
+        await api.post(`/appointments`, {
+          ...payload,
+          practitionerId,
+        });
+      }
 
-      Helpers.showNotification(
-        id
-          ? "Appointment updated successfully"
-          : "Appointment scheduled successfully",
-        "success",
-      );
-
+      Helpers.showNotification("Saved successfully", "success");
       await fetchAppointments();
-    } catch {
-      Helpers.showNotification("Failed to save appointment", "error");
+    } catch (err: any) {
+      Helpers.showNotification(
+        err?.response?.data?.message || "Failed to save",
+        "error",
+      );
     }
   };
 
-  /* =====================================================
-     DELETE
-     ===================================================== */
+  /* ================= DELETE ================= */
 
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/appointments/${id}`);
-
-      Helpers.showNotification("Appointment deleted successfully", "success");
-      await fetchAppointments();
-    } catch {
-      Helpers.showNotification("Failed to delete appointment", "error");
-    }
-  };
-
-  /* =====================================================
-     DRAG / RESIZE UPDATE (OVERLAP SAFE)
-     ===================================================== */
-
-  const updateEventByDrag = async (info: any) => {
-    if (!practitionerId) return;
-
-    const event = info.event;
-
-    try {
-      await api.put(`/appointments/${event.id}`, {
-        title: event.title,
-        start: event.start.toISOString(),
-        end: event.end
-          ? event.end.toISOString()
-          : event.start.toISOString(),
-        notes: event.extendedProps.notes,
-        practitionerId,
-      });
-
-      Helpers.showNotification("Appointment rescheduled", "success");
+      Helpers.showNotification("Deleted successfully", "success");
       await fetchAppointments();
     } catch (err: any) {
-      info.revert(); // ⛔ restore original slot
-      const msg = err.response?.data?.message || "Operation failed";
-      Helpers.showNotification(msg, "error");
+      Helpers.showNotification(
+        err?.response?.data?.message || "Delete failed",
+        "error",
+      );
     }
   };
 
-  /* =====================================================
-     DEBOUNCED DRAG HANDLER (STABLE)
-     ===================================================== */
+  /* ================= DRAG / RESIZE FIXED ================= */
 
-  const debouncedUpdateEventByDrag = useMemo(
-    () => Helpers.debounce(updateEventByDrag, 300),
-    [updateEventByDrag],
+  const updateEventByDrag = useCallback(
+    async (info: any) => {
+      if (!practitionerId) return;
+
+      const event = info.event;
+
+      const start: Date = event.start;
+      const end: Date = event.end ?? new Date(start.getTime() + 30 * 60000); // 🔥 FIXED
+
+      // Check if new position overlaps blocked slots
+      for (const block of blockedSlots) {
+        if (block.blockType === "day") {
+          const isoDate = start.toISOString().split("T")[0];
+          if (isoDate === block.date) {
+            info.revert();
+            Helpers.showNotification("Cannot move to blocked day", "error");
+            return;
+          }
+        } else if (block.blockType === "slot") {
+          const blockStart = new Date(`${block.date}T${block.startTime}`);
+          const blockEnd = new Date(`${block.date}T${block.endTime}`);
+          if (start < blockEnd && end > blockStart) {
+            info.revert();
+            Helpers.showNotification("Cannot move to blocked slot", "error");
+            return;
+          }
+        }
+      }
+
+      try {
+        await api.put(`/appointments/${event.id}`, {
+          title: event.title,
+          start: start.toISOString(),
+          end: end.toISOString(),
+          notes: event.extendedProps.notes,
+          practitionerId,
+        });
+
+        Helpers.showNotification("Rescheduled", "success");
+        await fetchAppointments();
+      } catch (err: any) {
+        info.revert();
+
+        Helpers.showNotification(
+          err?.response?.data?.message || "Reschedule failed",
+          "error",
+        );
+      }
+    },
+    [practitionerId, blockedSlots, fetchAppointments],
   );
 
-  /* =====================================================
-     RENDER
-     ===================================================== */
+  /* ================= RENDER ================= */
+
+  // Helper function to get color based on status
+  const getStatusColor = (status?: string): string => {
+    switch (status) {
+      case "confirmed":
+        return "#22c55e"; // green
+      case "completed":
+        return "#3b82f6"; // blue
+      case "cancelled":
+        return "#ef4444"; // red
+      case "pending":
+      default:
+        return "#f59e0b"; // amber/yellow
+    }
+  };
 
   if (loading) {
-    return <p className="text-sm text-text-secondary">Loading calendar…</p>;
+    return <p>Loading calendar…</p>;
   }
 
   return (
-    <div className="space-y-6 lg:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-text-primary">
-            Appointments
-          </h1>
-          <p className="text-text-secondary mt-1 text-sm">
-            Available: 10:00 AM - 6:00 PM | Click on calendar to schedule
-          </p>
-        </div>
-
-        {/* 👇 THIS IS WHERE THE BUTTON GOES */}
-        <Button variant="secondary" onClick={() => setAvailabilityOpen(true)} className="w-full sm:w-auto bg-primary/10 text-primary hover:bg-primary/20 border-0">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold">Appointments</h1>
+        <Button
+          className="text-primary-light"
+          onClick={() => setAvailabilityOpen(true)}
+        >
           Manage Availability
         </Button>
       </div>
 
-      <div className="bg-bg-card p-4 sm:p-6 lg:p-8 rounded-xl border border-border shadow-sm overflow-hidden">
-        <FullCalendar
-          plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
-          initialView="timeGridWeek"
-          slotMinTime="10:00:00"
-          slotMaxTime="18:00:00"
-          slotDuration="00:30:00"
-          height="auto"
-          allDaySlot={false}
-          nowIndicator
-          businessHours={{
-            daysOfWeek: [1, 2, 3, 4, 5, 6],
-            startTime: "10:00",
-            endTime: "18:00",
-          }}
-          selectable
-          editable
-          eventConstraint="businessHours"
-          selectConstraint="businessHours"
-          select={handleSlotSelect}
-          eventClick={handleEventClick}
-          events={events}
-          eventDrop={debouncedUpdateEventByDrag}
-          eventResize={debouncedUpdateEventByDrag}
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay",
-          }}
-        />
+      <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div
+          className="fc-container-wrapper"
+          style={{ height: "auto", minHeight: "800px" }}
+        >
+          <FullCalendar
+            plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
+            initialView="timeGridWeek"
+            slotMinTime="10:00:00"
+            slotMaxTime="18:00:00"
+            slotDuration="00:30:00"
+            height="auto"
+            contentHeight="auto"
+            selectable
+            selectAllow={selectAllow}
+            editable
+            allDaySlot={false}
+            select={handleSlotSelect}
+            eventClick={handleEventClick}
+            eventDrop={updateEventByDrag}
+            eventResize={updateEventByDrag}
+            headerToolbar={{
+              left: "prev,next today",
+              center: "title",
+              right: "dayGridMonth,timeGridWeek,timeGridDay",
+            }}
+            eventSources={[
+              {
+                events: events.map((e) => ({
+                  id: e.id,
+                  title: e.title,
+                  start: e.start,
+                  end: e.end,
+                  backgroundColor: getStatusColor(e.status),
+                  borderColor: getStatusColor(e.status),
+                  extendedProps: {
+                    patientId: e.patientId,
+                    notes: e.notes,
+                    status: e.status,
+                  },
+                })),
+              },
+              {
+                events: blockedSlots.map((b) => ({
+                  id: `block-${b._id}`,
+                  start:
+                    b.blockType === "day"
+                      ? `${b.date}T00:00:00`
+                      : `${b.date}T${b.startTime}`,
+                  end:
+                    b.blockType === "day"
+                      ? `${b.date}T23:59:59`
+                      : `${b.date}T${b.endTime}`,
+                  display: "background",
+                  backgroundColor: "#fee2e2",
+                })),
+              },
+            ]}
+          />
+        </div>
       </div>
 
       <AddAppointmentDialog
@@ -270,7 +353,10 @@ export default function AppointmentsClient() {
         open={availabilityOpen}
         practitionerId={practitionerId!}
         onClose={() => setAvailabilityOpen(false)}
-        onRefresh={fetchAppointments}
+        onRefresh={() => {
+          fetchAppointments();
+          fetchBlockedSlots();
+        }}
       />
     </div>
   );

@@ -250,10 +250,10 @@ export default function MessagesPage() {
     /* ================= UI ================= */
 
     return (
-        <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-80px)] w-full flex bg-bg-page overflow-hidden">
+        <div className="h-[calc(100vh-68px)] md:h-[calc(100vh-80px)] w-full flex bg-bg-page overflow-hidden md:border md:border-border">
             {/* LEFT PANEL */}
             <div className={`${selected ? "hidden md:flex" : "flex"} w-full md:w-1/3 lg:w-1/4 bg-bg-card border-r border-border flex-col transition-all duration-300`}>
-                <div className="p-4 border-b border-border flex justify-between items-center bg-bg-card z-10">
+                <div className="p-4 h-16 border-b border-border flex justify-between items-center bg-bg-card z-10">
                     <span className="font-semibold text-text-primary text-lg">Messages</span>
                     <button
                         onClick={() => { fetchPractitioners(); setShowNewChat(true); }}
@@ -301,7 +301,7 @@ export default function MessagesPage() {
                 ) : (
                     <>
                         {/* Chat Header */}
-                        <div className="p-4 border-b border-border flex items-center justify-between bg-bg-card shadow-sm z-10 sticky top-0">
+                        <div className="fixed top-0 left-0 md:left-auto md:relative w-full md:w-auto z-20 px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={() => setSelected(null)}
@@ -320,7 +320,7 @@ export default function MessagesPage() {
                         </div>
 
                         {/* Chat Messages */}
-                        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-bg-page scroll-smooth">
+                        <div className="flex-1 overflow-y-auto px-3 md:pt-[30px] pt-[70px] pb-4 space-y-3 bg-bg-page">
                             {Object.entries(groupedMessages).map(([date, msgs]) => (
                                 <div key={date} className="animate-fadeInUp">
                                     <div className="flex justify-center mb-6 mt-2">
