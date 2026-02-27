@@ -4,13 +4,13 @@ import FadeIn from "./animations/FadeIn";
 
 export default function Hero() {
     return (
-        <section className="flex justify-center px-4 py-10 mt-10 scroll-mt-24" id="hero">
+        <section className="flex justify-center px-4 py-10 mt-10 scroll-mt-24 transition-all" id="hero">
             <div className="w-full max-w-[1200px] bg-white/90 backdrop-blur-sm rounded-[28px] shadow-[0_8px_25px_rgba(0,0,0,0.04)] p-10 md:p-16 grid md:grid-cols-2 gap-12 items-center">
 
                 {/* Left Content */}
                 <FadeIn>
                     <div>
-                        <p className="text-slate-500 font-medium mb-4 tracking-wide">
+                        <p className="text-slate-500 font-medium mb-4 tracking-wide scroll-mt-5">
                             Clinical Psychology Practice
                         </p>
 

@@ -11,18 +11,7 @@ export default function Navbar() {
 
     return (
         <div className="sticky top-4 z-50 flex justify-center">
-            <div
-                className="
-          w-[95%]
-          max-w-[1200px]
-          bg-white
-          border border-blue-100/50
-          rounded-[24px]
-          shadow-[0_15px_40px_rgba(15,23,42,0.12)]
-          px-8
-          py-4
-        "
-            >
+            <div className="w-[95%] max-w-[1200px] bg-white border border-blue-100/50 rounded-[24px] shadow-[0_15px_40px_rgba(15,23,42,0.12)] px-8 py-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-lg font-semibold">
                         Better<span className="text-blue-500">You</span>
@@ -93,6 +82,6 @@ export default function Navbar() {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }

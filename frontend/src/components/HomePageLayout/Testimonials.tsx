@@ -20,7 +20,7 @@ const testimonials = [
 
 export default function Testimonials() {
     return (
-        <section className="flex justify-center px-4 py-10 bg-[#F4F8FC]">
+        <section className="flex justify-center px-4 py-10 bg-[#F4F8FC] scroll-mt-5">
             <div className="max-w-[1200px] w-full">
 
                 {/* Section Title */}
