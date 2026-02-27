@@ -154,7 +154,7 @@ export default function PatientProfilePage() {
             case "prescriptions":
                 return <Prescription />;
             case "appointments":
-                return <AppointmentHistory patientId={id} />;
+                return <AppointmentHistory />;
             default:
                 return null;
         }
