@@ -4,7 +4,7 @@ import FadeIn from "./animations/FadeIn";
 
 export default function Approach() {
     return (
-        <section className="flex justify-center px-4 py-24">
+        <section className="flex justify-center px-4 py-24 scroll-mt-5">
             <div className="max-w-[900px] w-full text-center">
 
                 <FadeIn>

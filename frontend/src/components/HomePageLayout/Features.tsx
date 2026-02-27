@@ -33,7 +33,7 @@ const features = [
 
 export default function Features() {
     return (
-        <section className="py-20 px-4 flex justify-center">
+        <section className="py-20 px-4 flex justify-center scroll-mt-5">
 
             <div className="max-w-[1200px] w-full">
 

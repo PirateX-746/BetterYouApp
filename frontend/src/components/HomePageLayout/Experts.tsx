@@ -4,7 +4,7 @@ import FadeIn from "./animations/FadeIn";
 
 export default function AboutPsychologist() {
     return (
-        <section className="py-24 px-4 flex justify-center bg-white">
+        <section className="py-24 px-4 flex justify-center bg-white scroll-mt-5">
             <div className="max-w-[1000px] w-full grid md:grid-cols-2 gap-14 items-center">
 
                 {/* Image */}
