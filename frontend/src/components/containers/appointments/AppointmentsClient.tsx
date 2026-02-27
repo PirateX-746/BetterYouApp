@@ -288,9 +288,12 @@ export default function AppointmentsClient() {
             slotDuration="00:30:00"
             height="auto"
             contentHeight="auto"
-            selectable
+            selectable={true}
+            longPressDelay={0}
+            selectLongPressDelay={0}
+            eventLongPressDelay={0}
             selectAllow={selectAllow}
-            editable
+            editable={true}
             allDaySlot={false}
             select={handleSlotSelect}
             eventClick={handleEventClick}
