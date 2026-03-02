@@ -1,283 +1,278 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import {
+  patientSignupSchema,
+  PatientSignupFormValues,
+} from "@/schemas/patientSignup.schema";
 import { api } from "@/lib/api";
 
-export default function PatientSignup() {
-    const router = useRouter();
+export default function PatientSignup({ role }: { role: "patient" }) {
+  const router = useRouter();
 
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<PatientSignupFormValues>({
+    resolver: yupResolver(patientSignupSchema),
+  });
 
-    const [formData, setFormData] = useState({
-        firstName: "",
-        lastName: "",
-        dateOfBirth: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-        gender: "",
-        phoneNo: "",
-        bloodGroup: "",
-        allergies: "",
-        healthCondition: "",
-    });
+  /* ------------------------------
+       Helpers
+    ------------------------------ */
 
-    const theme = {
-        primary: "blue",
-        border: "border-blue-100/40",
-        button: "bg-blue-500",
-        focus: "focus:border-blue-500 focus:ring-blue-100",
-        accent: "text-blue-500",
-    };
+  // Indian phone formatter
+  const formatPhone = (value: string) => {
+    return value.replace(/\D/g, "").slice(0, 10);
+  };
 
-    const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-    ) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+  // Password strength calculator
+  const getPasswordStrength = (password: string) => {
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[!@#$%^&*]/.test(password)) score++;
+    return score;
+  };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError("");
+  const password = watch("password") || "";
+  const strength = getPasswordStrength(password);
 
-        if (formData.password !== formData.confirmPassword) {
-            setError("Passwords do not match.");
-            return;
-        }
+  /* ------------------------------
+       Submit
+    ------------------------------ */
 
-        setLoading(true);
+  const onSubmit = async (data: PatientSignupFormValues) => {
+    try {
+      const { confirmPassword, ...payload } = data;
 
-        try {
-            const payload = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                dateOfBirth: formData.dateOfBirth,
-                email: formData.email,
-                password: formData.password,
-                gender: formData.gender,
-                phoneNo: formData.phoneNo,
-                bloodGroup: formData.bloodGroup,
-                allergies: formData.allergies || undefined,
-                healthCondition: formData.healthCondition || undefined,
-            };
+      const res = await api.post("/auth/patient/signup", payload);
 
-            await api.post(`/patients`, payload);
+      // If backend returns token
+      //   const { access_token, user } = res.data;
 
-            // Success → redirect
-            router.push(`/patientLogin`);
+      //   localStorage.setItem("token", access_token);
+      //   localStorage.setItem("userId", user.id);
+      //   localStorage.setItem("role", user.role);
 
-        } catch (err: any) {
-            setError(err.response?.data?.message || err.message || "Something went wrong.");
-        } finally {
-            setLoading(false);
-        }
-    };
+      //   console.log(access_token, user);
 
-    return (
-        <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100">
+      router.push("/patientLogin");
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Something went wrong");
+    }
+  };
 
-            {/* Large Ambient Glow Layers */}
-            <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-blue-300 rounded-full blur-[140px] opacity-30" />
-            <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] bg-indigo-300 rounded-full blur-[140px] opacity-30" />
+  /* ------------------------------
+       Styles
+    ------------------------------ */
 
-            <div
-                className="
-      relative
-      w-full
-      max-w-2xl
-      backdrop-blur-2xl
-      bg-white/70
-      rounded-3xl
-      shadow-[0_25px_60px_rgba(15,23,42,0.12)]
-      border border-blue-100/40
-      p-12
-      transition-all duration-500
-    "
-            >
-                {/* Header */}
-                <div className="text-center mb-10 space-y-3">
-                    <h1 className="text-3xl font-semibold tracking-tight text-gray-800">
-                        Better<span className={theme.accent}>You</span>
-                    </h1>
+  const inputClass =
+    "w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-100";
 
-                    <p className="text-sm text-gray-500">
-                        Create your secure patient account
-                    </p>
-                </div>
+  const errorClass = "text-red-500 text-sm mt-1";
 
-                {error && (
-                    <p className="text-red-500 text-sm text-center mb-6">
-                        {error}
-                    </p>
-                )}
+  /* ------------------------------
+       UI
+    ------------------------------ */
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-
-                    {/* Name */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <input
-                            name="firstName"
-                            placeholder="First Name"
-                            required
-                            disabled={loading}
-                            onChange={handleChange}
-                            className={`input-style ${theme.focus}`}
-                        />
-                        <input
-                            name="lastName"
-                            placeholder="Last Name"
-                            required
-                            disabled={loading}
-                            onChange={handleChange}
-                            className={`input-style ${theme.focus}`}
-                        />
-                    </div>
-
-                    {/* DOB + Gender */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <input
-                            type="date"
-                            name="dateOfBirth"
-                            required
-                            disabled={loading}
-                            onChange={handleChange}
-                            className={`input-style ${theme.focus}`}
-                        />
-
-                        <select
-                            name="gender"
-                            required
-                            disabled={loading}
-                            onChange={handleChange}
-                            className={`input-style ${theme.focus}`}
-                        >
-                            <option value="">Select Gender</option>
-                            <option>Male</option>
-                            <option>Female</option>
-                            <option>Other</option>
-                        </select>
-                    </div>
-
-                    {/* Contact */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <input
-                            type="email"
-                            name="email"
-                            placeholder="Email Address"
-                            required
-                            disabled={loading}
-                            onChange={handleChange}
-                            className={`input-style ${theme.focus}`}
-                        />
-
-                        <input
-                            name="phoneNo"
-                            placeholder="Phone Number"
-                            required
-                            disabled={loading}
-                            onChange={handleChange}
-                            className={`input-style ${theme.focus}`}
-                        />
-                    </div>
-
-                    {/* Medical */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <select
-                            name="bloodGroup"
-                            required
-                            disabled={loading}
-                            onChange={handleChange}
-                            className={`input-style ${theme.focus}`}
-                        >
-                            <option value="">Blood Group</option>
-                            <option>A+</option>
-                            <option>A-</option>
-                            <option>B+</option>
-                            <option>B-</option>
-                            <option>O+</option>
-                            <option>O-</option>
-                            <option>AB+</option>
-                            <option>AB-</option>
-                        </select>
-
-                        <input
-                            name="allergies"
-                            placeholder="Allergies (Optional)"
-                            disabled={loading}
-                            onChange={handleChange}
-                            className={`input-style ${theme.focus}`}
-                        />
-                    </div>
-
-                    <input
-                        name="healthCondition"
-                        placeholder="Health Condition (Optional)"
-                        disabled={loading}
-                        onChange={handleChange}
-                        className={`input-style ${theme.focus}`}
-                    />
-
-                    {/* Password */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <input
-                            type="password"
-                            name="password"
-                            placeholder="Password"
-                            required
-                            disabled={loading}
-                            onChange={handleChange}
-                            className={`input-style ${theme.focus}`}
-                        />
-                        <input
-                            type="password"
-                            name="confirmPassword"
-                            placeholder="Confirm Password"
-                            required
-                            disabled={loading}
-                            onChange={handleChange}
-                            className={`input-style ${theme.focus}`}
-                        />
-                    </div>
-
-                    {/* Button */}
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className={`
-            w-full
-            ${theme.button}
-            text-white
-            py-3.5
-            rounded-xl
-            font-semibold
-            tracking-wide
-            shadow-lg
-            hover:shadow-xl
-            hover:scale-[1.01]
-            active:scale-[0.98]
-            transition-all duration-300
-            disabled:opacity-60
-          `}
-                    >
-                        {loading ? "Creating Account..." : "Create Account"}
-                    </button>
-                </form>
-
-                {/* Login Redirect */}
-                <p className="text-center text-sm text-gray-500 mt-10">
-                    Already have an account?{" "}
-                    <Link
-                        href="/patientLogin"
-                        className={`${theme.accent} font-medium hover:underline`}
-                    >
-                        Login
-                    </Link>
-                </p>
-            </div>
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100">
+      <div className="w-full max-w-2xl bg-white/70 backdrop-blur-2xl p-12 rounded-3xl shadow-xl">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-semibold">
+            Better<span className="text-blue-500">You</span>
+          </h1>
+          <p className="text-sm text-gray-500">
+            Create your secure patient account
+          </p>
         </div>
-    );
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Name */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <input
+                placeholder="First Name"
+                {...register("firstName")}
+                className={inputClass}
+              />
+              <p className={errorClass}>{errors.firstName?.message}</p>
+            </div>
+
+            <div>
+              <input
+                placeholder="Last Name"
+                {...register("lastName")}
+                className={inputClass}
+              />
+              <p className={errorClass}>{errors.lastName?.message}</p>
+            </div>
+          </div>
+
+          {/* DOB + Gender */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <input
+                type="date"
+                {...register("dateOfBirth")}
+                className={inputClass}
+              />
+              <p className={errorClass}>{errors.dateOfBirth?.message}</p>
+            </div>
+
+            <div>
+              <select {...register("gender")} className={inputClass}>
+                <option value="">Select Gender</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+              <p className={errorClass}>{errors.gender?.message}</p>
+            </div>
+          </div>
+
+          {/* Email + Phone */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <input
+                type="email"
+                placeholder="Email"
+                {...register("email")}
+                className={inputClass}
+              />
+              <p className={errorClass}>{errors.email?.message}</p>
+            </div>
+
+            <div>
+              <input
+                placeholder="Phone Number"
+                {...register("phoneNo")}
+                onChange={(e) => {
+                  e.target.value = formatPhone(e.target.value);
+                }}
+                className={inputClass}
+              />
+              <p className={errorClass}>{errors.phoneNo?.message}</p>
+            </div>
+          </div>
+
+          {/* Medical */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <select {...register("bloodGroup")} className={inputClass}>
+                <option value="">Blood Group</option>
+                <option>A+</option>
+                <option>A-</option>
+                <option>B+</option>
+                <option>B-</option>
+                <option>O+</option>
+                <option>O-</option>
+                <option>AB+</option>
+                <option>AB-</option>
+              </select>
+              <p className={errorClass}>{errors.bloodGroup?.message}</p>
+            </div>
+
+            <div>
+              <input
+                placeholder="Allergies (Optional)"
+                {...register("allergies")}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div>
+            <input
+              placeholder="Health Condition (Optional)"
+              {...register("healthCondition")}
+              className={inputClass}
+            />
+          </div>
+
+          {/* Password + Strength */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <input
+                type="password"
+                placeholder="Password"
+                {...register("password")}
+                className={inputClass}
+              />
+
+              {password && (
+                <div className="mt-2">
+                  <div className="h-2 w-full bg-gray-200 rounded-full">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        strength === 1
+                          ? "w-1/4 bg-red-500"
+                          : strength === 2
+                            ? "w-2/4 bg-yellow-500"
+                            : strength === 3
+                              ? "w-3/4 bg-blue-500"
+                              : strength === 4
+                                ? "w-full bg-green-500"
+                                : "w-0"
+                      }`}
+                    />
+                  </div>
+
+                  <p className="text-xs mt-1 text-gray-500">
+                    {strength === 1 && "Weak"}
+                    {strength === 2 && "Fair"}
+                    {strength === 3 && "Good"}
+                    {strength === 4 && "Strong"}
+                  </p>
+                </div>
+              )}
+
+              <p className={errorClass}>{errors.password?.message}</p>
+            </div>
+
+            <div>
+              <input
+                type="password"
+                placeholder="Confirm Password"
+                {...register("confirmPassword")}
+                className={inputClass}
+              />
+              <p className={errorClass}>{errors.confirmPassword?.message}</p>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold hover:scale-[1.01] transition-all disabled:opacity-60"
+          >
+            {isSubmitting ? (
+              <Loader2 className="animate-spin mx-auto" />
+            ) : (
+              "Create Account"
+            )}
+          </button>
+        </form>
+
+        <p className="text-center text-sm mt-6 text-gray-500">
+          Already have an account?{" "}
+          <Link
+            href="/patientLogin"
+            className="text-blue-500 font-medium hover:underline"
+          >
+            Login
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
 }

@@ -9,7 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 
 import { LoginDto } from './dto/login.dto';
-import { PatientSignupDto } from './dto/patient-signup.dto';
+import { CreatePatientDto } from './dto/patient-signup.dto';
 import { PractitionerSignupDto } from './dto/practitioner-signup.dto';
 
 import { Patient } from '../patients/schemas/patient.schema';
@@ -28,34 +28,45 @@ export class AuthService {
     private readonly practitionerModel: Model<Practitioner>,
 
     private readonly jwtService: JwtService, // ✅ REQUIRED
-  ) { }
+  ) {}
 
   //Patient Signup
 
-  async patientSignup(dto: PatientSignupDto) {
-    const normalizedEmail = dto.email.toLowerCase().trim();
-    const exists = await this.patientModel.findOne({ email: normalizedEmail });
-    if (exists) {
-      throw new BadRequestException('Patient already exists');
+  async patientSignup(dto: CreatePatientDto) {
+    const existing = await this.patientModel.findOne({ email: dto.email });
+    if (existing) {
+      throw new BadRequestException('Email already exists');
     }
+
+    // 🔥 Generate MRN automatically
+    const mrn = `MRN-${new Date().getFullYear()}-${Math.floor(
+      1000 + Math.random() * 9000,
+    )}`;
+
+    // 🔐 Hash password
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     const patient = await this.patientModel.create({
       ...dto,
-      email: normalizedEmail,
-      password: await bcrypt.hash(dto.password, SALT_ROUNDS),
-      dateOfBirth: new Date(dto.dateOfBirth),
-      role: Role.PATIENT,
+      password: hashedPassword,
+      mrn,
+      role: 'patient',
+      isActive: true,
     });
 
-    const { password, ...result } = patient.toObject();
-    return result;
+    return {
+      message: 'Patient created successfully',
+      id: patient._id,
+    };
   }
 
   //Practitioner Signup
 
   async practitionerSignup(dto: PractitionerSignupDto) {
     const normalizedEmail = dto.email.toLowerCase().trim();
-    const exists = await this.practitionerModel.findOne({ email: normalizedEmail });
+    const exists = await this.practitionerModel.findOne({
+      email: normalizedEmail,
+    });
     if (exists) {
       throw new BadRequestException('Practitioner already exists');
     }
@@ -86,10 +97,7 @@ export class AuthService {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    if (
-      role !== Role.PATIENT &&
-      role !== Role.PRACTITIONER
-    ) {
+    if (role !== Role.PATIENT && role !== Role.PRACTITIONER) {
       throw new UnauthorizedException('Invalid role selected');
     }
 
@@ -108,27 +116,32 @@ export class AuthService {
 
     // 3️⃣ User Exists?
     if (!user) {
-      console.log(`[AuthService] Password/User check failed: User not found for email: ${normalizedEmail}`);
+      console.log(
+        `[AuthService] Password/User check failed: User not found for email: ${normalizedEmail}`,
+      );
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    console.log(`[AuthService] Found user, password hash length: ${user.password?.length}`);
+    console.log(
+      `[AuthService] Found user, password hash length: ${user.password?.length}`,
+    );
 
     // 4️⃣ Password Match?
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      user.password,
-    );
-    console.log("isPasswordValid", isPasswordValid);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log('isPasswordValid', isPasswordValid);
 
     if (!isPasswordValid) {
-      console.log(`[AuthService] Password/User check failed: Invalid password for email: ${normalizedEmail}`);
+      console.log(
+        `[AuthService] Password/User check failed: Invalid password for email: ${normalizedEmail}`,
+      );
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // 5️⃣ Double Role Safety Check
     if (user.role.toLowerCase() !== role.toLowerCase()) {
-      console.log(`[AuthService] Role mismatch: User has "${user.role}", attempted login as "${role}"`);
+      console.log(
+        `[AuthService] Role mismatch: User has "${user.role}", attempted login as "${role}"`,
+      );
       throw new UnauthorizedException(
         'You are trying to access the wrong portal',
       );
@@ -141,7 +154,7 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload);
-    console.log("Logged in user role:", user.role);
+    console.log('Logged in user role:', user.role);
     return {
       access_token: accessToken,
       id: user._id.toString(),

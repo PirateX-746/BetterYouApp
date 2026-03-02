@@ -17,10 +17,10 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
+      whitelist: true,            // removes extra fields
+      forbidNonWhitelisted: true, // throws error if extra fields sent
+      transform: true,            // auto converts types
+    })
   );
 
   await app.listen(process.env.PORT || 3001);

@@ -19,7 +19,7 @@ export default function LoginContainer({ role }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isPatient = role === "patient";
+  const isPatient = role.toLowerCase() === "patient";
 
   const theme = {
     primary: isPatient ? "blue" : "indigo",
