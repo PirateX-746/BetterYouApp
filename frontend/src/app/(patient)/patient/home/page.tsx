@@ -195,7 +195,7 @@ export default function HomePage() {
 
   return (
     <div className="w-full min-h-screen bg-bg-primary">
-      <div className="space-y-4 sm:space-y-5 md:space-y-6 lg:space-y-8 px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 md:py-6 pt-6 sm:pt-8 md:pt-10 max-w-7xl mx-auto">
+      <div className="space-y-4 sm:space-y-5 md:space-y-6 lg:space-y-8 px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 md:py-6 max-w-7xl mx-auto">
         {/* Motivational Quote Banner */}
         <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-4 sm:p-5 md:p-6 lg:p-8 shadow-sm">
           <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-semibold text-primary leading-relaxed italic">
