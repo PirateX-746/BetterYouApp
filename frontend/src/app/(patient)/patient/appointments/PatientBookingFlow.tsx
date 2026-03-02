@@ -1,242 +1,342 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { api } from "@/lib/api";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import toast from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
 
-type Step = "calendar" | "slots" | "reason" | "review" | "success";
+type Step = 1 | 2 | 3;
 
 interface Slot {
   start: string;
   end: string;
 }
 
+interface Practitioner {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 interface Props {
-  practitionerId: string;
+  practitioners: Practitioner[];
   onClose: () => void;
   onBookingComplete: () => void;
 }
 
+const appointmentTypes = [
+  "New Patient Visit",
+  "Counselling Session",
+  "Follow-Up Session",
+  "CBT Session",
+  "Couples Therapy",
+  "Family Therapy",
+];
+
+/* ================= STEP INDICATOR ================= */
+
+function StepIndicator({ step }: { step: Step }) {
+  const progress = (step - 1) / 2;
+  const labels = ["Details", "Date & Time", "Confirm"];
+
+  return (
+    <div className="relative flex items-center justify-between mb-12 px-6">
+      <div
+        className="absolute top-6 h-1 bg-gray-200 rounded-full"
+        style={{ left: 40, right: 40 }}
+      />
+
+      <motion.div
+        className="absolute top-6 h-1 bg-blue-600 rounded-full"
+        style={{ left: 40 }}
+        animate={{
+          width: `calc(${progress} * (100% - 80px))`,
+        }}
+        transition={{ duration: 0.4 }}
+      />
+
+      {[1, 2, 3].map((num, index) => {
+        const isCompleted = step > num;
+        const isActive = step === num;
+
+        return (
+          <div key={num} className="relative z-10 flex flex-col items-center">
+            <div
+              className={`w-12 h-12 flex items-center justify-center rounded-full font-semibold
+                ${isCompleted
+                  ? "bg-green-600 text-white"
+                  : isActive
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-600"
+                }`}
+            >
+              {isCompleted ? "✓" : num}
+            </div>
+
+            <span className="mt-3 text-sm font-medium text-gray-600">
+              {labels[index]}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ================= MAIN COMPONENT ================= */
+
 export default function PatientBookingFlow({
-  practitionerId,
+  practitioners,
   onClose,
   onBookingComplete,
 }: Props) {
-  const [step, setStep] = useState<Step>("calendar");
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>(1);
+
+  const [selectedPractitioner, setSelectedPractitioner] =
+    useState<Practitioner | null>(null);
+  const [selectedType, setSelectedType] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [reason, setReason] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  /* ================= FETCH AVAILABILITY ================= */
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
 
-  const fetchAvailability = async (date: string) => {
-    setLoading(true);
+  const fetchSlots = async (date: string) => {
+    if (!selectedPractitioner) return;
 
     try {
+      setSlotsLoading(true);
+
       const res = await api.get("/appointments/availability", {
         params: {
-          practitionerId,
+          practitionerId: selectedPractitioner._id,
           date,
         },
       });
 
       setSlots(res.data || []);
     } catch {
+      toast.error("Failed to load slots");
       setSlots([]);
     } finally {
-      setLoading(false);
+      setSlotsLoading(false);
     }
   };
-
-  /* ================= BOOK ================= */
 
   const confirmBooking = async () => {
-    if (!selectedSlot || !reason.trim()) return;
+    if (!selectedSlot || !selectedPractitioner) return;
 
-    setLoading(true);
+    const patientId = localStorage.getItem("userId");
+    if (!patientId) {
+      toast.error("Login required");
+      return;
+    }
 
     try {
+      setBookingLoading(true);
+
       await api.post("/appointments", {
-        practitionerId,
+        title: selectedType,
+        patientId,
+        practitionerId: process.env.NEXT_PUBLIC_PRACTITIONER_ID,
         start: selectedSlot.start,
         end: selectedSlot.end,
-        reason,
       });
 
-      setStep("success");
+      toast.success("Appointment booked 🎉");
+      onBookingComplete();
+      onClose();
     } catch (err: any) {
-      alert(
-        err?.response?.data?.message ||
-        "Slot already booked. Please choose another."
+      toast.error(
+        err?.response?.data?.message || "Slot already booked"
       );
-      setStep("calendar");
     } finally {
-      setLoading(false);
+      setBookingLoading(false);
     }
   };
 
-  /* ================= UI ================= */
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center">
+      <div className="bg-white w-full max-w-3xl rounded-xl shadow-xl relative max-h-[90vh] overflow-y-auto p-6 md:p-8">
 
-  const Modal = ({ children }: { children: React.ReactNode }) => (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-xl w-full max-w-2xl shadow-xl relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-black text-xl"
+          className="absolute top-4 right-4 text-gray-400"
         >
           ✕
         </button>
-        {children}
+
+        <StepIndicator step={step} />
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ x: 50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -50, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+
+            {/* STEP 1 — Practitioner + Type */}
+            {step === 1 && (
+              <>
+                {/* <h2 className="text-xl font-semibold mb-6">
+                  Select Practitioner
+                </h2> */}
+
+                {/* <div className="grid grid-cols-2 gap-4 mb-8">
+                  {practitioners.map((p) => (
+                    <div
+                      key={p._id}
+                      onClick={() => setSelectedPractitioner(p)}
+                      className={`border-2 p-4 rounded-lg cursor-pointer transition ${selectedPractitioner?._id === p._id
+                        ? "border-blue-600 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-400"
+                        }`}
+                    >
+                      <div className="font-semibold">
+                        {p.firstName} {p.lastName}
+                      </div>
+                    </div>
+                  ))}
+                </div> */}
+
+                <h2 className="text-xl font-semibold mb-6">
+                  Select Appointment Type
+                </h2>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {appointmentTypes.map((type) => (
+                    <div
+                      key={type}
+                      onClick={() => setSelectedType(type)}
+                      className={`border-2 p-4 rounded-lg cursor-pointer transition ${selectedType === type
+                        ? "border-blue-600 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-400"
+                        }`}
+                    >
+                      {type}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 flex justify-end">
+                  <button
+                    disabled={!selectedPractitioner || !selectedType}
+                    onClick={() => setStep(2)}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* STEP 2 — Date & Time */}
+            {step === 2 && (
+              <>
+                <h2 className="text-xl font-semibold mb-6">
+                  Choose Date & Time
+                </h2>
+
+                <input
+                  type="date"
+                  min={new Date().toISOString().split("T")[0]}
+                  value={selectedDate}
+                  onChange={(e) => {
+                    const date = e.target.value;
+                    setSelectedDate(date);
+                    setSelectedSlot(null);
+                    fetchSlots(date);
+                  }}
+                  className="border p-3 rounded-lg w-full mb-6"
+                />
+
+                {slotsLoading ? (
+                  <p>Loading slots...</p>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {slots.map((slot) => (
+                      <button
+                        key={slot.start}
+                        onClick={() => setSelectedSlot(slot)}
+                        className={`px-4 py-2 rounded-full border ${selectedSlot?.start === slot.start
+                          ? "bg-green-600 text-white border-green-600"
+                          : "border-gray-200 hover:border-green-600"
+                          }`}
+                      >
+                        {new Date(slot.start).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-8 flex justify-between">
+                  <button
+                    onClick={() => setStep(1)}
+                    className="border px-6 py-2 rounded-lg"
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    disabled={!selectedSlot}
+                    onClick={() => setStep(3)}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* STEP 3 — Confirm */}
+            {step === 3 && selectedSlot && selectedPractitioner && (
+              <>
+                <h2 className="text-xl font-semibold mb-6">
+                  Confirm Appointment
+                </h2>
+
+                <div className="bg-gray-50 p-6 rounded-lg space-y-3">
+                  <p>
+                    <strong>Practitioner:</strong>{" "}
+                    {selectedPractitioner.firstName}{" "}
+                    {selectedPractitioner.lastName}
+                  </p>
+                  <p><strong>Type:</strong> {selectedType}</p>
+                  <p>
+                    <strong>Date:</strong>{" "}
+                    {new Date(selectedSlot.start).toLocaleString()}
+                  </p>
+                </div>
+
+                <div className="mt-8 flex justify-between">
+                  <button
+                    onClick={() => setStep(2)}
+                    className="border px-6 py-2 rounded-lg"
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    onClick={confirmBooking}
+                    disabled={bookingLoading}
+                    className="bg-green-600 text-white px-6 py-2 rounded-lg"
+                  >
+                    {bookingLoading ? "Booking..." : "Confirm Booking"}
+                  </button>
+                </div>
+              </>
+            )}
+
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
-  );
-
-  return (
-    <Modal>
-      {step === "calendar" && (
-        <>
-          <h2 className="text-xl font-semibold mb-4">Select Date</h2>
-
-          <FullCalendar
-            plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            validRange={{
-              start: new Date().toISOString().split("T")[0],
-            }}
-            dateClick={(info) => {
-              const date = info.dateStr;
-              setSelectedDate(date);
-              fetchAvailability(date);
-              setStep("slots");
-            }}
-          />
-        </>
-      )}
-
-      {step === "slots" && (
-        <>
-          <div className="flex justify-between mb-6">
-            <h2 className="text-xl font-semibold">Available Time Slots</h2>
-            <button onClick={() => setStep("calendar")} className="text-primary">
-              ← Back
-            </button>
-          </div>
-
-          {loading ? (
-            <p className="text-center py-6">Loading...</p>
-          ) : slots.length === 0 ? (
-            <p className="text-center py-6 text-gray-500">
-              No available slots
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-3">
-              {slots.map((slot) => (
-                <button
-                  key={slot.start}
-                  onClick={() => {
-                    setSelectedSlot(slot);
-                    setStep("reason");
-                  }}
-                  className="px-4 py-2 rounded-full border hover:border-primary hover:bg-blue-50 transition"
-                >
-                  {new Date(slot.start).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {step === "reason" && (
-        <>
-          <h2 className="text-xl font-semibold mb-4">Reason for Visit</h2>
-
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="w-full border p-3 rounded-lg"
-            rows={4}
-          />
-
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={() => setStep("slots")}
-              className="flex-1 border rounded-lg py-2"
-            >
-              Back
-            </button>
-            <button
-              onClick={() => setStep("review")}
-              disabled={!reason.trim()}
-              className="flex-1 bg-primary text-white rounded-lg py-2"
-            >
-              Continue
-            </button>
-          </div>
-        </>
-      )}
-
-      {step === "review" && selectedSlot && (
-        <>
-          <h2 className="text-xl font-semibold mb-4">
-            Confirm Appointment
-          </h2>
-
-          <div className="space-y-3 mb-6">
-            <p>
-              <strong>Date:</strong> {selectedDate}
-            </p>
-            <p>
-              <strong>Time:</strong>{" "}
-              {new Date(selectedSlot.start).toLocaleTimeString()}
-            </p>
-            <p>
-              <strong>Reason:</strong> {reason}
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep("reason")}
-              className="flex-1 border rounded-lg py-2"
-            >
-              Back
-            </button>
-            <button
-              onClick={confirmBooking}
-              disabled={loading}
-              className="flex-1 bg-primary text-white rounded-lg py-2"
-            >
-              {loading ? "Booking..." : "Confirm"}
-            </button>
-          </div>
-        </>
-      )}
-
-      {step === "success" && (
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">
-            Appointment Booked Successfully 🎉
-          </h2>
-
-          <button
-            onClick={() => {
-              onBookingComplete();
-              onClose();
-            }}
-            className="bg-primary text-white px-6 py-2 rounded-lg"
-          >
-            View My Appointments
-          </button>
-        </div>
-      )}
-    </Modal>
   );
 }
