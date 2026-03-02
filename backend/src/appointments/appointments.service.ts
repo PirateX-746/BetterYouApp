@@ -12,7 +12,7 @@ export class AppointmentsService {
     private readonly appointmentModel: Model<AppointmentDocument>,
     private readonly gateway: AppointmentsGateway,
     private readonly availabilityService: AvailabilityService,
-  ) {}
+  ) { }
 
   /* =====================================================
      BASIC DATE VALIDATION
@@ -289,4 +289,111 @@ export class AppointmentsService {
     notes: a.notes,
     status: a.status,
   });
+
+  /* =====================================================
+     AVAILABILITY SLOTS (FOR PATIENT BOOKING)
+     ===================================================== */
+
+  async getAvailability(practitionerId: string, date: string) {
+    if (!practitionerId || !Types.ObjectId.isValid(practitionerId)) {
+      throw new BadRequestException('Invalid practitioner ID');
+    }
+
+    if (!date) {
+      throw new BadRequestException('Date is required (YYYY-MM-DD)');
+    }
+
+    // Working hours: 10:00–18:00 in server local time (1-hour slots)
+    // Use local time (no trailing "Z") so patients see 10:00 locally
+    const workStart = new Date(`${date}T10:00:00`);
+    const workEnd = new Date(`${date}T18:00:00`);
+
+    if (isNaN(workStart.getTime()) || isNaN(workEnd.getTime())) {
+      throw new BadRequestException('Invalid date format');
+    }
+
+    const now = new Date();
+
+    // Existing appointments overlapping working hours
+    const existingAppointments = await this.appointmentModel
+      .find({
+        practitionerId: new Types.ObjectId(practitionerId),
+        start: { $lt: workEnd },
+        end: { $gt: workStart },
+      })
+      .exec();
+
+    // Availability blocks (day/slot)
+    const blockedSlots = await this.availabilityService.fetchBlockedSlots(
+      practitionerId,
+    );
+
+    const slots: { start: string; end: string }[] = [];
+
+    const SLOT_MINUTES = 60;
+    const slotMs = SLOT_MINUTES * 60 * 1000;
+
+    for (
+      let cursor = new Date(workStart);
+      cursor < workEnd;
+      cursor = new Date(cursor.getTime() + slotMs)
+    ) {
+      const slotStart = new Date(cursor);
+      const slotEnd = new Date(cursor.getTime() + slotMs);
+
+      if (slotEnd > workEnd) break;
+
+      // Skip slots in the past
+      if (slotStart < now) continue;
+
+      const isoDateString = `${slotStart.getFullYear()}-${String(
+        slotStart.getMonth() + 1,
+      ).padStart(2, '0')}-${String(slotStart.getDate()).padStart(2, '0')}`;
+
+      const requestedStartTime =
+        String(slotStart.getHours()).padStart(2, '0') +
+        ':' +
+        String(slotStart.getMinutes()).padStart(2, '0');
+
+      const requestedEndTime =
+        String(slotEnd.getHours()).padStart(2, '0') +
+        ':' +
+        String(slotEnd.getMinutes()).padStart(2, '0');
+
+      // 1) Check against availability blocks
+      const isBlocked = blockedSlots.some((block) => {
+        if (block.date !== isoDateString) return false;
+
+        if (block.blockType === 'day') return true;
+
+        if (block.blockType === 'slot' && block.startTime && block.endTime) {
+          return (
+            requestedStartTime < block.endTime &&
+            requestedEndTime > block.startTime
+          );
+        }
+
+        return false;
+      });
+
+      if (isBlocked) continue;
+
+      // 2) Check overlap with existing appointments
+      const hasConflict = existingAppointments.some((appt) => {
+        const apptStart = new Date(appt.start);
+        const apptEnd = new Date(appt.end);
+
+        return slotStart < apptEnd && slotEnd > apptStart;
+      });
+
+      if (hasConflict) continue;
+
+      slots.push({
+        start: slotStart.toISOString(),
+        end: slotEnd.toISOString(),
+      });
+    }
+
+    return slots;
+  }
 }

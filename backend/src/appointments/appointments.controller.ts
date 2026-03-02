@@ -8,22 +8,41 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
+import { CreateAppointmentDto } from './dto/create-appointment.dto';
 
 @Controller('appointments')
 export class AppointmentsController {
-  constructor(private readonly appointmentsService: AppointmentsService) { }
+  constructor(
+    private readonly appointmentsService: AppointmentsService,
+  ) { }
 
   @Get('practitioner/:id')
   getByPractitioner(@Param('id') id: string) {
     return this.appointmentsService.findByPractitioner(id);
   }
 
+  @Get('patient/:id')
+  getByPatient(@Param('id') id: string) {
+    return this.appointmentsService.findByPatient(id);
+  }
+
+  @Get('availability')
+  getAvailability(
+    @Query('practitionerId') practitionerId: string,
+    @Query('date') date: string,
+  ) {
+    return this.appointmentsService.getAvailability(
+      practitionerId,
+      date,
+    );
+  }
+
   @Post()
-  @HttpCode(HttpStatus.CREATED)
-  create(@Body() body: any) {
-    return this.appointmentsService.create(body);
+  async create(@Body() dto: CreateAppointmentDto) {
+    return this.appointmentsService.create(dto);
   }
 
   @Put(':id')
@@ -35,10 +54,5 @@ export class AppointmentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id') id: string) {
     return this.appointmentsService.deleteById(id);
-  }
-
-  @Get('patient/:id')
-  getByPatient(@Param('id') id: string) {
-    return this.appointmentsService.findByPatient(id);
   }
 }
