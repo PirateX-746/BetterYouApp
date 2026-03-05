@@ -182,11 +182,11 @@ export default function PatientBookingFlow({
             {/* STEP 1 — Practitioner + Type */}
             {step === 1 && (
               <>
-                {/* <h2 className="text-xl font-semibold mb-6">
+                <h2 className="text-xl font-semibold mb-6">
                   Select Practitioner
-                </h2> */}
+                </h2>
 
-                {/* <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="grid grid-cols-2 gap-4 mb-8">
                   {practitioners.map((p) => (
                     <div
                       key={p._id}
@@ -201,7 +201,7 @@ export default function PatientBookingFlow({
                       </div>
                     </div>
                   ))}
-                </div> */}
+                </div>
 
                 <h2 className="text-xl font-semibold mb-6">
                   Select Appointment Type
@@ -224,8 +224,7 @@ export default function PatientBookingFlow({
 
                 <div className="mt-8 flex justify-end">
                   <button
-                    disabled={!selectedType}
-                    // disabled={!selectedPractitioner || !selectedType}
+                    disabled={!selectedPractitioner || !selectedType}
                     onClick={() => setStep(2)}
                     className="bg-blue-600 text-white px-6 py-2 rounded-lg disabled:opacity-40"
                   >
