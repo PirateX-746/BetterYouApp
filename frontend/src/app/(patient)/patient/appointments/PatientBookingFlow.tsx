@@ -224,7 +224,8 @@ export default function PatientBookingFlow({
 
                 <div className="mt-8 flex justify-end">
                   <button
-                    disabled={!selectedPractitioner || !selectedType}
+                    disabled={!selectedType}
+                    // disabled={!selectedPractitioner || !selectedType}
                     onClick={() => setStep(2)}
                     className="bg-blue-600 text-white px-6 py-2 rounded-lg disabled:opacity-40"
                   >
