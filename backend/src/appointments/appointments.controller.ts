@@ -10,14 +10,12 @@ import {
   HttpStatus,
   Query,
 } from '@nestjs/common';
-import { AppointmentsService } from './appointments.service';
+import { AppointmentsService, AppointmentData } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 
 @Controller('appointments')
 export class AppointmentsController {
-  constructor(
-    private readonly appointmentsService: AppointmentsService,
-  ) { }
+  constructor(private readonly appointmentsService: AppointmentsService) {}
 
   @Get('practitioner/:id')
   getByPractitioner(@Param('id') id: string) {
@@ -34,20 +32,20 @@ export class AppointmentsController {
     @Query('practitionerId') practitionerId: string,
     @Query('date') date: string,
   ) {
-    return this.appointmentsService.getAvailability(
-      practitionerId,
-      date,
-    );
+    return this.appointmentsService.getAvailability(date, practitionerId);
   }
 
   @Post()
   async create(@Body() dto: CreateAppointmentDto) {
-    return this.appointmentsService.create(dto);
+    return this.appointmentsService.create(dto as unknown as AppointmentData);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.appointmentsService.updateById(id, body);
+  update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.appointmentsService.updateById(
+      id,
+      body as unknown as AppointmentData,
+    );
   }
 
   @Delete(':id')

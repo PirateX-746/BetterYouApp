@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsEnum } from 'class-validator';
+import { IsString, IsDateString, IsEnum, IsOptional } from 'class-validator';
 import { AppointmentStatus } from '../schemas/appointment.schema';
 
 export class CreateAppointmentDto {
@@ -17,6 +17,12 @@ export class CreateAppointmentDto {
   @IsDateString()
   end: string;
 
+  // Optional — defaults to 'scheduled' in the schema if not provided
+  @IsOptional()
   @IsEnum(AppointmentStatus)
-  status: AppointmentStatus;
+  status?: AppointmentStatus;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

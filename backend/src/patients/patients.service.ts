@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 
 import { Patient, PatientDocument } from './schemas/patient.schema';
 import { CreatePatientDto } from './dto/create-patient.dto';
+import { UpdatePatientDto } from './dto/update-patient.dto';
 import { Role } from '../common/role.enum';
 
 @Injectable()
@@ -18,7 +19,7 @@ export class PatientsService {
   constructor(
     @InjectModel(Patient.name)
     private readonly patientModel: Model<PatientDocument>,
-  ) { }
+  ) {}
 
   /* ===============================
      GENERATE MRN (Better Version)
@@ -73,8 +74,7 @@ export class PatientsService {
       isActive: dto.isActive ?? true,
     });
 
-    const { password, ...result } = patient.toObject();
-    return result;
+    return this.findById(patient._id.toString());
   }
 
   /* ===============================
@@ -102,5 +102,49 @@ export class PatientsService {
     }
 
     return patient;
+  }
+
+  /* ===============================
+     UPDATE PATIENT
+     =============================== */
+  async update(id: string, dto: UpdatePatientDto) {
+    if (dto.email || dto.phoneNo) {
+      const existing = await this.patientModel.findOne({
+        _id: { $ne: id },
+        $or: [
+          ...(dto.email ? [{ email: dto.email }] : []),
+          ...(dto.phoneNo ? [{ phoneNo: dto.phoneNo }] : []),
+        ],
+      });
+
+      if (existing) {
+        if (existing.email === dto.email) {
+          throw new ConflictException('Email already in use');
+        }
+        if (existing.phoneNo === dto.phoneNo) {
+          throw new ConflictException('Phone number already in use');
+        }
+      }
+    }
+
+    const updateData: Record<string, unknown> = { ...dto };
+    if (dto.dateOfBirth) updateData.dateOfBirth = new Date(dto.dateOfBirth);
+    if (dto.lastVisit) updateData.lastVisit = new Date(dto.lastVisit);
+
+    // If password is being updated, we must hash it.
+    // Usually, profile update shouldn't include password, but if it does:
+    if (dto.password) {
+      updateData.password = await bcrypt.hash(dto.password, 10);
+    }
+
+    const updated = await this.patientModel
+      .findByIdAndUpdate(id, { $set: updateData }, { new: true })
+      .lean();
+
+    if (!updated) {
+      throw new NotFoundException('Patient not found');
+    }
+
+    return this.findById(id);
   }
 }

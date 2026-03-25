@@ -1,347 +1,274 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import styles from "./PatientProfile.module.css";
+import {
+  User,
+  Calendar,
+  Phone,
+  Mail,
+  HeartPulse,
+  Droplet,
+  AlertTriangle,
+  ShieldPlus,
+  Printer,
+  Pencil,
+  ClipboardList,
+  Pill,
+  ArrowLeft,
+  Loader2,
+} from "lucide-react";
+import Link from "next/link";
+import { api } from "@/lib/api";
+import { calculateAge, formatDate, capitalizeWords } from "@/lib/patientUtils";
 import Prescription from "./patientTabs/Prescription";
 import MedicalDocument from "./patientTabs/MedicalDocuments";
-import GoBackButton from "../../common/goBackButton/GoBackButton";
-import {
-    ArrowLeft,
-    Calendar,
-    User,
-    Phone,
-    Mail,
-    HeartPulse,
-    Droplet,
-    AlertTriangle,
-    ShieldPlus,
-    Printer,
-    Pencil,
-    ClipboardList,
-    Pill,
-} from "lucide-react";
 import AppointmentHistory from "./patientTabs/AppointmentHistory";
-import { api } from "@/lib/api";
+
+type Tab = "documents" | "prescriptions" | "appointments";
 
 type Patient = {
-    _id?: string;
-    avatar?: string;
-    firstName?: string;
-    lastName?: string;
-    dateOfBirth?: string;
-    gender?: string;
-    phoneNo?: string;
-    email?: string;
-    lastVisit?: string;
-    healthCondition?: string;
-    bloodGroup?: string;
-    allergies?: string;
-    emergency_contact_name?: string;
-    emergency_contact_phone?: string;
-    isActive?: boolean;
+  _id?: string;
+  avatar?: string;
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  phoneNo?: string;
+  email?: string;
+  lastVisit?: string;
+  healthCondition?: string;
+  bloodGroup?: string;
+  allergies?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  isActive?: boolean;
 };
 
+const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: "documents", label: "Documents", icon: ClipboardList },
+  { id: "prescriptions", label: "Prescriptions", icon: Pill },
+  { id: "appointments", label: "Appointments", icon: Calendar },
+];
+
 export default function PatientProfilePage() {
-    const params = useParams();
-    const id = params?.id as string;
-    const router = useRouter();
-    const [activeTab, setActiveTab] = useState<"documents" | "prescriptions" | "appointments">("documents");
-    const [patient, setPatient] = useState<Patient | null>(null);
-    const [loading, setLoading] = useState(true);
+  const params = useParams();
+  const id = params?.id as string;
 
-    console.log(id);
+  const [activeTab, setActiveTab] = useState<Tab>("documents");
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
 
-    /* ===============================
-       FETCH PATIENT
-    =============================== */
-    useEffect(() => {
-        if (!id) return;
+  useEffect(() => {
+    if (!id) return;
+    api
+      .get(`/patients/${id}`)
+      .then((res) => setPatient(res.data ?? null))
+      .catch(() => setPatient(null))
+      .finally(() => setLoading(false));
+  }, [id]);
 
-        const fetchPatient = async () => {
-            try {
-                const res = await api.get(`/patients/${id}`);
-                if (!res.data) throw new Error("Patient not found");
+  const fullName = useMemo(() => {
+    if (!patient) return "";
+    return `${capitalizeWords(patient.firstName ?? "")} ${capitalizeWords(patient.lastName ?? "")}`.trim();
+  }, [patient]);
 
-                const data = res.data;
-                setPatient(data);
-            } catch (err) {
-                console.error(err);
-                setPatient(null);
-            } finally {
-                setLoading(false);
-            }
-        };
+  const shortId = patient?._id?.slice(-6) ?? "—";
 
-        fetchPatient();
-    }, [id]);
-
-    /* ===============================
-       DERIVED VALUES
-    =============================== */
-
-    const capitalizeWords = (text: string) => {
-        return text
-            .toLowerCase()
-            .split(" ")
-            .map(word =>
-                word.charAt(0).toUpperCase() + word.slice(1)
-            )
-            .join(" ");
-    };
-    const fullName = useMemo(() => {
-        if (!patient) return "";
-        return `${capitalizeWords(patient.firstName ?? "")} ${capitalizeWords(patient.lastName ?? "")}`.trim();
-    }, [patient]);
-
-    const calculateAge = (dob?: string) => {
-        if (!dob) return "—";
-
-        const birthDate = new Date(dob);
-        const today = new Date();
-
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-
-        if (
-            monthDiff < 0 ||
-            (monthDiff === 0 && today.getDate() < birthDate.getDate())
-        ) {
-            age--;
-        }
-
-        return age;
-    };
-
-    const formattedLastVisit = patient?.lastVisit
-        ? new Date(patient.lastVisit).toLocaleDateString()
-        : "No visits";
-
-    const statusClass = patient?.isActive
-        ? styles.statusActive
-        : styles.statusInactive;
-
-    const shortId =
-        typeof patient?._id === "string"
-            ? patient._id.slice(-6)
-            : "—";
-
-    /* ===============================
-       LOADING
-    =============================== */
-    if (loading) {
-        return (
-            <div className={styles.loadingSpinner}>
-                <div className={styles.spinner}></div>
-                <p>Loading patient profile...</p>
-            </div>
-        );
-    }
-
-    if (!patient) {
-        return (
-            <div className={styles.emptyState}>
-                <h3>Patient not found</h3>
-            </div>
-        );
-    }
-
-    const renderTabContent = () => {
-        switch (activeTab) {
-            case "documents":
-                return <MedicalDocument patientId={id} />;
-            case "prescriptions":
-                return <Prescription />;
-            case "appointments":
-                return <AppointmentHistory />;
-            default:
-                return null;
-        }
-    };
-
+  if (loading) {
     return (
-        <div className={styles.patientContainer}>
-            {/* Back Button */}
-            <GoBackButton
-                fallbackPath="/patients"
-                label="Back to Patients"
-            />
-            {/* Profile Header */}
-            <div className={styles.profileHeaderCard}>
-                {/* Avatar + Status */}
-                <div className={styles.profileAvatarSection}>
-                    <div className={styles.profileAvatarLg}>
-                        {patient?.avatar ? (
-                            <img
-                                src={patient.avatar}
-                                alt={fullName}
-                                className={styles.profileAvatarImage}
-                                onError={(e) => {
-                                    e.currentTarget.style.display = "none";
-                                }}
-                            />
-                        ) : (
-                            <div className={styles.avatarPlaceholder}>
-                                {fullName?.charAt(0).toUpperCase() || "P"}
-                            </div>
-                        )}
-                    </div>
-
-
-                    <div className={`${styles.statusBadge} ${statusClass}`}>
-                        <span className={styles.statusDot}></span>
-                        {patient.isActive ? "Active" : "Inactive"}
-                    </div>
-                </div>
-
-                {/* Patient Info */}
-                <div className={styles.profileHeaderInfo}>
-                    <h1 className={styles.profileName}>
-                        {fullName || "Unnamed Patient"}
-                    </h1>
-
-                    <span className={styles.patientId}>
-                        #{shortId}
-                    </span>
-
-                    <div className={styles.profileDetailsRow}>
-                        <div className={styles.detailChip}>
-                            <User size={16} />
-                            {patient.gender || "Not specified"}
-                        </div>
-
-                        <div className={styles.detailChip}>
-                            <Calendar size={16} />
-                            {calculateAge(patient.dateOfBirth)} years
-                        </div>
-
-                        <div className={styles.detailChip}>
-                            <Phone size={16} />
-                            {patient.phoneNo || "No phone"}
-                        </div>
-
-                        <div className={styles.detailChip}>
-                            <Mail size={16} />
-                            {patient.email || "No email"}
-                        </div>
-
-                        <div className={styles.detailChip}>
-                            <Calendar size={16} />
-                            {formattedLastVisit}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Actions */}
-                <div className={styles.profileActions}>
-                    <button className={styles.editButton}>
-                        <Pencil size={16} />
-                        Edit Profile
-                    </button>
-
-                    <button
-                        onClick={() => window.print()}
-                        className={styles.printButton}
-                    >
-                        <Printer size={16} />
-                        Print
-                    </button>
-                </div>
-            </div>
-
-            {/* Medical Info Cards */}
-            <div className={styles.infoCardsGrid}>
-                <div className={styles.infoCard}>
-                    <div className={styles.infoIcon} style={{ background: "#DBEAFE", color: "#1E40AF" }}>
-                        <HeartPulse size={22} />
-                    </div>
-                    <div>
-                        <div className={styles.infoLabel}>Health Condition</div>
-                        <div className={styles.infoValue}>
-                            {patient.healthCondition || "Normal"}
-                        </div>
-                    </div>
-                </div>
-
-                <div className={styles.infoCard}>
-                    <div className={styles.infoIcon} style={{ background: "#FEE2E2", color: "#991B1B" }}>
-                        <Droplet size={22} />
-                    </div>
-                    <div>
-                        <div className={styles.infoLabel}>Blood Group</div>
-                        <div className={styles.infoValue}>
-                            {patient.bloodGroup || "Not specified"}
-                        </div>
-                    </div>
-                </div>
-
-                <div className={styles.infoCard}>
-                    <div className={styles.infoIcon} style={{ background: "#FED7AA", color: "#9A3412" }}>
-                        <AlertTriangle size={22} />
-                    </div>
-                    <div>
-                        <div className={styles.infoLabel}>Allergies</div>
-                        <div className={styles.infoValue}>
-                            {patient.allergies || "None reported"}
-                        </div>
-                    </div>
-                </div>
-
-                <div className={styles.infoCard}>
-                    <div className={styles.infoIcon} style={{ background: "#F3E8FF", color: "#7C3AED" }}>
-                        <ShieldPlus size={22} />
-                    </div>
-                    <div>
-                        <div className={styles.infoLabel}>Emergency Contact</div>
-                        <div className={styles.infoValue}>
-                            {patient.emergency_contact_name || "Not provided"}
-                            {patient.emergency_contact_phone && (
-                                <div style={{ fontSize: 12, opacity: 0.7 }}>
-                                    {patient.emergency_contact_phone}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Tabs */}
-            <div className={styles.profileTabs}>
-                <button
-                    onClick={() => setActiveTab("documents")}
-                    className={`${styles.tabBtn} ${activeTab === "documents" ? styles.active : ""
-                        }`}
-                >
-                    <ClipboardList size={16} />
-                    Medical Documents
-                </button>
-
-                <button
-                    onClick={() => setActiveTab("prescriptions")}
-                    className={`${styles.tabBtn} ${activeTab === "prescriptions" ? styles.active : ""
-                        }`}
-                >
-                    <Pill size={16} />
-                    Prescriptions
-                </button>
-
-                <button
-                    onClick={() => setActiveTab("appointments")}
-                    className={`${styles.tabBtn} ${activeTab === "appointments" ? styles.active : ""
-                        }`}
-                >
-                    <Calendar size={16} />
-                    Appointments
-                </button>
-            </div>
-
-
-            {/* Tab Content */}
-            <div className={styles.tabContentArea}>
-                {renderTabContent()}
-            </div>
-
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-primary" size={28} />
+      </div>
     );
+  }
+
+  if (!patient) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+        <User size={36} className="text-text-disabled" />
+        <p className="text-text-secondary text-sm">Patient not found</p>
+        <Link href="/patients" className="text-primary text-sm hover:underline">
+          Back to Patients
+        </Link>
+      </div>
+    );
+  }
+
+  const medicalInfo = [
+    {
+      label: "Health Condition",
+      value: patient.healthCondition || "Normal",
+      icon: HeartPulse,
+      colorClass: "bg-primary/10 text-primary",
+    },
+    {
+      label: "Blood Group",
+      value: patient.bloodGroup || "Not specified",
+      icon: Droplet,
+      colorClass: "bg-danger/10 text-danger",
+    },
+    {
+      label: "Allergies",
+      value: patient.allergies || "None reported",
+      icon: AlertTriangle,
+      colorClass: "bg-warning/10 text-warning",
+    },
+    {
+      label: "Emergency Contact",
+      value: patient.emergency_contact_name || "Not provided",
+      sub: patient.emergency_contact_phone,
+      icon: ShieldPlus,
+      colorClass: "bg-purple-500/10 text-purple-500",
+    },
+  ];
+
+  return (
+    <div className="space-y-4 max-w-5xl mx-auto">
+      {/* Back */}
+      <Link
+        href="/patients"
+        className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition"
+      >
+        <ArrowLeft size={15} />
+        Back to Patients
+      </Link>
+
+      {/* Profile header card */}
+      <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
+        {/* Cover */}
+        <div className="h-20 bg-gradient-to-r from-primary/15 to-primary/5" />
+
+        <div className="px-4 md:px-6 pb-5 -mt-10">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            {/* Avatar + name */}
+            <div className="flex items-end gap-4">
+              <div className="w-20 h-20 rounded-2xl border-4 border-bg-card bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold shadow-sm shrink-0 overflow-hidden">
+                {patient.avatar ? (
+                  <img
+                    src={patient.avatar}
+                    alt={fullName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  fullName.charAt(0).toUpperCase() || "P"
+                )}
+              </div>
+
+              <div className="pb-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-lg font-semibold text-text-primary">
+                    {fullName || "Unnamed Patient"}
+                  </h1>
+                  <span className="text-xs text-text-disabled font-mono">
+                    #{shortId}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${patient.isActive !== false ? "bg-success/10 text-success" : "bg-border text-text-secondary"}`}
+                  >
+                    {patient.isActive !== false ? "Active" : "Inactive"}
+                  </span>
+                </div>
+
+                {/* Detail chips */}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                  {[
+                    { icon: User, value: patient.gender || "—" },
+                    {
+                      icon: Calendar,
+                      value: `${calculateAge(patient.dateOfBirth)}`,
+                    },
+                    { icon: Phone, value: patient.phoneNo || "—" },
+                    { icon: Mail, value: patient.email || "—" },
+                    {
+                      icon: Calendar,
+                      value: `Last visit: ${formatDate(patient.lastVisit)}`,
+                    },
+                  ].map(({ icon: Icon, value }, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-1.5 text-xs text-text-secondary"
+                    >
+                      <Icon size={12} className="opacity-60 shrink-0" />
+                      <span className="truncate max-w-[160px]">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 sm:pb-1">
+              <button className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover transition">
+                <Pencil size={14} />
+                <span className="hidden sm:inline">Edit</span>
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover transition"
+              >
+                <Printer size={14} />
+                <span className="hidden sm:inline">Print</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Medical info grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {medicalInfo.map(({ label, value, sub, icon: Icon, colorClass }) => (
+          <div
+            key={label}
+            className="bg-bg-card border border-border rounded-2xl p-4 flex items-start gap-3"
+          >
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${colorClass}`}
+            >
+              <Icon size={16} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-text-secondary">{label}</p>
+              <p className="text-sm font-medium text-text-primary mt-0.5 truncate">
+                {value}
+              </p>
+              {sub && <p className="text-xs text-text-secondary">{sub}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="flex border-b border-border">
+          {TABS.map(({ id: tabId, label, icon: Icon }) => {
+            const active = activeTab === tabId;
+            return (
+              <button
+                key={tabId}
+                onClick={() => setActiveTab(tabId)}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition border-b-2 ${
+                  active
+                    ? "border-primary text-primary"
+                    : "border-transparent text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                <Icon size={15} className="shrink-0" />
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="p-4">
+          {activeTab === "documents" && <MedicalDocument patientId={id} />}
+          {activeTab === "prescriptions" && <Prescription />}
+          {activeTab === "appointments" && <AppointmentHistory />}
+        </div>
+      </div>
+    </div>
+  );
 }

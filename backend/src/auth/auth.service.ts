@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Document } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 
@@ -15,6 +15,14 @@ import { PractitionerSignupDto } from './dto/practitioner-signup.dto';
 import { Patient } from '../patients/schemas/patient.schema';
 import { Practitioner } from '../practitioners/schemas/practitioner.schema';
 import { Role } from '../common/role.enum';
+
+type UserDocument = (Patient | Practitioner) &
+  Document & {
+    password: string;
+    role: string;
+    firstName: string;
+    lastName?: string;
+  };
 
 const SALT_ROUNDS = 10;
 
@@ -79,7 +87,9 @@ export class AuthService {
       role: Role.PRACTITIONER,
     });
 
-    const { password, ...result } = practitioner.toObject();
+    const obj = practitioner.toObject() as unknown as Record<string, unknown>;
+    const { password: _pw, ...result } = obj;
+    void _pw;
     return result;
   }
 
@@ -88,7 +98,8 @@ export class AuthService {
   // LOGIN WITH FULL VALIDATION
   // ===========================
   async login(loginDto: LoginDto) {
-    const { email, password, role } = loginDto;
+    const { email, password, role: rawRole } = loginDto;
+    const role = rawRole as unknown as Role;
 
     // 1️⃣ Basic Validation
     if (!email || !password || !role) {
@@ -101,17 +112,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid role selected');
     }
 
-    let user: any;
+    let user: UserDocument | null;
 
     // 2️⃣ Fetch User From Correct Collection
     if (role === Role.PRACTITIONER) {
-      user = await this.practitionerModel.findOne({
+      user = (await this.practitionerModel.findOne({
         email: normalizedEmail,
-      });
+      })) as UserDocument | null;
     } else {
-      user = await this.patientModel.findOne({
+      user = (await this.patientModel.findOne({
         email: normalizedEmail,
-      });
+      })) as UserDocument | null;
     }
 
     // 3️⃣ User Exists?

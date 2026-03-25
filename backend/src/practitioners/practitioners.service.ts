@@ -5,16 +5,16 @@ import { Practitioner } from './schemas/practitioner.schema';
 
 @Injectable()
 export class PractitionersService {
-    constructor(
-        @InjectModel(Practitioner.name)
-        private readonly practitionerModel: Model<Practitioner>,
-    ) { }
+  constructor(
+    @InjectModel(Practitioner.name)
+    private readonly practitionerModel: Model<Practitioner>,
+  ) {}
 
-    async findAll() {
-        return this.practitionerModel.find().select('-password').lean();
-    }
+  async findAll() {
+    return this.practitionerModel.find().select('-password').lean();
+  }
 
-    async findById(id: string) {
-        return this.practitionerModel.findById(id).select('-password').lean();
-    }
+  async findById(id: string) {
+    return this.practitionerModel.findById(id).select('-password').lean();
+  }
 }

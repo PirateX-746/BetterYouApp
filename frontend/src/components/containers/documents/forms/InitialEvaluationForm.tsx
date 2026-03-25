@@ -1,17 +1,25 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useForm, Resolver } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useForm, useWatch, Resolver } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import GoBackButton from "@/components/common/goBackButton/GoBackButton";
+import { Loader2, Printer } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
+import { calculateAge } from "@/lib/patientUtils";
+import {
+  SectionCard,
+  FormGrid,
+  FormInput,
+  FormSelect,
+  FormTextarea,
+  InfoItem,
+} from "@/components/containers/documents/forms/FormFields";
 
-/* ================= TYPES ================= */
-
-type Props = {
-  patientId: string;
-};
+/* ── Types ── */
+type Props = { patientId: string };
 
 type Patient = {
   firstName?: string;
@@ -26,22 +34,17 @@ type FormValues = {
   maritalStatus: string;
   education: string;
   referralSource: string;
-
   presentingComplaint: string;
   pastPsychHistory: string;
   familyHistory: string;
   substanceUse: string;
-
   riskSummary: string;
   diagnosis: string;
-
   notes: string;
-
   mse: Record<string, string>;
 };
 
-/* ================= MSE OPTIONS ================= */
-
+/* ── MSE options ── */
 const MSE_OPTIONS: Record<string, string[]> = {
   appearance: ["Well Groomed", "Disheveled", "Poor Hygiene", "Unkempt"],
   psychomotor: ["Normal", "Agitated", "Retarded", "Restless"],
@@ -60,15 +63,36 @@ const MSE_OPTIONS: Record<string, string[]> = {
   judgment: ["Intact", "Impaired"],
 };
 
-/* ================= COMPONENT ================= */
+/* ── Schema — defined outside component ── */
+const schema = yup
+  .object({
+    occupation: yup.string().default(""),
+    maritalStatus: yup.string().default(""),
+    education: yup.string().default(""),
+    referralSource: yup.string().default(""),
+    presentingComplaint: yup.string().default(""),
+    pastPsychHistory: yup.string().default(""),
+    familyHistory: yup.string().default(""),
+    substanceUse: yup.string().default(""),
+    riskSummary: yup.string().default(""),
+    diagnosis: yup.string().default(""),
+    notes: yup.string().default(""),
+    mse: yup.object().default({}),
+  })
+  .required();
+
+function formatLabel(key: string) {
+  return key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
+}
 
 export default function InitialEvaluationForm({ patientId }: Props) {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!patientId) return;
-
     api
       .get(`/patients/${patientId}`)
       .then((res) => setPatient(res.data))
@@ -76,93 +100,91 @@ export default function InitialEvaluationForm({ patientId }: Props) {
       .finally(() => setLoading(false));
   }, [patientId]);
 
-  const schema = yup
-    .object({
-      occupation: yup.string(),
-      maritalStatus: yup.string(),
-      education: yup.string(),
-      referralSource: yup.string(),
-
-      presentingComplaint: yup.string(),
-      pastPsychHistory: yup.string(),
-      familyHistory: yup.string(),
-      substanceUse: yup.string(),
-
-      riskSummary: yup.string(),
-      diagnosis: yup.string(),
-
-      notes: yup.string(),
-
-      mse: yup.object().default({}),
-    })
-    .required();
-
-  const { register, handleSubmit, watch } = useForm<FormValues>({
+  const { register, handleSubmit, control } = useForm<FormValues>({
     resolver: yupResolver(schema) as unknown as Resolver<FormValues>,
-    defaultValues: {
-      occupation: "",
-      maritalStatus: "",
-      education: "",
-      referralSource: "",
-
-      presentingComplaint: "",
-      pastPsychHistory: "",
-      familyHistory: "",
-      substanceUse: "",
-
-      riskSummary: "",
-      diagnosis: "",
-
-      notes: "",
-      mse: {},
-    },
+    defaultValues: schema.getDefault() as FormValues,
   });
 
-  const selectedMood = watch("mse.mood");
-  const printRef = useRef<HTMLDivElement>(null);
+  const selectedMood = useWatch({
+    control,
+    name: "mse.mood",
+    defaultValue: "",
+  });
+
+  const fullName = useMemo(() => {
+    if (!patient) return "—";
+    return `${patient.firstName ?? ""} ${patient.lastName ?? ""}`.trim() || "—";
+  }, [patient]);
 
   const handlePrint = () => {
     if (!printRef.current) return;
-
-    const printContents = printRef.current.innerHTML;
-    const originalContents = document.body.innerHTML;
-
-    document.body.innerHTML = printContents;
-    window.print();
-    document.body.innerHTML = originalContents;
-
-    // Prevent hydration mismatch
-    window.location.reload();
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<html><body>${printRef.current.innerHTML}</body></html>`);
+    w.document.close();
+    w.print();
   };
 
-  const onSubmit = (data: FormValues) => {
-    console.log({
-      patientId,
-      type: "initial-evaluation",
-      content: data,
-      createdAt: new Date(),
-    });
-
-    handlePrint();
+  const onSubmit = async (data: FormValues) => {
+    setSaving(true);
+    try {
+      await api.post("/documents", {
+        patientId,
+        type: "initial-evaluation",
+        content: data,
+        createdAt: new Date(),
+      });
+      handlePrint();
+    } catch {
+      // toast handled by global error handler or add toast here
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (loading) return <div className="p-10">Loading patient...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="animate-spin text-primary" size={28} />
+      </div>
+    );
+  }
 
   return (
-    <>
-      <GoBackButton
-        fallbackPath={`${process.env.NEXT_PUBLIC_API_URL}/patients/${patientId}`}
-        label="Back to Patient"
-      />
+    <div className="max-w-4xl mx-auto space-y-4">
+      {/* Back */}
+      <Link
+        href={`/patients/${patientId}`}
+        className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition"
+      >
+        <ArrowLeft size={15} />
+        Back to Patient
+      </Link>
 
-      <div className="max-w-5xl space-y-8" ref={printRef}>
-        {/* Patient Info */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">
+            Initial Evaluation
+          </h1>
+          <p className="text-sm text-text-secondary mt-0.5">{fullName}</p>
+        </div>
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover transition"
+        >
+          <Printer size={14} />
+          <span className="hidden sm:inline">Print</span>
+        </button>
+      </div>
+
+      <div className="space-y-4" ref={printRef}>
+        {/* Patient info */}
         <SectionCard title="Patient Information">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <InfoItem label="Name" value={fullName(patient)} />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <InfoItem label="Name" value={fullName} />
             <InfoItem
               label="Age"
-              value={`${calculateAge(patient?.dateOfBirth)} years`}
+              value={`${calculateAge(patient?.dateOfBirth)}`}
             />
             <InfoItem label="Gender" value={patient?.gender || "—"} />
             <InfoItem label="Contact" value={patient?.phoneNo || "—"} />
@@ -171,44 +193,41 @@ export default function InitialEvaluationForm({ patientId }: Props) {
 
         {/* Demographics */}
         <SectionCard title="Demographics">
-          <Grid>
-            <Input label="Occupation" {...register("occupation")} />
-            <Input label="Marital Status" {...register("maritalStatus")} />
-            <Input label="Education" {...register("education")} />
-            <Input label="Referral Source" {...register("referralSource")} />
-          </Grid>
+          <FormGrid>
+            <FormInput label="Occupation" {...register("occupation")} />
+            <FormInput label="Marital Status" {...register("maritalStatus")} />
+            <FormInput label="Education" {...register("education")} />
+            <FormInput
+              label="Referral Source"
+              {...register("referralSource")}
+            />
+          </FormGrid>
         </SectionCard>
 
-        {/* Presenting Complaint */}
         <SectionCard title="Presenting Complaints">
-          <Textarea {...register("presentingComplaint")} />
+          <FormTextarea {...register("presentingComplaint")} rows={4} />
         </SectionCard>
 
-        {/* Past Psychiatric History */}
         <SectionCard title="Past Psychiatric History">
-          <Textarea {...register("pastPsychHistory")} />
+          <FormTextarea {...register("pastPsychHistory")} rows={4} />
         </SectionCard>
 
-        {/* Family History */}
         <SectionCard title="Family Psychiatric History">
-          <Textarea {...register("familyHistory")} />
+          <FormTextarea {...register("familyHistory")} rows={4} />
         </SectionCard>
 
-        {/* Substance Use */}
         <SectionCard title="Substance Use History">
-          <Textarea {...register("substanceUse")} />
+          <FormTextarea {...register("substanceUse")} rows={4} />
         </SectionCard>
 
         {/* MSE */}
         <SectionCard title="Mental State Examination (MSE)">
-          <Grid>
+          <FormGrid>
             {Object.entries(MSE_OPTIONS).map(([key, options]) => {
-              if (key === "moodSeverity" && selectedMood !== "Depressed") {
+              if (key === "moodSeverity" && selectedMood !== "Depressed")
                 return null;
-              }
-
               return (
-                <Select
+                <FormSelect
                   key={key}
                   label={formatLabel(key)}
                   options={options}
@@ -216,142 +235,40 @@ export default function InitialEvaluationForm({ patientId }: Props) {
                 />
               );
             })}
-          </Grid>
+          </FormGrid>
         </SectionCard>
 
-        {/* Risk Summary */}
         <SectionCard title="Risk Summary & Clinical Impression">
-          <Textarea {...register("riskSummary")} />
-          <Textarea {...register("diagnosis")} />
+          <div className="space-y-4">
+            <FormTextarea
+              label="Risk Summary"
+              {...register("riskSummary")}
+              rows={3}
+            />
+            <FormTextarea
+              label="Diagnosis"
+              {...register("diagnosis")}
+              rows={3}
+            />
+          </div>
         </SectionCard>
 
-        {/* Clinical Notes */}
         <SectionCard title="Additional Clinical Notes">
-          <Textarea {...register("notes")} />
+          <FormTextarea {...register("notes")} rows={4} />
         </SectionCard>
-
-        {/* Save */}
-        <div className="flex justify-end">
-          <button
-            onClick={handleSubmit(onSubmit)}
-            className="px-6 py-3 text-sm font-medium"
-            style={{
-              background: "var(--primary)",
-              color: "white",
-              borderRadius: "var(--radius-md)",
-            }}
-          >
-            Save Document
-          </button>
-        </div>
       </div>
-    </>
-  );
-}
 
-/* ================= UI COMPONENTS ================= */
-
-function SectionCard({ title, children }: any) {
-  return (
-    <div
-      className="p-6 space-y-6"
-      style={{
-        background: "var(--bg-card)",
-        borderRadius: "var(--radius-lg)",
-        border: "1px solid var(--border-light)",
-      }}
-    >
-      <h2 className="text-lg font-semibold">{title}</h2>
-      {children}
-    </div>
-  );
-}
-
-function Grid({ children }: any) {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{children}</div>
-  );
-}
-
-function Input({ label, ...props }: any) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium">{label}</label>
-      <input
-        {...props}
-        className="w-full px-4 py-2 text-sm"
-        style={fieldStyle}
-      />
-    </div>
-  );
-}
-
-function Select({ label, options, ...props }: any) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium">{label}</label>
-      <select
-        {...props}
-        className="w-full px-4 py-2 text-sm"
-        style={fieldStyle}
-      >
-        <option value="">Select</option>
-        {options.map((opt: string) => (
-          <option key={opt}>{opt}</option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function Textarea(props: any) {
-  return (
-    <textarea
-      {...props}
-      rows={3}
-      className="w-full px-4 py-3 text-sm resize-none"
-      style={fieldStyle}
-    />
-  );
-}
-
-function InfoItem({ label, value }: any) {
-  return (
-    <div>
-      <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
-        {label}
+      {/* Footer */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleSubmit(onSubmit)}
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition disabled:opacity-50 shadow-sm"
+        >
+          {saving && <Loader2 size={15} className="animate-spin" />}
+          {saving ? "Saving…" : "Save Document"}
+        </button>
       </div>
-      <div className="text-sm font-medium">{value}</div>
     </div>
   );
 }
-
-/* ================= HELPERS ================= */
-
-function fullName(patient: Patient | null) {
-  if (!patient) return "—";
-  return `${patient.firstName ?? ""} ${patient.lastName ?? ""}`.trim() || "—";
-}
-
-function calculateAge(dob?: string) {
-  if (!dob) return "—";
-  const birth = new Date(dob);
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const monthDiff = today.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate()))
-    age--;
-  return age;
-}
-
-function formatLabel(key: string) {
-  return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (str) => str.toUpperCase());
-}
-
-const fieldStyle = {
-  border: "1px solid var(--border-light)",
-  borderRadius: "var(--radius-md)",
-  background: "var(--bg-light)",
-};

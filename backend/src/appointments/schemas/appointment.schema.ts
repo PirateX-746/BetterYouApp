@@ -1,11 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-// ✅ ADD THIS ENUM
 export enum AppointmentStatus {
-  SCHEDULED = 'SCHEDULED',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
+  SCHEDULED = 'scheduled',
+  CONFIRMED = 'confirmed',
+  CANCELLED = 'cancelled',
 }
 
 export type AppointmentDocument = Appointment & Document;
@@ -27,7 +26,6 @@ export class Appointment {
   @Prop({ required: true })
   end: Date;
 
-  // ✅ USE ENUM IN SCHEMA
   @Prop({
     type: String,
     enum: AppointmentStatus,

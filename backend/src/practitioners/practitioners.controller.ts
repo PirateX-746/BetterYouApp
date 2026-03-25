@@ -3,15 +3,15 @@ import { PractitionersService } from './practitioners.service';
 
 @Controller('practitioners')
 export class PractitionersController {
-    constructor(private readonly practitionersService: PractitionersService) { }
+  constructor(private readonly practitionersService: PractitionersService) {}
 
-    @Get()
-    findAll() {
-        return this.practitionersService.findAll();
-    }
+  @Get()
+  findAll() {
+    return this.practitionersService.findAll();
+  }
 
-    @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.practitionersService.findById(id);
-    }
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.practitionersService.findById(id);
+  }
 }

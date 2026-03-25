@@ -8,12 +8,10 @@ import { Patient, PatientSchema } from './schemas/patient.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Patient.name, schema: PatientSchema },
-    ]),
+    MongooseModule.forFeature([{ name: Patient.name, schema: PatientSchema }]),
   ],
   controllers: [PatientsController],
   providers: [PatientsService],
   exports: [PatientsService],
 })
-export class PatientsModule { }
+export class PatientsModule {}

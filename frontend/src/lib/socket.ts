@@ -22,7 +22,7 @@ console.log("🔌 Socket connecting to:", getSocketUrl());
 export const socketUrl = getSocketUrl();
 console.log("🔌 Socket connecting to:", socketUrl);
 
-export const createSocket = (query?: any): Socket => {
+export const createSocket = (query?: Record<string, string>): Socket => {
     return io(socketUrl, {
         transports: ["websocket"], // Force websocket (avoid polling issues)
         withCredentials: true,

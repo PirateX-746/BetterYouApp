@@ -6,42 +6,35 @@ import ProfileTab from "@/components/containers/settings/ProfileTab";
 import SecurityTab from "@/components/containers/settings/SecurityTab";
 import NotificationsTab from "@/components/containers/settings/NotificationsTab";
 import AppearanceTab from "@/components/containers/settings/AppearanceTab";
-import styles from "@/components/containers/settings/Settings.module.css";
+
+type Tab = "profile" | "security" | "notifications" | "appearance";
+
+const TAB_COMPONENTS: Record<Tab, React.ReactNode> = {
+  profile: <ProfileTab />,
+  security: <SecurityTab />,
+  notifications: <NotificationsTab />,
+  appearance: <AppearanceTab />,
+};
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("profile");
-
-  const renderTab = () => {
-    switch (activeTab) {
-      case "profile":
-        return <ProfileTab />;
-      case "security":
-        return <SecurityTab />;
-      case "notifications":
-        return <NotificationsTab />;
-      case "appearance":
-        return <AppearanceTab />;
-      default:
-        return null;
-    }
-  };
+  const [activeTab, setActiveTab] = useState<Tab>("profile");
 
   return (
-    <div className={styles.settingsContainer}>
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Settings</h1>
-        <p className={styles.pageSubtitle}>
+    <div className="space-y-5 max-w-5xl mx-auto">
+      <div>
+        <h1 className="text-xl font-semibold text-text-primary">Settings</h1>
+        <p className="text-sm text-text-secondary mt-0.5">
           Manage your account and preferences
         </p>
       </div>
 
-      <div className={styles.settingsLayout}>
+      <div className="flex flex-col md:flex-row gap-4">
         <SettingsSidebar
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={(tab) => setActiveTab(tab as Tab)}
         />
-        <div className={styles.contentPanel}>
-          {renderTab()}
+        <div className="flex-1 min-w-0 bg-bg-card border border-border rounded-2xl p-5">
+          {TAB_COMPONENTS[activeTab]}
         </div>
       </div>
     </div>

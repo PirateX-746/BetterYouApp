@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import {
   patientSignupSchema,
@@ -11,13 +11,13 @@ import {
 } from "@/schemas/patientSignup.schema";
 import { api } from "@/lib/api";
 
-export default function PatientSignup({ role }: { role: "patient" }) {
+export default function PatientSignup() {
   const router = useRouter();
 
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<PatientSignupFormValues>({
     resolver: yupResolver(patientSignupSchema),
@@ -42,7 +42,11 @@ export default function PatientSignup({ role }: { role: "patient" }) {
     return score;
   };
 
-  const password = watch("password") || "";
+  const password = useWatch({
+    control,
+    name: "password",
+    defaultValue: "",
+  });
   const strength = getPasswordStrength(password);
 
   /* ------------------------------
@@ -51,9 +55,10 @@ export default function PatientSignup({ role }: { role: "patient" }) {
 
   const onSubmit = async (data: PatientSignupFormValues) => {
     try {
-      const { confirmPassword, ...payload } = data;
+      const { confirmPassword: _, ...payload } = data;
+      void _;
 
-      const res = await api.post("/auth/patient/signup", payload);
+      await api.post("/auth/patient/signup", payload);
 
       // If backend returns token
       //   const { access_token, user } = res.data;
@@ -65,8 +70,9 @@ export default function PatientSignup({ role }: { role: "patient" }) {
       //   console.log(access_token, user);
 
       router.push("/patientLogin");
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Something went wrong");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      alert(error.response?.data?.message || "Something went wrong");
     }
   };
 
