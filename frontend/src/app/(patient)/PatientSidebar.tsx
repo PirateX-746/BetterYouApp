@@ -2,26 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  Calendar,
-  MessageCircle,
-  User,
-  Settings,
-  LogOut,
-} from "lucide-react";
-import { logout } from "@/app/actions/logout";
+import { LogOut } from "lucide-react";
+import { PATIENT_NAV_ITEMS } from "@/lib/nav-config";
+import { useLogout } from "@/hooks/useLogout";
 
 export default function PatientSidebar() {
   const pathname = usePathname();
-
-  const navItems = [
-    { name: "Home", href: "/patient/home", icon: Home },
-    { name: "Appointments", href: "/patient/appointments", icon: Calendar },
-    { name: "Messages", href: "/patient/messages", icon: MessageCircle },
-    { name: "Profile", href: "/patient/profile", icon: User },
-    { name: "Settings", href: "/patient/settings", icon: Settings },
-  ];
+  const { handleLogout, isPending } = useLogout();
 
   return (
     <div className="w-64 h-screen bg-bg-card border-r border-border p-6 hidden md:flex flex-col justify-between">
@@ -31,7 +18,7 @@ export default function PatientSidebar() {
         </h1>
 
         <nav className="space-y-2">
-          {navItems.map((item) => {
+          {PATIENT_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href;
 
@@ -54,13 +41,13 @@ export default function PatientSidebar() {
       </div>
 
       <button
-        className="flex items-center gap-3 px-3 py-2 text-sm text-text-secondary hover:bg-danger/10 hover:text-danger rounded-md transition"
-        onClick={async () => {
-          await logout();
-        }}
+        className="flex items-center gap-3 px-3 py-2 text-sm text-text-secondary hover:bg-danger/10 hover:text-danger rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={handleLogout}
+        disabled={isPending}
+        aria-label="Log out"
       >
         <LogOut size={18} />
-        Logout
+        {isPending ? "Logging out…" : "Logout"}
       </button>
     </div>
   );

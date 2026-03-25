@@ -21,7 +21,7 @@ export class Patient {
   @Prop({
     required: true,
     unique: true,
-    index: true
+    index: true,
   })
   mrn: string;
 

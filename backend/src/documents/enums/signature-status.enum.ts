@@ -1,5 +1,5 @@
 export enum SignatureStatus {
-    DRAFT = 'draft',
-    FINALIZED = 'finalized',
-    SIGNED = 'signed',
+  DRAFT = 'draft',
+  FINALIZED = 'finalized',
+  SIGNED = 'signed',
 }

@@ -16,18 +16,16 @@ export default function PractitionerLayout({
     <>
       <PractitionerSidebar open={open} setOpen={setOpen} />
 
-      <div
-        className={`
-          min-h-screen bg-bg-page transition-all duration-300
-          lg:ml-64
-        `}
-      >
-        <PractitionerTopbar
-          open={open}
-          onToggle={() => setOpen(!open)}
-        />
+      <div className="lg:ml-64 min-h-screen bg-bg-page flex flex-col">
+        <PractitionerTopbar open={open} onToggle={() => setOpen((o) => !o)} />
 
-        <main className="pt-16 p-6 overflow-y-auto overflow-x-hidden">{children}</main>
+        {/*
+          pt-14  = topbar height
+          pb-16  = mobile bottom nav height (lg:pb-0 removes it on desktop)
+        */}
+        <main className="flex-1 pt-14 pb-16 lg:pb-0 overflow-y-auto overflow-x-hidden">
+          <div className="p-4 md:p-6 max-w-7xl mx-auto">{children}</div>
+        </main>
       </div>
     </>
   );

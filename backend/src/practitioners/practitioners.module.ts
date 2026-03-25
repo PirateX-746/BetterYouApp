@@ -15,4 +15,4 @@ import { PractitionersService } from './practitioners.service';
   providers: [PractitionersService],
   exports: [PractitionersService],
 })
-export class PractitionersModule { }
+export class PractitionersModule {}

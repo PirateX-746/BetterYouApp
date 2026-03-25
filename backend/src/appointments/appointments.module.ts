@@ -16,4 +16,4 @@ import { AvailabilityModule } from '../availability/availability.module';
   controllers: [AppointmentsController],
   providers: [AppointmentsService, AppointmentsGateway],
 })
-export class AppointmentsModule { }
+export class AppointmentsModule {}

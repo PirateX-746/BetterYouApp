@@ -5,18 +5,46 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid/index.js";
 import dayGridPlugin from "@fullcalendar/daygrid/index.js";
 import interactionPlugin from "@fullcalendar/interaction/index.js";
+import type {
+  DateSpanApi,
+  EventClickArg,
+  EventDropArg,
+} from "@fullcalendar/core";
+import type { EventResizeDoneArg } from "@fullcalendar/interaction";
+import { Loader2, Settings2 } from "lucide-react";
+import { createSocket } from "@/lib/socket";
 import { Helpers } from "@/utils/helpers";
 import { api } from "@/lib/api";
 import { CalendarEvent } from "@/types/appointment";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import AddAppointmentDialog from "./AddAppointmentDialog";
-import { Button } from "@/components/ui/button";
 import ManageAvailabilityDialog from "./ManageAvailabilityDialog";
 
+const STATUS_COLORS: Record<string, string> = {
+  confirmed: "#22c55e",
+  completed: "#3b82f6",
+  cancelled: "#ef4444",
+  pending: "#f59e0b",
+};
+
+function getStatusColor(status?: string): string {
+  return STATUS_COLORS[status ?? ""] ?? STATUS_COLORS.pending;
+}
+
+type BlockedSlot = {
+  _id: string;
+  blockType: "day" | "slot";
+  date: string;
+  startTime?: string;
+  endTime?: string;
+};
+
 export default function AppointmentsClient() {
+  const practitionerId = useLocalStorage("userId");
+
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [blockedSlots, setBlockedSlots] = useState<any[]>([]);
+  const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [practitionerId, setPractitionerId] = useState<string | null>(null);
 
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -25,46 +53,34 @@ export default function AppointmentsClient() {
     null,
   );
 
-  /* ================= READ PRACTITIONER ================= */
-
-  useEffect(() => {
-    const id = localStorage.getItem("userId");
-
-    if (!id) {
-      Helpers.showNotification("Practitioner not logged in", "error");
-      setLoading(false);
-      return;
-    }
-
-    setPractitionerId(id);
-  }, []);
-
-  /* ================= FETCH APPOINTMENTS ================= */
-
+  /* ── Fetch ── */
   const fetchAppointments = useCallback(async () => {
     if (!practitionerId) return;
-
     try {
-      const res = await api.get(`/appointments/practitioner/${practitionerId}`);
-
+      // _t busts the browser cache — prevents 304 Not Modified returning stale data
+      const res = await api.get(
+        `/appointments/practitioner/${practitionerId}`,
+        {
+          params: { _t: Date.now() },
+        },
+      );
       if (!Array.isArray(res.data)) {
         setEvents([]);
         return;
       }
-
       setEvents(
-        res.data.map((a: any) => ({
-          id: a._id || a.id,
-          title: a.title,
-          start: a.start,
-          end: a.end,
-          patientId: a.patientId,
-          notes: a.notes,
-          status: a.status,
+        res.data.map((a: Record<string, unknown>) => ({
+          id: (a._id ?? a.id) as string,
+          title: a.title as string,
+          start: a.start as string,
+          end: a.end as string,
+          patientId: a.patientId as string,
+          notes: a.notes as string,
+          status: a.status as string,
         })),
       );
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       Helpers.showNotification("Failed to load appointments", "error");
       setEvents([]);
     }
@@ -72,7 +88,6 @@ export default function AppointmentsClient() {
 
   const fetchBlockedSlots = useCallback(async () => {
     if (!practitionerId) return;
-
     try {
       const res = await api.get(`/availability/${practitionerId}`);
       setBlockedSlots(Array.isArray(res.data) ? res.data : []);
@@ -82,34 +97,72 @@ export default function AppointmentsClient() {
   }, [practitionerId]);
 
   useEffect(() => {
-    if (!practitionerId) return;
-
+    if (!practitionerId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     Promise.all([fetchAppointments(), fetchBlockedSlots()]).finally(() =>
       setLoading(false),
     );
   }, [practitionerId, fetchAppointments, fetchBlockedSlots]);
 
-  /* ================= CREATE ================= */
+  /* Real-time: listen for appointment updates emitted to the practitioner room */
+  useEffect(() => {
+    if (!practitionerId) return;
+    const socket = createSocket({ practitionerId });
 
-  // Prevent selecting blocked slots
-  const selectAllow = (selectInfo: any) => {
-    const selStart = selectInfo.start;
-    const selEnd = selectInfo.end;
+    socket.on(
+      "appointmentUpdated",
+      (incoming: CalendarEvent & { deleted?: boolean }) => {
+        if (incoming.deleted) {
+          setEvents((prev) => prev.filter((e) => e.id !== incoming.id));
+        } else {
+          setEvents((prev) => {
+            const exists = prev.find((e) => e.id === incoming.id);
+            if (exists) {
+              return prev.map((e) =>
+                e.id === incoming.id ? { ...e, ...incoming } : e,
+              );
+            }
+            // Replace any optimistic placeholder and add the confirmed event
+            return [
+              ...prev.filter((e) => !e.id.startsWith("optimistic-")),
+              incoming,
+            ];
+          });
+        }
+      },
+    );
 
-    // Check if selection overlaps any blocked slot
+    return () => {
+      socket.disconnect();
+    };
+  }, [practitionerId]);
+
+  /* ── selectAllow — prevent selecting past slots for new appointments ── */
+  const selectAllow = (span: DateSpanApi): boolean => {
+    const selStart = span.start;
+    const selEnd = span.end;
+
+    // Block creating new appointments in the past
+    if (selStart < new Date()) return false;
+
     for (const block of blockedSlots) {
       if (block.blockType === "day") {
-        const isoDate = selStart.toISOString().split("T")[0];
-        if (isoDate === block.date) {
-          Helpers.showNotification("This day is completely blocked", "error");
+        if (selStart.toISOString().split("T")[0] === block.date) {
+          Helpers.showNotification("This day is blocked", "error");
           return false;
         }
-      } else if (block.blockType === "slot") {
-        const blockStart = new Date(`${block.date}T${block.startTime}`);
-        const blockEnd = new Date(`${block.date}T${block.endTime}`);
-        if (selStart < blockEnd && selEnd > blockStart) {
-          Helpers.showNotification("This time slot is blocked", "error");
+      } else if (
+        block.blockType === "slot" &&
+        block.startTime &&
+        block.endTime
+      ) {
+        const bs = new Date(`${block.date}T${block.startTime}`);
+        const be = new Date(`${block.date}T${block.endTime}`);
+        if (selStart < be && selEnd > bs) {
+          Helpers.showNotification("This slot is blocked", "error");
           return false;
         }
       }
@@ -117,102 +170,134 @@ export default function AppointmentsClient() {
     return true;
   };
 
-  const handleSlotSelect = (info: any) => {
-    setSelectedDate(info.start);
-    setSelectedEvent(null);
-    setDialogOpen(true);
-  };
+  /* ── Event click — allow viewing history, only open edit dialog for future appointments ── */
+  const handleEventClick = (info: EventClickArg) => {
+    if (info.event.id.startsWith("block-")) return;
 
-  /* ================= EDIT ================= */
-
-  const handleEventClick = (info: any) => {
-    if (String(info.event.id).startsWith("block-")) return;
-
-    const start = info.event.start;
-    const end = info.event.end ?? new Date(start.getTime() + 30 * 60000);
+    // FC types: event.start is Date | null — guard with fallback
+    const start = info.event.start ?? new Date();
+    const end = info.event.end ?? new Date(start.getTime() + 30 * 60_000);
 
     setSelectedEvent({
       id: info.event.id,
       title: info.event.title,
       start: start.toISOString(),
       end: end.toISOString(),
-      patientId: info.event.extendedProps.patientId,
-      notes: info.event.extendedProps.notes,
-      status: info.event.extendedProps.status,
+      patientId: info.event.extendedProps.patientId as string,
+      notes: info.event.extendedProps.notes as string,
+      status: info.event.extendedProps.status as string,
     });
-
     setSelectedDate(start);
     setDialogOpen(true);
   };
 
-  /* ================= SAVE ================= */
+  const handleSlotSelect = (info: { start: Date }) => {
+    setSelectedDate(info.start);
+    setSelectedEvent(null);
+    setDialogOpen(true);
+  };
 
-  const handleSave = async (payload: any, id?: string) => {
+  /* ── Save / delete ── */
+  const handleSave = async (payload: Record<string, unknown>, id?: string) => {
     if (!practitionerId) return;
-
     try {
       if (id) {
-        await api.put(`/appointments/${id}`, {
-          ...payload,
-          practitionerId,
-        });
+        // Edit — optimistically update immediately, refetch to confirm
+        await api.put(`/appointments/${id}`, { ...payload, practitionerId });
+        setEvents((prev) =>
+          prev.map((e) =>
+            e.id === id
+              ? {
+                  ...e,
+                  title: payload.title as string,
+                  start: payload.start as string,
+                  end: payload.end as string,
+                  notes: payload.notes as string,
+                }
+              : e,
+          ),
+        );
       } else {
-        await api.post(`/appointments`, {
-          ...payload,
-          practitionerId,
-        });
+        // Create — backend only returns {status:"success"}, no appointment object.
+        // Build the optimistic event from the payload we already have.
+        // Use a temp ID prefixed "optimistic-"; fetchAppointments() below will
+        // replace it with the real server ID.
+        await api.post("/appointments", { ...payload, practitionerId });
+        const optimisticEvent: CalendarEvent = {
+          id: `optimistic-${Date.now()}`,
+          title: payload.title as string,
+          start: payload.start as string,
+          end: payload.end as string,
+          patientId: payload.patientId as string,
+          notes: (payload.notes ?? "") as string,
+          status: "pending",
+        };
+        setEvents((prev) => [...prev, optimisticEvent]);
       }
 
       Helpers.showNotification("Saved successfully", "success");
-      await fetchAppointments();
-    } catch (err: any) {
+      // No background refetch here — the WebSocket `appointmentUpdated` event
+      // will fire from the server and replace the optimistic entry with the
+      // real record (correct ID, status, etc.). A refetch would race the socket
+      // and overwrite state with stale data before the DB write propagates.
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
       Helpers.showNotification(
-        err?.response?.data?.message || "Failed to save",
+        e?.response?.data?.message ?? "Failed to save",
         "error",
       );
+      // On failure, refetch to restore correct state
+      fetchAppointments();
     }
   };
 
-  /* ================= DELETE ================= */
-
   const handleDelete = async (id: string) => {
+    // Optimistically remove from state immediately so calendar updates at once
+    setEvents((prev) => prev.filter((e) => e.id !== id));
     try {
       await api.delete(`/appointments/${id}`);
       Helpers.showNotification("Deleted successfully", "success");
+    } catch (err: unknown) {
+      // Revert on failure
       await fetchAppointments();
-    } catch (err: any) {
+      const e = err as { response?: { data?: { message?: string } } };
       Helpers.showNotification(
-        err?.response?.data?.message || "Delete failed",
+        e?.response?.data?.message ?? "Delete failed",
         "error",
       );
     }
   };
 
-  /* ================= DRAG / RESIZE FIXED ================= */
-
+  /* ── Drag & resize — prevent moving to past, blocked slots still apply ── */
   const updateEventByDrag = useCallback(
-    async (info: any) => {
+    async (info: EventDropArg | EventResizeDoneArg) => {
       if (!practitionerId) return;
+      const { event, revert } = info;
+      // FC types: event.start is Date | null — guard with fallback
+      const start = event.start ?? new Date();
+      const end = event.end ?? new Date(start.getTime() + 30 * 60_000);
 
-      const event = info.event;
+      // Prevent dragging/resizing into the past
+      if (start < new Date()) {
+        revert();
+        Helpers.showNotification("Cannot reschedule to a past time", "error");
+        return;
+      }
 
-      const start: Date = event.start;
-      const end: Date = event.end ?? new Date(start.getTime() + 30 * 60000); // 🔥 FIXED
-
-      // Check if new position overlaps blocked slots
       for (const block of blockedSlots) {
-        if (block.blockType === "day") {
-          const isoDate = start.toISOString().split("T")[0];
-          if (isoDate === block.date) {
-            info.revert();
-            Helpers.showNotification("Cannot move to blocked day", "error");
-            return;
-          }
-        } else if (block.blockType === "slot") {
-          const blockStart = new Date(`${block.date}T${block.startTime}`);
-          const blockEnd = new Date(`${block.date}T${block.endTime}`);
-          if (start < blockEnd && end > blockStart) {
-            info.revert();
+        if (
+          block.blockType === "day" &&
+          start.toISOString().split("T")[0] === block.date
+        ) {
+          revert();
+          Helpers.showNotification("Cannot move to blocked day", "error");
+          return;
+        }
+        if (block.blockType === "slot" && block.startTime && block.endTime) {
+          const bs = new Date(`${block.date}T${block.startTime}`);
+          const be = new Date(`${block.date}T${block.endTime}`);
+          if (start < be && end > bs) {
+            revert();
             Helpers.showNotification("Cannot move to blocked slot", "error");
             return;
           }
@@ -227,117 +312,110 @@ export default function AppointmentsClient() {
           notes: event.extendedProps.notes,
           practitionerId,
         });
-
         Helpers.showNotification("Rescheduled", "success");
-        await fetchAppointments();
-      } catch (err: any) {
-        info.revert();
-
+        // WebSocket will update state — no refetch needed here
+      } catch (err: unknown) {
+        revert();
+        const e = err as { response?: { data?: { message?: string } } };
         Helpers.showNotification(
-          err?.response?.data?.message || "Reschedule failed",
+          e?.response?.data?.message ?? "Reschedule failed",
           "error",
         );
+        fetchAppointments(); // revert state on failure
       }
     },
     [practitionerId, blockedSlots, fetchAppointments],
   );
 
-  /* ================= RENDER ================= */
-
-  // Helper function to get color based on status
-  const getStatusColor = (status?: string): string => {
-    switch (status) {
-      case "confirmed":
-        return "#22c55e"; // green
-      case "completed":
-        return "#3b82f6"; // blue
-      case "cancelled":
-        return "#ef4444"; // red
-      case "pending":
-      default:
-        return "#f59e0b"; // amber/yellow
-    }
-  };
-
   if (loading) {
-    return <p>Loading calendar…</p>;
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-primary" size={28} />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Appointments</h1>
-        <Button
-          className="text-primary-light"
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">
+            Appointments
+          </h1>
+          <p className="text-sm text-text-secondary mt-0.5">
+            Manage your schedule
+          </p>
+        </div>
+        <button
           onClick={() => setAvailabilityOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover transition"
         >
-          Manage Availability
-        </Button>
+          <Settings2 size={15} />
+          <span className="hidden sm:inline">Manage Availability</span>
+          <span className="sm:hidden">Availability</span>
+        </button>
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <div
-          className="fc-container-wrapper"
-          style={{ height: "auto", minHeight: "800px" }}
-        >
-          <FullCalendar
-            plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
-            slotMinTime="10:00:00"
-            slotMaxTime="18:00:00"
-            slotDuration="00:30:00"
-            height="auto"
-            contentHeight="auto"
-            selectable={true}
-            longPressDelay={0}
-            selectLongPressDelay={0}
-            eventLongPressDelay={0}
-            selectAllow={selectAllow}
-            editable={true}
-            allDaySlot={false}
-            select={handleSlotSelect}
-            eventClick={handleEventClick}
-            eventDrop={updateEventByDrag}
-            eventResize={updateEventByDrag}
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridDay",
-            }}
-            eventSources={[
-              {
-                events: events.map((e) => ({
-                  id: e.id,
-                  title: e.title,
-                  start: e.start,
-                  end: e.end,
-                  backgroundColor: getStatusColor(e.status),
-                  borderColor: getStatusColor(e.status),
-                  extendedProps: {
-                    patientId: e.patientId,
-                    notes: e.notes,
-                    status: e.status,
-                  },
-                })),
-              },
-              {
-                events: blockedSlots.map((b) => ({
-                  id: `block-${b._id}`,
-                  start:
-                    b.blockType === "day"
-                      ? `${b.date}T00:00:00`
-                      : `${b.date}T${b.startTime}`,
-                  end:
-                    b.blockType === "day"
-                      ? `${b.date}T23:59:59`
-                      : `${b.date}T${b.endTime}`,
-                  display: "background",
-                  backgroundColor: "#fee2e2",
-                })),
-              },
-            ]}
-          />
-        </div>
+      <div className="bg-bg-card border border-border rounded-2xl p-3 md:p-5 overflow-hidden">
+        <FullCalendar
+          plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
+          initialView="timeGridWeek"
+          slotMinTime="10:00:00"
+          slotMaxTime="18:00:00"
+          slotDuration="00:30:00"
+          height="auto"
+          contentHeight="auto"
+          nowIndicator
+          selectable
+          selectMirror
+          longPressDelay={0}
+          selectLongPressDelay={0}
+          eventLongPressDelay={0}
+          selectAllow={selectAllow}
+          editable
+          allDaySlot={false}
+          select={handleSlotSelect}
+          eventClick={handleEventClick}
+          eventDrop={updateEventByDrag}
+          eventResize={updateEventByDrag}
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay",
+          }}
+          eventSources={[
+            {
+              events: events.map((e) => ({
+                id: e.id,
+                title: e.title,
+                start: e.start,
+                end: e.end,
+                backgroundColor: getStatusColor(e.status),
+                borderColor: getStatusColor(e.status),
+                extendedProps: {
+                  patientId: e.patientId,
+                  notes: e.notes,
+                  status: e.status,
+                },
+              })),
+            },
+            {
+              events: blockedSlots.map((b) => ({
+                id: `block-${b._id}`,
+                start:
+                  b.blockType === "day"
+                    ? `${b.date}T00:00:00`
+                    : `${b.date}T${b.startTime}`,
+                end:
+                  b.blockType === "day"
+                    ? `${b.date}T23:59:59`
+                    : `${b.date}T${b.endTime}`,
+                display: "background",
+                backgroundColor: "#fee2e2",
+              })),
+            },
+          ]}
+        />
       </div>
 
       <AddAppointmentDialog

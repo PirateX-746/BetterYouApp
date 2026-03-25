@@ -34,7 +34,7 @@ type Document = {
     };
     status?: "draft" | "finalized" | "signed";
     pdfUrl?: string;
-    content?: Record<string, any>;
+    content?: Record<string, unknown>;
 };
 
 type Props = {
@@ -578,9 +578,9 @@ export default function MedicalDocuments({ patientId }: Props) {
                                                         {sectionKey.replace(/([A-Z])/g, " $1")}
                                                     </div>
 
-                                                    {typeof sectionValue === "object" ? (
+                                                    {typeof sectionValue === "object" && sectionValue !== null ? (
                                                         <div className="section-grid">
-                                                            {Object.entries(sectionValue).map(
+                                                            {Object.entries(sectionValue as Record<string, unknown>).map(
                                                                 ([fieldKey, fieldValue]) => (
                                                                     <div key={fieldKey} className="field-item">
                                                                         <div className="field-label">

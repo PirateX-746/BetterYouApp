@@ -7,8 +7,8 @@ async function bootstrap() {
 
   const allowedOrigins = [
     process.env.FRONTEND_URL,
-    "https://better-you-app-bay.vercel.app",
-    "http://192.168.1.41:3000",
+    'https://better-you-app-bay.vercel.app',
+    'http://192.168.1.41:3000',
   ];
   app.enableCors({
     origin: allowedOrigins,
@@ -17,12 +17,12 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,            // removes extra fields
+      whitelist: true, // removes extra fields
       forbidNonWhitelisted: true, // throws error if extra fields sent
-      transform: true,            // auto converts types
-    })
+      transform: true, // auto converts types
+    }),
   );
 
   await app.listen(process.env.PORT || 3001);
 }
-bootstrap();
+void bootstrap();
