@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid/index.js";
 import dayGridPlugin from "@fullcalendar/daygrid/index.js";
@@ -13,18 +13,103 @@ import type {
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import { Loader2, Settings2 } from "lucide-react";
 import { createSocket } from "@/lib/socket";
-import { Helpers } from "@/utils/helpers";
+import toast from "react-hot-toast";
 import { api } from "@/lib/api";
 import { CalendarEvent } from "@/types/appointment";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import AddAppointmentDialog from "./AddAppointmentDialog";
 import ManageAvailabilityDialog from "./ManageAvailabilityDialog";
 
+/* ─── Types ─── */
+
+export interface DaySchedule {
+  isOpen: boolean;
+  openTime: string;  // "HH:mm"
+  closeTime: string; // "HH:mm"
+}
+export type PracticeHours = Record<string, DaySchedule>;
+
+const DAY_KEYS = [
+  "sunday", "monday", "tuesday", "wednesday",
+  "thursday", "friday", "saturday",
+] as const;
+
+const DEFAULT_HOURS: PracticeHours = {
+  monday:    { isOpen: true,  openTime: "09:00", closeTime: "17:00" },
+  tuesday:   { isOpen: true,  openTime: "09:00", closeTime: "17:00" },
+  wednesday: { isOpen: true,  openTime: "09:00", closeTime: "17:00" },
+  thursday:  { isOpen: true,  openTime: "09:00", closeTime: "17:00" },
+  friday:    { isOpen: true,  openTime: "09:00", closeTime: "17:00" },
+  saturday:  { isOpen: false, openTime: "09:00", closeTime: "17:00" },
+  sunday:    { isOpen: false, openTime: "09:00", closeTime: "17:00" },
+};
+
+/* ─── Helpers ─── */
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** Returns the schedule for a given JS Date, or null if closed */
+function scheduleForDate(date: Date, hours: PracticeHours): DaySchedule | null {
+  const key = DAY_KEYS[date.getDay()];
+  const s = hours[key] ?? DEFAULT_HOURS[key];
+  return s.isOpen ? s : null;
+}
+
+/** True if the [start, end) span fits inside the day's open window */
+function withinPracticeHours(start: Date, end: Date, hours: PracticeHours): boolean {
+  const schedule = scheduleForDate(start, hours);
+  if (!schedule) return false;
+  const openMin  = toMinutes(schedule.openTime);
+  const closeMin = toMinutes(schedule.closeTime);
+  const startMin = start.getHours() * 60 + start.getMinutes();
+  const endMin   = end.getHours()   * 60 + end.getMinutes();
+  return startMin >= openMin && endMin <= closeMin;
+}
+
+/* ─── FullCalendar derived props ─── */
+
+/** Build the businessHours array FullCalendar understands */
+function toBusinessHours(hours: PracticeHours) {
+  return DAY_KEYS.map((key, idx) => {
+    const s = hours[key] ?? DEFAULT_HOURS[key];
+    if (!s.isOpen) return null;
+    return { daysOfWeek: [idx], startTime: s.openTime, endTime: s.closeTime };
+  }).filter(Boolean);
+}
+
+/** Earliest open time across all open days, used for slotMinTime */
+function earliestOpen(hours: PracticeHours): string {
+  const times = DAY_KEYS.map((k) => hours[k] ?? DEFAULT_HOURS[k])
+    .filter((s) => s.isOpen)
+    .map((s) => s.openTime);
+  if (!times.length) return "08:00:00";
+  const min = times.reduce((a, b) => (a < b ? a : b));
+  return `${min}:00`;
+}
+
+/** Latest close time across all open days, used for slotMaxTime */
+function latestClose(hours: PracticeHours): string {
+  const times = DAY_KEYS.map((k) => hours[k] ?? DEFAULT_HOURS[k])
+    .filter((s) => s.isOpen)
+    .map((s) => s.closeTime);
+  if (!times.length) return "18:00:00";
+  const max = times.reduce((a, b) => (a > b ? a : b));
+  return `${max}:00`;
+}
+
+/* ─── Other constants ─── */
+
 const STATUS_COLORS: Record<string, string> = {
-  confirmed: "#22c55e",
-  completed: "#3b82f6",
-  cancelled: "#ef4444",
-  pending: "#f59e0b",
+  confirmed:   "#22c55e",
+  completed:   "#3b82f6",
+  cancelled:   "#ef4444",
+  checked_in:  "#14b8a6",
+  in_progress: "#f59e0b",
+  no_show:     "#6b7280",
+  pending:     "#f59e0b",
 };
 
 function getStatusColor(status?: string): string {
@@ -39,35 +124,30 @@ type BlockedSlot = {
   endTime?: string;
 };
 
+/* ─── Component ─── */
+
 export default function AppointmentsClient() {
   const practitionerId = useLocalStorage("userId");
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
+  const [practiceHours, setPracticeHours] = useState<PracticeHours>(DEFAULT_HOURS);
   const [loading, setLoading] = useState(true);
 
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
-    null,
-  );
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   /* ── Fetch ── */
   const fetchAppointments = useCallback(async () => {
     if (!practitionerId) return;
     try {
-      // _t busts the browser cache — prevents 304 Not Modified returning stale data
       const res = await api.get(
         `/appointments/practitioner/${practitionerId}`,
-        {
-          params: { _t: Date.now() },
-        },
+        { params: { _t: Date.now() } },
       );
-      if (!Array.isArray(res.data)) {
-        setEvents([]);
-        return;
-      }
+      if (!Array.isArray(res.data)) { setEvents([]); return; }
       setEvents(
         res.data.map((a: Record<string, unknown>) => ({
           id: (a._id ?? a.id) as string,
@@ -79,9 +159,8 @@ export default function AppointmentsClient() {
           status: a.status as string,
         })),
       );
-    } catch (err) {
-      console.error(err);
-      Helpers.showNotification("Failed to load appointments", "error");
+    } catch {
+      toast.error("Failed to load appointments");
       setEvents([]);
     }
   }, [practitionerId]);
@@ -96,22 +175,33 @@ export default function AppointmentsClient() {
     }
   }, [practitionerId]);
 
-  useEffect(() => {
-    if (!practitionerId) {
-      setLoading(false);
-      return;
+  const fetchPracticeHours = useCallback(async () => {
+    if (!practitionerId) return;
+    try {
+      const res = await api.get(`/practitioners/${practitionerId}`);
+      const ph = res.data?.practiceHours;
+      if (ph && typeof ph === "object") {
+        setPracticeHours({ ...DEFAULT_HOURS, ...ph });
+      }
+    } catch {
+      // silently fall back to defaults
     }
-    setLoading(true);
-    Promise.all([fetchAppointments(), fetchBlockedSlots()]).finally(() =>
-      setLoading(false),
-    );
-  }, [practitionerId, fetchAppointments, fetchBlockedSlots]);
+  }, [practitionerId]);
 
-  /* Real-time: listen for appointment updates emitted to the practitioner room */
+  useEffect(() => {
+    if (!practitionerId) { setLoading(false); return; }
+    setLoading(true);
+    Promise.all([
+      fetchAppointments(),
+      fetchBlockedSlots(),
+      fetchPracticeHours(),
+    ]).finally(() => setLoading(false));
+  }, [practitionerId, fetchAppointments, fetchBlockedSlots, fetchPracticeHours]);
+
+  /* Real-time updates */
   useEffect(() => {
     if (!practitionerId) return;
     const socket = createSocket({ practitionerId });
-
     socket.on(
       "appointmentUpdated",
       (incoming: CalendarEvent & { deleted?: boolean }) => {
@@ -120,64 +210,56 @@ export default function AppointmentsClient() {
         } else {
           setEvents((prev) => {
             const exists = prev.find((e) => e.id === incoming.id);
-            if (exists) {
-              return prev.map((e) =>
-                e.id === incoming.id ? { ...e, ...incoming } : e,
-              );
-            }
-            // Replace any optimistic placeholder and add the confirmed event
-            return [
-              ...prev.filter((e) => !e.id.startsWith("optimistic-")),
-              incoming,
-            ];
+            if (exists) return prev.map((e) => (e.id === incoming.id ? { ...e, ...incoming } : e));
+            return [...prev, incoming];
           });
         }
       },
     );
-
-    return () => {
-      socket.disconnect();
-    };
+    return () => { socket.disconnect(); };
   }, [practitionerId]);
 
-  /* ── selectAllow — prevent selecting past slots for new appointments ── */
-  const selectAllow = (span: DateSpanApi): boolean => {
-    const selStart = span.start;
-    const selEnd = span.end;
+  /* ── Derived FullCalendar values ── */
+  const businessHours = useMemo(() => toBusinessHours(practiceHours), [practiceHours]);
+  const slotMinTime   = useMemo(() => earliestOpen(practiceHours), [practiceHours]);
+  const slotMaxTime   = useMemo(() => latestClose(practiceHours), [practiceHours]);
 
-    // Block creating new appointments in the past
-    if (selStart < new Date()) return false;
+  /* ── selectAllow ── */
+  const selectAllow = useCallback(
+    (span: DateSpanApi): boolean => {
+      const { start, end } = span;
 
-    for (const block of blockedSlots) {
-      if (block.blockType === "day") {
-        if (selStart.toISOString().split("T")[0] === block.date) {
-          Helpers.showNotification("This day is blocked", "error");
-          return false;
-        }
-      } else if (
-        block.blockType === "slot" &&
-        block.startTime &&
-        block.endTime
-      ) {
-        const bs = new Date(`${block.date}T${block.startTime}`);
-        const be = new Date(`${block.date}T${block.endTime}`);
-        if (selStart < be && selEnd > bs) {
-          Helpers.showNotification("This slot is blocked", "error");
-          return false;
+      if (start < new Date()) return false;
+
+      // Practice hours check
+      if (!withinPracticeHours(start, end, practiceHours)) return false;
+
+      // Blocked slots check
+      for (const block of blockedSlots) {
+        if (block.blockType === "day") {
+          if (start.toISOString().split("T")[0] === block.date) {
+            toast.error("This day is blocked");
+            return false;
+          }
+        } else if (block.blockType === "slot" && block.startTime && block.endTime) {
+          const bs = new Date(`${block.date}T${block.startTime}`);
+          const be = new Date(`${block.date}T${block.endTime}`);
+          if (start < be && end > bs) {
+            toast.error("This slot is blocked");
+            return false;
+          }
         }
       }
-    }
-    return true;
-  };
+      return true;
+    },
+    [blockedSlots, practiceHours],
+  );
 
-  /* ── Event click — allow viewing history, only open edit dialog for future appointments ── */
+  /* ── Event click ── */
   const handleEventClick = (info: EventClickArg) => {
     if (info.event.id.startsWith("block-")) return;
-
-    // FC types: event.start is Date | null — guard with fallback
     const start = info.event.start ?? new Date();
-    const end = info.event.end ?? new Date(start.getTime() + 30 * 60_000);
-
+    const end   = info.event.end   ?? new Date(start.getTime() + 30 * 60_000);
     setSelectedEvent({
       id: info.event.id,
       title: info.event.title,
@@ -202,95 +284,69 @@ export default function AppointmentsClient() {
     if (!practitionerId) return;
     try {
       if (id) {
-        // Edit — optimistically update immediately, refetch to confirm
         await api.put(`/appointments/${id}`, { ...payload, practitionerId });
         setEvents((prev) =>
           prev.map((e) =>
             e.id === id
-              ? {
-                  ...e,
-                  title: payload.title as string,
-                  start: payload.start as string,
-                  end: payload.end as string,
-                  notes: payload.notes as string,
-                }
+              ? { ...e, title: payload.title as string, start: payload.start as string, end: payload.end as string, notes: payload.notes as string }
               : e,
           ),
         );
       } else {
-        // Create — backend only returns {status:"success"}, no appointment object.
-        // Build the optimistic event from the payload we already have.
-        // Use a temp ID prefixed "optimistic-"; fetchAppointments() below will
-        // replace it with the real server ID.
         await api.post("/appointments", { ...payload, practitionerId });
-        const optimisticEvent: CalendarEvent = {
-          id: `optimistic-${Date.now()}`,
-          title: payload.title as string,
-          start: payload.start as string,
-          end: payload.end as string,
-          patientId: payload.patientId as string,
-          notes: (payload.notes ?? "") as string,
-          status: "pending",
-        };
-        setEvents((prev) => [...prev, optimisticEvent]);
+        await fetchAppointments();
       }
-
-      Helpers.showNotification("Saved successfully", "success");
-      // No background refetch here — the WebSocket `appointmentUpdated` event
-      // will fire from the server and replace the optimistic entry with the
-      // real record (correct ID, status, etc.). A refetch would race the socket
-      // and overwrite state with stale data before the DB write propagates.
+      toast.success("Saved successfully");
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
-      Helpers.showNotification(
-        e?.response?.data?.message ?? "Failed to save",
-        "error",
-      );
-      // On failure, refetch to restore correct state
+      toast.error(e?.response?.data?.message ?? "Failed to save");
       fetchAppointments();
     }
   };
 
   const handleDelete = async (id: string) => {
-    // Optimistically remove from state immediately so calendar updates at once
     setEvents((prev) => prev.filter((e) => e.id !== id));
     try {
       await api.delete(`/appointments/${id}`);
-      Helpers.showNotification("Deleted successfully", "success");
+      toast.success("Deleted successfully");
     } catch (err: unknown) {
-      // Revert on failure
       await fetchAppointments();
       const e = err as { response?: { data?: { message?: string } } };
-      Helpers.showNotification(
-        e?.response?.data?.message ?? "Delete failed",
-        "error",
-      );
+      toast.error(e?.response?.data?.message ?? "Delete failed");
     }
   };
 
-  /* ── Drag & resize — prevent moving to past, blocked slots still apply ── */
+  /* ── Drag & resize ── */
   const updateEventByDrag = useCallback(
     async (info: EventDropArg | EventResizeDoneArg) => {
       if (!practitionerId) return;
       const { event, revert } = info;
-      // FC types: event.start is Date | null — guard with fallback
       const start = event.start ?? new Date();
-      const end = event.end ?? new Date(start.getTime() + 30 * 60_000);
+      const end   = event.end   ?? new Date(start.getTime() + 30 * 60_000);
 
-      // Prevent dragging/resizing into the past
       if (start < new Date()) {
         revert();
-        Helpers.showNotification("Cannot reschedule to a past time", "error");
+        toast.error("Cannot reschedule to a past time");
         return;
       }
 
+      // Practice hours check
+      if (!withinPracticeHours(start, end, practiceHours)) {
+        revert();
+        const key = DAY_KEYS[start.getDay()];
+        const s = practiceHours[key] ?? DEFAULT_HOURS[key];
+        const msg = !s.isOpen
+          ? `Practice is closed on ${key.charAt(0).toUpperCase() + key.slice(1)}`
+          : `Outside practice hours (${s.openTime} – ${s.closeTime})`;
+        toast.error(msg);
+        return;
+      }
+
+      // Blocked slots check
       for (const block of blockedSlots) {
-        if (
-          block.blockType === "day" &&
-          start.toISOString().split("T")[0] === block.date
-        ) {
+        if (block.blockType === "day" && start.toISOString().split("T")[0] === block.date) {
           revert();
-          Helpers.showNotification("Cannot move to blocked day", "error");
+          toast.error("Cannot move to a blocked day");
           return;
         }
         if (block.blockType === "slot" && block.startTime && block.endTime) {
@@ -298,7 +354,7 @@ export default function AppointmentsClient() {
           const be = new Date(`${block.date}T${block.endTime}`);
           if (start < be && end > bs) {
             revert();
-            Helpers.showNotification("Cannot move to blocked slot", "error");
+            toast.error("Cannot move to a blocked slot");
             return;
           }
         }
@@ -312,19 +368,15 @@ export default function AppointmentsClient() {
           notes: event.extendedProps.notes,
           practitionerId,
         });
-        Helpers.showNotification("Rescheduled", "success");
-        // WebSocket will update state — no refetch needed here
+        toast.success("Rescheduled");
       } catch (err: unknown) {
         revert();
         const e = err as { response?: { data?: { message?: string } } };
-        Helpers.showNotification(
-          e?.response?.data?.message ?? "Reschedule failed",
-          "error",
-        );
-        fetchAppointments(); // revert state on failure
+        toast.error(e?.response?.data?.message ?? "Reschedule failed");
+        fetchAppointments();
       }
     },
-    [practitionerId, blockedSlots, fetchAppointments],
+    [practitionerId, blockedSlots, practiceHours, fetchAppointments],
   );
 
   if (loading) {
@@ -339,12 +391,8 @@ export default function AppointmentsClient() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">
-            Appointments
-          </h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            Manage your schedule
-          </p>
+          <h1 className="text-xl font-semibold text-text-primary">Appointments</h1>
+          <p className="text-sm text-text-secondary mt-0.5">Manage your schedule</p>
         </div>
         <button
           onClick={() => setAvailabilityOpen(true)}
@@ -360,8 +408,8 @@ export default function AppointmentsClient() {
         <FullCalendar
           plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
-          slotMinTime="10:00:00"
-          slotMaxTime="18:00:00"
+          slotMinTime={slotMinTime}
+          slotMaxTime={slotMaxTime}
           slotDuration="00:30:00"
           height="auto"
           contentHeight="auto"
@@ -372,6 +420,8 @@ export default function AppointmentsClient() {
           selectLongPressDelay={0}
           eventLongPressDelay={0}
           selectAllow={selectAllow}
+          selectConstraint="businessHours"
+          businessHours={businessHours}
           editable
           allDaySlot={false}
           select={handleSlotSelect}
@@ -402,14 +452,8 @@ export default function AppointmentsClient() {
             {
               events: blockedSlots.map((b) => ({
                 id: `block-${b._id}`,
-                start:
-                  b.blockType === "day"
-                    ? `${b.date}T00:00:00`
-                    : `${b.date}T${b.startTime}`,
-                end:
-                  b.blockType === "day"
-                    ? `${b.date}T23:59:59`
-                    : `${b.date}T${b.endTime}`,
+                start: b.blockType === "day" ? `${b.date}T00:00:00` : `${b.date}T${b.startTime}`,
+                end:   b.blockType === "day" ? `${b.date}T23:59:59` : `${b.date}T${b.endTime}`,
                 display: "background",
                 backgroundColor: "#fee2e2",
               })),
@@ -422,10 +466,8 @@ export default function AppointmentsClient() {
         open={dialogOpen}
         initialDate={selectedDate}
         event={selectedEvent}
-        onClose={() => {
-          setDialogOpen(false);
-          setSelectedEvent(null);
-        }}
+        practiceHours={practiceHours}
+        onClose={() => { setDialogOpen(false); setSelectedEvent(null); }}
         onSave={handleSave}
         onDelete={handleDelete}
       />
@@ -434,10 +476,7 @@ export default function AppointmentsClient() {
         open={availabilityOpen}
         practitionerId={practitionerId!}
         onClose={() => setAvailabilityOpen(false)}
-        onRefresh={() => {
-          fetchAppointments();
-          fetchBlockedSlots();
-        }}
+        onRefresh={() => { fetchAppointments(); fetchBlockedSlots(); }}
       />
     </div>
   );

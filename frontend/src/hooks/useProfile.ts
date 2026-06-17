@@ -9,10 +9,12 @@ export interface PatientProfile {
   lastName: string;
   email: string;
   phoneNo: string;
+  dateOfBirth: string;
   bloodGroup: string;
   allergies: string;
   healthCondition: string;
   lastVisit: string;
+  avatarBase64: string;
 }
 
 const EMPTY: PatientProfile = {
@@ -20,10 +22,12 @@ const EMPTY: PatientProfile = {
   lastName: "",
   email: "",
   phoneNo: "",
+  dateOfBirth: "",
   bloodGroup: "",
   allergies: "",
   healthCondition: "",
   lastVisit: "",
+  avatarBase64: "",
 };
 
 export function useProfile(userId: string | null) {
@@ -46,12 +50,16 @@ export function useProfile(userId: string | null) {
           lastName: d.lastName ?? "",
           email: d.email ?? "",
           phoneNo: d.phoneNo ?? "",
+          dateOfBirth: d.dateOfBirth
+            ? new Date(d.dateOfBirth).toISOString().split("T")[0]
+            : "",
           bloodGroup: d.bloodGroup ?? "",
           allergies: d.allergies ?? "",
           healthCondition: d.healthCondition ?? "",
           lastVisit: d.lastVisit
             ? new Date(d.lastVisit).toLocaleDateString()
             : "",
+          avatarBase64: d.avatarBase64 ?? "",
         };
         setPatient(normalized);
         setDraft(normalized);

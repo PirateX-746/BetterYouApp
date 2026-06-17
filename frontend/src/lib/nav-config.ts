@@ -2,7 +2,7 @@
 // Single source of truth for all patient navigation items.
 // Update this file whenever routes change — all nav components consume it.
 
-import { Home, Calendar, MessageCircle, User, Settings } from "lucide-react";
+import { Home, Calendar, MessageCircle, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -16,7 +16,6 @@ export const PATIENT_NAV_ITEMS: NavItem[] = [
   { name: "Appointments", href: "/patient/appointments", icon: Calendar },
   { name: "Messages", href: "/patient/messages", icon: MessageCircle },
   { name: "Profile", href: "/patient/profile", icon: User },
-  { name: "Settings", href: "/patient/settings", icon: Settings },
 ];
 
 // Matches a specific message conversation, e.g. /patient/messages/abc123

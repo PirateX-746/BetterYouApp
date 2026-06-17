@@ -19,6 +19,29 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== "undefined") {
+      const path = window.location.pathname;
+      const isAuthPage =
+        path.includes("Login") ||
+        path.includes("Signup") ||
+        path === "/";
+      if (!isAuthPage) {
+        localStorage.clear();
+        document.cookie.split(";").forEach((c) => {
+          document.cookie = c
+            .replace(/^ +/, "")
+            .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
+        });
+        window.location.href = "/";
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 /* =====================================================
    TYPES
    ===================================================== */

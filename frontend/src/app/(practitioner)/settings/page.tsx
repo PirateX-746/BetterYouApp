@@ -6,14 +6,16 @@ import ProfileTab from "@/components/containers/settings/ProfileTab";
 import SecurityTab from "@/components/containers/settings/SecurityTab";
 import NotificationsTab from "@/components/containers/settings/NotificationsTab";
 import AppearanceTab from "@/components/containers/settings/AppearanceTab";
+import PracticeHoursTab from "@/components/containers/settings/PracticeHoursTab";
 
-type Tab = "profile" | "security" | "notifications" | "appearance";
+type Tab = "profile" | "security" | "notifications" | "appearance" | "practice-hours";
 
 const TAB_COMPONENTS: Record<Tab, React.ReactNode> = {
   profile: <ProfileTab />,
   security: <SecurityTab />,
   notifications: <NotificationsTab />,
   appearance: <AppearanceTab />,
+  "practice-hours": <PracticeHoursTab />,
 };
 
 export default function SettingsPage() {

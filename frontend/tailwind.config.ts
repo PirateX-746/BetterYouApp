@@ -6,20 +6,50 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        /* Shadcn-compatible */
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        card: {
+          DEFAULT: "var(--card)",
+          foreground: "var(--card-foreground)",
+        },
+        popover: {
+          DEFAULT: "var(--popover)",
+          foreground: "var(--popover-foreground)",
+        },
+        secondary: {
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-foreground)",
+        },
+        muted: {
+          DEFAULT: "var(--muted)",
+          foreground: "var(--muted-foreground)",
+        },
+        accent: {
+          DEFAULT: "var(--accent)",
+          foreground: "var(--accent-foreground)",
+        },
+        destructive: {
+          DEFAULT: "var(--destructive)",
+          foreground: "var(--destructive-foreground)",
+        },
+        ring: "var(--ring)",
+        input: "var(--input)",
+
         /* Brand */
-        primary: "var(--primary)",
-        "primary-light": "var(--primary-light)",
-        "primary-hover": "var(--primary-hover)",
+        primary: {
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-foreground)",
+          light: "var(--primary-light)",
+          hover: "var(--primary-hover)",
+        },
 
         /* Status */
         success: "var(--success)",
         "success-light": "var(--success-light)",
-
         warning: "var(--warning)",
         "warning-light": "var(--warning-light)",
-
         danger: "var(--danger)",
-
         purple: "var(--purple)",
         "purple-light": "var(--purple-light)",
 

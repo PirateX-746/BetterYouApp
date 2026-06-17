@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { PATIENT_NAV_ITEMS } from "@/lib/nav-config";
 import { useLogout } from "@/hooks/useLogout";
+import { usePatientUnread } from "@/contexts/PatientUnreadContext";
 
 export default function PatientSidebar() {
   const pathname = usePathname();
   const { handleLogout, isPending } = useLogout();
+  const { totalUnread } = usePatientUnread();
 
   return (
     <div className="w-64 h-screen bg-bg-card border-r border-border p-6 hidden md:flex flex-col justify-between">
@@ -33,7 +35,12 @@ export default function PatientSidebar() {
                 }`}
               >
                 <Icon size={18} />
-                {item.name}
+                <span className="flex-1">{item.name}</span>
+                {item.href === "/patient/messages" && totalUnread > 0 && (
+                  <span className={`text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center ${active ? "bg-white text-primary" : "bg-primary text-white"}`}>
+                    {totalUnread > 99 ? "99+" : totalUnread}
+                  </span>
+                )}
               </Link>
             );
           })}

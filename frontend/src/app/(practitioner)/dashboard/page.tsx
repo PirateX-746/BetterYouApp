@@ -1,6 +1,9 @@
 "use client";
 
-import { ReactNode } from "react";
+import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
+import { api } from "@/lib/api";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import {
   Users,
   Calendar,
@@ -9,201 +12,112 @@ import {
   TrendingUp,
   TrendingDown,
   AlertCircle,
-  Star,
-  Activity,
   UserPlus,
   CalendarCheck,
-  Brain,
-  Heart,
   Pill,
   FileText,
   ChevronRight,
   Dot,
+  Loader2,
+  Activity,
+  Star,
 } from "lucide-react";
+import type { ReactNode } from "react";
 
 /* ─────────────────────────────────────────────
-   Mock data
+   Types
 ───────────────────────────────────────────── */
 
-const TODAY_APPOINTMENTS = [
-  {
-    id: 1,
-    time: "10:00",
-    patient: "Sarah Mitchell",
-    type: "CBT Session",
-    status: "confirmed",
-    avatar: "SM",
-    color: "bg-primary/10 text-primary",
-    duration: 60,
-  },
-  {
-    id: 2,
-    time: "11:30",
-    patient: "James Okafor",
-    type: "Follow-Up Session",
-    status: "confirmed",
-    avatar: "JO",
-    color: "bg-success/10 text-success",
-    duration: 45,
-  },
-  {
-    id: 3,
-    time: "13:00",
-    patient: "Priya Sharma",
-    type: "New Patient Visit",
-    status: "pending",
-    avatar: "PS",
-    color: "bg-warning/10 text-warning",
-    duration: 60,
-  },
-  {
-    id: 4,
-    time: "14:30",
-    patient: "Tom Whitfield",
-    type: "Couples Therapy",
-    status: "confirmed",
-    avatar: "TW",
-    color: "bg-purple-500/10 text-purple-500",
-    duration: 60,
-  },
-  {
-    id: 5,
-    time: "16:00",
-    patient: "Aisha Kamara",
-    type: "Counselling Session",
-    status: "confirmed",
-    avatar: "AK",
-    color: "bg-primary/10 text-primary",
-    duration: 45,
-  },
-];
+interface Appointment {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  patientId: string;
+  status: string;
+}
 
-const RECENT_PATIENTS = [
-  {
-    id: 1,
-    name: "Sarah Mitchell",
-    condition: "Anxiety & Depression",
-    lastVisit: "Today",
-    sessions: 12,
-    progress: 78,
-    avatar: "SM",
-  },
-  {
-    id: 2,
-    name: "James Okafor",
-    condition: "PTSD",
-    lastVisit: "Today",
-    sessions: 8,
-    progress: 55,
-    avatar: "JO",
-  },
-  {
-    id: 3,
-    name: "Mei-Lin Zhou",
-    condition: "OCD",
-    lastVisit: "Yesterday",
-    sessions: 21,
-    progress: 88,
-    avatar: "MZ",
-  },
-  {
-    id: 4,
-    name: "Carlos Reyes",
-    condition: "Bipolar II",
-    lastVisit: "2 days ago",
-    sessions: 35,
-    progress: 62,
-    avatar: "CR",
-  },
-  {
-    id: 5,
-    name: "Fatima Al-Hassan",
-    condition: "Generalised Anxiety",
-    lastVisit: "3 days ago",
-    sessions: 6,
-    progress: 41,
-    avatar: "FA",
-  },
-];
+interface Patient {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  healthCondition?: string;
+  createdAt?: string;
+  lastVisit?: string;
+  isActive?: boolean;
+}
 
-const ACTIVITY_FEED = [
-  {
-    id: 1,
-    icon: UserPlus,
-    color: "text-primary bg-primary/10",
-    text: "New patient Priya Sharma registered",
-    time: "2h ago",
-  },
-  {
-    id: 2,
-    icon: FileText,
-    color: "text-warning bg-warning/10",
-    text: "Prescription issued for Carlos Reyes",
-    time: "3h ago",
-  },
-  {
-    id: 3,
-    icon: CalendarCheck,
-    color: "text-success bg-success/10",
-    text: "Session completed — Mei-Lin Zhou",
-    time: "4h ago",
-  },
-  {
-    id: 4,
-    icon: AlertCircle,
-    color: "text-danger bg-danger/10",
-    text: "Missed appointment — David Park",
-    time: "5h ago",
-  },
-  {
-    id: 5,
-    icon: FileText,
-    color: "text-purple-500 bg-purple-500/10",
-    text: "Medical document uploaded by Aisha Kamara",
-    time: "Yesterday",
-  },
-  {
-    id: 6,
-    icon: Star,
-    color: "text-warning bg-warning/10",
-    text: "Session feedback received — 5 stars",
-    time: "Yesterday",
-  },
-];
-
-const WEEKLY_DATA = [
-  { day: "Mon", sessions: 5, new: 1 },
-  { day: "Tue", sessions: 7, new: 2 },
-  { day: "Wed", sessions: 4, new: 0 },
-  { day: "Thu", sessions: 8, new: 3 },
-  { day: "Fri", sessions: 6, new: 1 },
-  { day: "Sat", sessions: 3, new: 1 },
-  { day: "Sun", sessions: 0, new: 0 },
-];
-
-const SESSION_TYPES = [
-  { label: "CBT Sessions", count: 14, color: "bg-primary", pct: 38 },
-  { label: "Counselling", count: 10, color: "bg-success", pct: 27 },
-  { label: "Follow-Up", count: 8, color: "bg-warning", pct: 22 },
-  { label: "New Patients", count: 5, color: "bg-purple-500", pct: 13 },
-];
+interface Prescription {
+  _id: string;
+  status: string;
+  createdAt: string;
+  patientId?: { _id: string; firstName: string; lastName: string };
+}
 
 /* ─────────────────────────────────────────────
    Helpers
 ───────────────────────────────────────────── */
-const now = new Date();
-const timeStr = now.toLocaleTimeString("en-GB", {
-  hour: "2-digit",
-  minute: "2-digit",
-});
-const dateStr = now.toLocaleDateString("en-GB", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
 
-const maxSessions = Math.max(...WEEKLY_DATA.map((d) => d.sessions));
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function endOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+
+function startOfWeek(d: Date) {
+  const day = d.getDay(); // 0=Sun
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Mon start
+  return startOfDay(new Date(d.setDate(diff)));
+}
+
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_KEYS   = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
+
+interface DaySchedule { isOpen: boolean; openTime: string; closeTime: string; }
+type PracticeHours = Record<string, DaySchedule>;
+
+const DEFAULT_HOURS: PracticeHours = {
+  monday: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+  tuesday: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+  wednesday: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+  thursday: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+  friday: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+  saturday: { isOpen: false, openTime: "09:00", closeTime: "17:00" },
+  sunday: { isOpen: false, openTime: "09:00", closeTime: "17:00" },
+};
+
+function isPracticeOpen(hours: PracticeHours, now: Date): boolean {
+  const key = DAY_KEYS[now.getDay()];
+  const s = hours[key] ?? DEFAULT_HOURS[key];
+  if (!s.isOpen) return false;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const [oh, om] = s.openTime.split(":").map(Number);
+  const [ch, cm] = s.closeTime.split(":").map(Number);
+  return cur >= oh * 60 + om && cur < ch * 60 + cm;
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
 
 /* ─────────────────────────────────────────────
    Sub-components
@@ -252,17 +166,28 @@ function StatCard({ label, value, icon, iconBg, trend, sub }: StatCardProps) {
 }
 
 function AppointmentStatusBadge({ status }: { status: string }) {
-  if (status === "confirmed")
+  const s = status.toLowerCase();
+  if (s === "confirmed")
     return (
       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
         Confirmed
       </span>
     );
+  if (s === "cancelled")
+    return (
+      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-danger/10 text-danger">
+        Cancelled
+      </span>
+    );
   return (
     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
-      Pending
+      Scheduled
     </span>
   );
+}
+
+function initials(first: string, last: string) {
+  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase();
 }
 
 /* ─────────────────────────────────────────────
@@ -270,9 +195,255 @@ function AppointmentStatusBadge({ status }: { status: string }) {
 ───────────────────────────────────────────── */
 
 export default function DashboardPage() {
-  const todayConfirmed = TODAY_APPOINTMENTS.filter(
-    (a) => a.status === "confirmed",
+  const practitionerId = useLocalStorage("userId");
+
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [practiceHours, setPracticeHours] = useState<PracticeHours>(DEFAULT_HOURS);
+  const [loading, setLoading] = useState(true);
+  const [doctorName, setDoctorName] = useState("Doctor");
+
+  // Read name from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("name");
+    if (stored) setDoctorName(stored);
+  }, []);
+
+  useEffect(() => {
+    if (!practitionerId) {
+      setLoading(false);
+      return;
+    }
+
+    Promise.all([
+      api
+        .get<Appointment[]>(`/appointments/practitioner/${practitionerId}`)
+        .then((r) => setAppointments(r.data ?? [])),
+      api
+        .get<Patient[]>("/patients")
+        .then((r) => setPatients(r.data ?? [])),
+      api
+        .get<Prescription[]>("/prescriptions", {
+          params: { practitionerId },
+        })
+        .then((r) => setPrescriptions(r.data ?? [])),
+      api
+        .get(`/practitioners/${practitionerId}`)
+        .then((r) => {
+          const ph = r.data?.practiceHours;
+          if (ph && typeof ph === "object") setPracticeHours({ ...DEFAULT_HOURS, ...ph });
+        })
+        .catch(() => {}),
+    ])
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [practitionerId]);
+
+  /* ─── Derived stats ─── */
+  const now = useMemo(() => new Date(), []);
+  const todayStart = useMemo(() => startOfDay(new Date(now)), [now]);
+  const todayEnd = useMemo(() => endOfDay(new Date(now)), [now]);
+  const weekStart = useMemo(() => startOfWeek(new Date(now)), [now]);
+  const monthStart = useMemo(() => startOfMonth(new Date(now)), [now]);
+
+  const todayAppointments = useMemo(
+    () =>
+      appointments.filter((a) => {
+        const t = new Date(a.start).getTime();
+        return t >= todayStart.getTime() && t <= todayEnd.getTime();
+      }),
+    [appointments, todayStart, todayEnd],
+  );
+
+  const weekAppointments = useMemo(
+    () =>
+      appointments.filter(
+        (a) => new Date(a.start).getTime() >= weekStart.getTime(),
+      ),
+    [appointments, weekStart],
+  );
+
+  const completedCount = useMemo(
+    () =>
+      appointments.filter(
+        (a) =>
+          a.status.toLowerCase() === "confirmed" &&
+          new Date(a.start).getTime() < now.getTime(),
+      ).length,
+    [appointments, now],
+  );
+
+  const pastTotal = useMemo(
+    () =>
+      appointments.filter((a) => new Date(a.start).getTime() < now.getTime())
+        .length,
+    [appointments, now],
+  );
+
+  const completionRate = pastTotal > 0 ? Math.round((completedCount / pastTotal) * 100) : 100;
+
+  const prescriptionsThisMonth = useMemo(
+    () =>
+      prescriptions.filter(
+        (p) => new Date(p.createdAt).getTime() >= monthStart.getTime(),
+      ).length,
+    [prescriptions, monthStart],
+  );
+
+  // Patient map for joining names into appointments
+  const patientMap = useMemo(() => {
+    const m = new Map<string, Patient>();
+    patients.forEach((p) => m.set(p._id, p));
+    return m;
+  }, [patients]);
+
+  // Weekly sessions bar chart data (Mon–Sun current week)
+  const weeklyData = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      return { date: d, sessions: 0, label: DAY_LABELS[d.getDay()] };
+    });
+    weekAppointments.forEach((a) => {
+      const aDate = new Date(a.start);
+      const idx = days.findIndex(
+        (d) =>
+          d.date.getFullYear() === aDate.getFullYear() &&
+          d.date.getMonth() === aDate.getMonth() &&
+          d.date.getDate() === aDate.getDate(),
+      );
+      if (idx !== -1) days[idx].sessions++;
+    });
+    return days;
+  }, [weekAppointments, weekStart]);
+
+  const maxSessions = Math.max(...weeklyData.map((d) => d.sessions), 1);
+  const todayDayLabel = DAY_LABELS[now.getDay()];
+
+  // Recent patients (latest 5 by createdAt)
+  const recentPatients = useMemo(
+    () =>
+      [...patients]
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt ?? 0).getTime() -
+            new Date(a.createdAt ?? 0).getTime(),
+        )
+        .slice(0, 5),
+    [patients],
+  );
+
+  // Activity feed: blend recent appointments + recent patients
+  const activityFeed = useMemo(() => {
+    type FeedItem = {
+      id: string;
+      icon: typeof UserPlus;
+      color: string;
+      text: string;
+      time: string;
+    };
+    const items: FeedItem[] = [];
+
+    // Recent patients → "New patient registered"
+    [...patients]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime(),
+      )
+      .slice(0, 3)
+      .forEach((p) => {
+        if (!p.createdAt) return;
+        items.push({
+          id: `p-${p._id}`,
+          icon: UserPlus,
+          color: "text-primary bg-primary/10",
+          text: `New patient ${p.firstName} ${p.lastName} registered`,
+          time: timeAgo(p.createdAt),
+        });
+      });
+
+    // Recent prescriptions → "Prescription issued"
+    [...prescriptions]
+      .slice(0, 2)
+      .forEach((rx) => {
+        const name = rx.patientId
+          ? `${rx.patientId.firstName} ${rx.patientId.lastName}`
+          : "a patient";
+        items.push({
+          id: `rx-${rx._id}`,
+          icon: FileText,
+          color: "text-warning bg-warning/10",
+          text: `Prescription issued for ${name}`,
+          time: timeAgo(rx.createdAt),
+        });
+      });
+
+    // Confirmed past appointments → "Session completed"
+    appointments
+      .filter(
+        (a) =>
+          a.status.toLowerCase() === "confirmed" &&
+          new Date(a.start).getTime() < now.getTime(),
+      )
+      .slice(0, 2)
+      .forEach((a) => {
+        const p = patientMap.get(a.patientId);
+        const name = p ? `${p.firstName} ${p.lastName}` : "patient";
+        items.push({
+          id: `ca-${a.id}`,
+          icon: CalendarCheck,
+          color: "text-success bg-success/10",
+          text: `Session completed — ${name}`,
+          time: timeAgo(a.start),
+        });
+      });
+
+    // Cancelled appointments
+    appointments
+      .filter((a) => a.status.toLowerCase() === "cancelled")
+      .slice(0, 1)
+      .forEach((a) => {
+        const p = patientMap.get(a.patientId);
+        const name = p ? `${p.firstName} ${p.lastName}` : "patient";
+        items.push({
+          id: `xa-${a.id}`,
+          icon: AlertCircle,
+          color: "text-danger bg-danger/10",
+          text: `Appointment cancelled — ${name}`,
+          time: timeAgo(a.start),
+        });
+      });
+
+    return items.slice(0, 6);
+  }, [patients, prescriptions, appointments, patientMap, now]);
+
+  const todayConfirmed = todayAppointments.filter(
+    (a) => a.status.toLowerCase() === "confirmed",
   ).length;
+
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  const dateStr = now.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const timeStr = now.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-primary" size={28} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -280,17 +451,22 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">
-            Good morning, Dr. Patel 👋
+            {greeting}, Dr. {doctorName} 👋
           </h1>
           <p className="text-sm text-text-secondary mt-0.5">{dateStr}</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 bg-bg-card border border-border rounded-xl">
-          <Activity size={15} className="text-success" />
+          <Activity size={15} className={isPracticeOpen(practiceHours, now) ? "text-success" : "text-text-disabled"} />
           <span className="text-sm font-medium text-text-primary">
             {timeStr}
           </span>
-          <Dot className="text-success animate-pulse" size={20} />
-          <span className="text-xs text-text-secondary">Practice open</span>
+          <Dot
+            className={isPracticeOpen(practiceHours, now) ? "text-success animate-pulse" : "text-danger"}
+            size={20}
+          />
+          <span className="text-xs text-text-secondary">
+            {isPracticeOpen(practiceHours, now) ? "Practice open" : "Practice closed"}
+          </span>
         </div>
       </div>
 
@@ -298,125 +474,154 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Patients"
-          value="124"
+          value={patients.length}
           iconBg="bg-primary/10 text-primary"
           icon={<Users size={20} />}
-          trend={{ value: "+8 this month", up: true }}
-          sub="6 new this week"
         />
         <StatCard
           label="Today's Appointments"
-          value={TODAY_APPOINTMENTS.length}
+          value={todayAppointments.length}
           iconBg="bg-success/10 text-success"
           icon={<Calendar size={20} />}
-          sub={`${todayConfirmed} confirmed · 1 pending`}
+          sub={`${todayConfirmed} confirmed`}
         />
         <StatCard
           label="This Week"
-          value="33"
+          value={weekAppointments.length}
           iconBg="bg-warning/10 text-warning"
           icon={<Clock size={20} />}
-          trend={{ value: "+12% vs last week", up: true }}
-          sub="Avg. 6.6/day"
+          sub={`Avg. ${(weekAppointments.length / 5).toFixed(1)}/day`}
         />
         <StatCard
           label="Completion Rate"
-          value="91%"
+          value={`${completionRate}%`}
           iconBg="bg-purple-500/10 text-purple-500"
           icon={<CheckCircle2 size={20} />}
-          trend={{ value: "-2% vs last month", up: false }}
-          sub="3 missed this week"
+          trend={
+            completionRate >= 80
+              ? { value: "On track", up: true }
+              : { value: "Needs attention", up: false }
+          }
+          sub={`${completedCount} completed`}
         />
       </div>
 
-      {/* ── Secondary stats row ── */}
+      {/* ── Secondary stats ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Active Cases"
-          value="47"
+          label="Active Patients"
+          value={patients.filter((p) => p.isActive !== false).length}
           iconBg="bg-primary/10 text-primary"
-          icon={<Brain size={20} />}
-          sub="Ongoing treatment plans"
+          icon={<Users size={20} />}
+          sub="Currently under care"
         />
         <StatCard
           label="Avg. Session Rating"
-          value="4.8 ★"
+          value="—"
           iconBg="bg-warning/10 text-warning"
           icon={<Star size={20} />}
-          trend={{ value: "+0.2 this month", up: true }}
-          sub="Based on 38 reviews"
+          sub="No ratings yet"
         />
         <StatCard
-          label="Prescriptions Issued"
-          value="18"
+          label="Prescriptions"
+          value={prescriptionsThisMonth}
           iconBg="bg-success/10 text-success"
           icon={<Pill size={20} />}
           sub="This month"
         />
         <StatCard
-          label="New Referrals"
-          value="5"
+          label="Total Appointments"
+          value={appointments.length}
           iconBg="bg-purple-500/10 text-purple-500"
-          icon={<Heart size={20} />}
-          trend={{ value: "+2 vs last month", up: true }}
-          sub="Awaiting first session"
+          icon={<CalendarCheck size={20} />}
+          sub="All time"
         />
       </div>
 
-      {/* ── Main grid: appointments + activity ── */}
+      {/* ── Main grid: today's schedule + activity ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Today's schedule */}
         <div className="lg:col-span-2 bg-bg-card border border-border rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <div>
               <h2 className="text-sm font-semibold text-text-primary">
-                Today's Schedule
+                Today&apos;s Schedule
               </h2>
               <p className="text-xs text-text-secondary mt-0.5">
-                {TODAY_APPOINTMENTS.length} appointments · {todayConfirmed}{" "}
+                {todayAppointments.length} appointments · {todayConfirmed}{" "}
                 confirmed
               </p>
             </div>
-            <button className="text-xs text-primary flex items-center gap-1 hover:underline">
+            <Link
+              href="/appointmentsPractitioner"
+              className="text-xs text-primary flex items-center gap-1 hover:underline"
+            >
               View all <ChevronRight size={13} />
-            </button>
+            </Link>
           </div>
-          <div className="divide-y divide-border">
-            {TODAY_APPOINTMENTS.map((appt) => (
-              <div
-                key={appt.id}
-                className="flex items-center gap-4 px-5 py-3.5 hover:bg-bg-hover transition-colors"
-              >
-                {/* Time */}
-                <div className="w-12 shrink-0 text-center">
-                  <p className="text-sm font-semibold text-text-primary">
-                    {appt.time}
-                  </p>
-                  <p className="text-xs text-text-disabled">{appt.duration}m</p>
-                </div>
 
-                {/* Divider line */}
-                <div className="w-px h-10 bg-border shrink-0" />
+          {todayAppointments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-5">
+              <Calendar size={28} className="text-text-disabled mb-3" />
+              <p className="text-sm font-medium text-text-primary">
+                No appointments today
+              </p>
+              <p className="text-xs text-text-secondary mt-1">
+                Your schedule is clear for today.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {todayAppointments
+                .sort(
+                  (a, b) =>
+                    new Date(a.start).getTime() - new Date(b.start).getTime(),
+                )
+                .map((appt) => {
+                  const p = patientMap.get(appt.patientId);
+                  const name = p
+                    ? `${p.firstName} ${p.lastName}`
+                    : "Unknown patient";
+                  const avatarText = p
+                    ? initials(p.firstName, p.lastName)
+                    : "??";
 
-                {/* Avatar */}
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${appt.color}`}
-                >
-                  {appt.avatar}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">
-                    {appt.patient}
-                  </p>
-                  <p className="text-xs text-text-secondary">{appt.type}</p>
-                </div>
-
-                <AppointmentStatusBadge status={appt.status} />
-              </div>
-            ))}
-          </div>
+                  return (
+                    <div
+                      key={appt.id}
+                      className="flex items-center gap-4 px-5 py-3.5 hover:bg-bg-hover transition-colors"
+                    >
+                      <div className="w-12 shrink-0 text-center">
+                        <p className="text-sm font-semibold text-text-primary">
+                          {formatTime(appt.start)}
+                        </p>
+                        <p className="text-xs text-text-disabled">
+                          {Math.round(
+                            (new Date(appt.end).getTime() -
+                              new Date(appt.start).getTime()) /
+                              60000,
+                          )}
+                          m
+                        </p>
+                      </div>
+                      <div className="w-px h-10 bg-border shrink-0" />
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-primary/10 text-primary">
+                        {avatarText}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text-primary truncate">
+                          {name}
+                        </p>
+                        <p className="text-xs text-text-secondary">
+                          {appt.title}
+                        </p>
+                      </div>
+                      <AppointmentStatusBadge status={appt.status} />
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
 
         {/* Activity feed */}
@@ -425,36 +630,39 @@ export default function DashboardPage() {
             <h2 className="text-sm font-semibold text-text-primary">
               Recent Activity
             </h2>
-            <button className="text-xs text-primary flex items-center gap-1 hover:underline">
-              All <ChevronRight size={13} />
-            </button>
           </div>
           <div className="px-5 py-3 space-y-4">
-            {ACTIVITY_FEED.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.id} className="flex items-start gap-3">
-                  <div
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.color}`}
-                  >
-                    <Icon size={14} />
+            {activityFeed.length === 0 ? (
+              <p className="text-sm text-text-secondary py-4 text-center">
+                No recent activity
+              </p>
+            ) : (
+              activityFeed.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.id} className="flex items-start gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.color}`}
+                    >
+                      <Icon size={14} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-text-primary leading-snug">
+                        {item.text}
+                      </p>
+                      <p className="text-xs text-text-disabled mt-0.5">
+                        {item.time}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-text-primary leading-snug">
-                      {item.text}
-                    </p>
-                    <p className="text-xs text-text-disabled mt-0.5">
-                      {item.time}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── Bottom grid: weekly chart + session types + recent patients ── */}
+      {/* ── Bottom grid: weekly chart + recent patients ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Weekly sessions bar chart */}
         <div className="bg-bg-card border border-border rounded-2xl p-5">
@@ -462,12 +670,12 @@ export default function DashboardPage() {
             Weekly Sessions
           </h2>
           <p className="text-xs text-text-secondary mb-5">
-            Sessions completed this week
+            Appointments this week
           </p>
           <div className="flex items-end justify-between gap-2 h-28">
-            {WEEKLY_DATA.map((d) => (
+            {weeklyData.map((d) => (
               <div
-                key={d.day}
+                key={d.label}
                 className="flex-1 flex flex-col items-center gap-1.5"
               >
                 <span className="text-xs text-text-disabled">
@@ -479,111 +687,102 @@ export default function DashboardPage() {
                 >
                   <div
                     className={`w-full rounded-md transition-all ${
-                      d.day === "Thu"
+                      d.label === todayDayLabel
                         ? "bg-primary"
                         : d.sessions === 0
                           ? "bg-border"
                           : "bg-primary/30"
                     }`}
                     style={{
-                      height: `${maxSessions > 0 ? (d.sessions / maxSessions) * 80 : 4}px`,
+                      height: `${(d.sessions / maxSessions) * 80}px`,
                       minHeight: d.sessions > 0 ? "6px" : "3px",
                     }}
                   />
                 </div>
-                <span className="text-xs text-text-disabled">{d.day}</span>
+                <span className="text-xs text-text-disabled">{d.label}</span>
               </div>
             ))}
           </div>
           <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
             <p className="text-xs text-text-secondary">Total this week</p>
-            <p className="text-sm font-bold text-text-primary">33 sessions</p>
+            <p className="text-sm font-bold text-text-primary">
+              {weekAppointments.length} sessions
+            </p>
           </div>
         </div>
 
-        {/* Session type breakdown */}
-        <div className="bg-bg-card border border-border rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-text-primary mb-1">
-            Session Types
-          </h2>
-          <p className="text-xs text-text-secondary mb-5">
-            Distribution this month
-          </p>
-          <div className="space-y-3.5">
-            {SESSION_TYPES.map((s) => (
-              <div key={s.label}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-text-primary">{s.label}</span>
-                  <span className="text-xs font-semibold text-text-primary">
-                    {s.count}
-                  </span>
-                </div>
-                <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${s.color} transition-all`}
-                    style={{ width: `${s.pct}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 pt-4 border-t border-border flex items-center justify-between">
-            <p className="text-xs text-text-secondary">Total sessions</p>
-            <p className="text-sm font-bold text-text-primary">37 this month</p>
-          </div>
-        </div>
-
-        {/* Recent patients */}
-        <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
+        {/* Recent patients — spans 2 cols */}
+        <div className="lg:col-span-2 bg-bg-card border border-border rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 className="text-sm font-semibold text-text-primary">
-              Active Patients
+              Recent Patients
             </h2>
-            <button className="text-xs text-primary flex items-center gap-1 hover:underline">
+            <Link
+              href="/patients"
+              className="text-xs text-primary flex items-center gap-1 hover:underline"
+            >
               All patients <ChevronRight size={13} />
-            </button>
+            </Link>
           </div>
-          <div className="divide-y divide-border">
-            {RECENT_PATIENTS.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center gap-3 px-5 py-3 hover:bg-bg-hover transition-colors cursor-pointer"
-              >
-                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                  {p.avatar}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-text-primary truncate">
-                    {p.name}
-                  </p>
-                  <p className="text-xs text-text-disabled truncate">
-                    {p.condition}
-                  </p>
-                  {/* Progress bar */}
-                  <div className="mt-1 h-1 bg-border rounded-full overflow-hidden w-full">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        p.progress >= 75
-                          ? "bg-success"
-                          : p.progress >= 50
-                            ? "bg-primary"
-                            : p.progress >= 30
-                              ? "bg-warning"
-                              : "bg-danger"
-                      }`}
-                      style={{ width: `${p.progress}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-semibold text-text-primary">
-                    {p.progress}%
-                  </p>
-                  <p className="text-xs text-text-disabled">{p.lastVisit}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+
+          {recentPatients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-5">
+              <Users size={28} className="text-text-disabled mb-3" />
+              <p className="text-sm font-medium text-text-primary">
+                No patients yet
+              </p>
+              <p className="text-xs text-text-secondary mt-1">
+                Patients will appear here after they register.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {recentPatients.map((p) => {
+                const apptCount = appointments.filter(
+                  (a) => a.patientId === p._id,
+                ).length;
+                const lastAppt = appointments
+                  .filter((a) => a.patientId === p._id)
+                  .sort(
+                    (a, b) =>
+                      new Date(b.start).getTime() - new Date(a.start).getTime(),
+                  )[0];
+
+                return (
+                  <Link
+                    key={p._id}
+                    href={`/patients/${p._id}`}
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-bg-hover transition-colors cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                      {initials(p.firstName, p.lastName)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-text-primary truncate">
+                        {p.firstName} {p.lastName}
+                      </p>
+                      <p className="text-xs text-text-disabled truncate">
+                        {p.healthCondition || "No condition recorded"}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs font-semibold text-text-primary">
+                        {apptCount} session{apptCount !== 1 ? "s" : ""}
+                      </p>
+                      <p className="text-xs text-text-disabled">
+                        {lastAppt
+                          ? new Date(lastAppt.start).toLocaleDateString([], {
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "No visits"}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

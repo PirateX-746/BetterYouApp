@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Trash2, Loader2, CalendarOff } from "lucide-react";
 import { api } from "@/lib/api";
-import { Helpers } from "@/utils/helpers";
+import toast from "react-hot-toast";
+import { blockSlotSchema, type BlockSlotValues } from "@/schemas/availability.schema";
 import { BlockedSlot } from "./types";
 
 type Props = {
@@ -22,21 +25,28 @@ export default function ManageAvailabilityDialog({
   onClose,
   onRefresh,
 }: Props) {
-  const [blockType, setBlockType] = useState<"day" | "slot">("slot");
-  const [date, setDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [reason, setReason] = useState("");
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
-  const [loading, setLoading] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm<BlockSlotValues>({
+    resolver: zodResolver(blockSlotSchema),
+    defaultValues: { blockType: "slot" },
+  });
+
+  const blockType = useWatch({ control, name: "blockType" });
 
   const fetchBlockedSlots = async () => {
     try {
       const res = await api.get(`/availability/${practitionerId}`);
       setBlockedSlots(Array.isArray(res.data) ? res.data : []);
     } catch {
-      Helpers.showNotification("Failed to load blocked slots", "error");
+      toast.error("Failed to load blocked slots");
     }
   };
 
@@ -47,49 +57,34 @@ export default function ManageAvailabilityDialog({
 
   if (!open) return null;
 
-  const handleBlock = async () => {
-    if (!date) {
-      Helpers.showNotification("Please select a date", "error");
-      return;
-    }
-    if (blockType === "slot" && (!startTime || !endTime)) {
-      Helpers.showNotification("Select start and end time", "error");
-      return;
-    }
-
-    setLoading(true);
+  const handleBlock = handleSubmit(async (data: BlockSlotValues) => {
     try {
       await api.post("/availability", {
         practitionerId,
-        blockType,
-        date,
-        startTime: blockType === "slot" ? startTime : null,
-        endTime: blockType === "slot" ? endTime : null,
-        reason: reason || undefined,
+        blockType: data.blockType,
+        date: data.date,
+        startTime: data.blockType === "slot" ? data.startTime : null,
+        endTime:   data.blockType === "slot" ? data.endTime   : null,
+        reason:    data.reason || undefined,
       });
-      Helpers.showNotification("Slot blocked", "success");
-      setDate("");
-      setStartTime("");
-      setEndTime("");
-      setReason("");
+      toast.success("Slot blocked");
+      reset({ blockType: "slot" });
       await fetchBlockedSlots();
       onRefresh();
     } catch {
-      Helpers.showNotification("Failed to block slot", "error");
-    } finally {
-      setLoading(false);
+      toast.error("Failed to block slot");
     }
-  };
+  });
 
   const removeBlock = async (id: string) => {
     setRemoving(id);
     try {
       await api.delete(`/availability/${id}`);
-      Helpers.showNotification("Block removed", "success");
+      toast.success("Block removed");
       await fetchBlockedSlots();
       onRefresh();
     } catch {
-      Helpers.showNotification("Failed to remove block", "error");
+      toast.error("Failed to remove block");
     } finally {
       setRemoving(null);
     }
@@ -130,47 +125,29 @@ export default function ManageAvailabilityDialog({
             </h3>
 
             {/* Block type */}
-            <select
-              className={fieldCls}
-              value={blockType}
-              onChange={(e) => setBlockType(e.target.value as "day" | "slot")}
-            >
+            <select className={fieldCls} {...register("blockType")}>
               <option value="slot">Specific Time Slot</option>
               <option value="day">Entire Day</option>
             </select>
 
             {/* Date */}
-            <input
-              type="date"
-              className={fieldCls}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <div>
+              <input type="date" className={fieldCls} {...register("date")} />
+              {errors.date && <p className="text-xs text-danger mt-1">{errors.date.message}</p>}
+            </div>
 
             {/* Start / End time — only for slot */}
             {blockType === "slot" && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs text-text-secondary">
-                    Start time
-                  </label>
-                  <input
-                    type="time"
-                    className={fieldCls}
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                  />
+                  <label className="text-xs text-text-secondary">Start time</label>
+                  <input type="time" className={fieldCls} {...register("startTime")} />
+                  {errors.startTime && <p className="text-xs text-danger mt-1">{errors.startTime.message}</p>}
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-text-secondary">
-                    End time
-                  </label>
-                  <input
-                    type="time"
-                    className={fieldCls}
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                  />
+                  <label className="text-xs text-text-secondary">End time</label>
+                  <input type="time" className={fieldCls} {...register("endTime")} />
+                  {errors.endTime && <p className="text-xs text-danger mt-1">{errors.endTime.message}</p>}
                 </div>
               </div>
             )}
@@ -180,17 +157,16 @@ export default function ManageAvailabilityDialog({
               type="text"
               className={fieldCls}
               placeholder="Reason (optional)"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              {...register("reason")}
             />
 
             <button
               onClick={handleBlock}
-              disabled={loading}
+              disabled={isSubmitting}
               className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition disabled:opacity-50"
             >
-              {loading && <Loader2 size={14} className="animate-spin" />}
-              {loading ? "Blocking…" : "Block Time"}
+              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+              {isSubmitting ? "Blocking…" : "Block Time"}
             </button>
           </div>
 

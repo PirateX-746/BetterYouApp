@@ -6,11 +6,14 @@ import {
   User,
   Search,
   Plus,
-  Loader2,
   X,
   ChevronRight,
   SlidersHorizontal,
+  Users,
+  Loader2,
 } from "lucide-react";
+import { SkeletonRow } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
 import { Patient, PatientView } from "@/types/patient";
 import {
@@ -85,11 +88,24 @@ export default function PatientsPage() {
       });
   }, [patients, search, filterStatus]);
 
-  /* ── Loading ── */
+  /* ── Loading: show skeleton table instead of spinner ── */
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-primary" size={28} />
+      <div className="space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="h-6 w-24 bg-bg-light rounded-lg animate-pulse" />
+            <div className="h-4 w-32 bg-bg-light rounded-lg animate-pulse mt-1.5" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-9 w-48 bg-bg-light rounded-xl animate-pulse" />
+            <div className="h-9 w-20 bg-bg-light rounded-xl animate-pulse" />
+            <div className="h-9 w-28 bg-bg-light rounded-xl animate-pulse" />
+          </div>
+        </div>
+        <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
+          {Array.from({ length: 7 }).map((_, i) => <SkeletonRow key={i} />)}
+        </div>
       </div>
     );
   }
@@ -190,27 +206,21 @@ export default function PatientsPage() {
 
       {/* ── Empty state ── */}
       {filtered.length === 0 ? (
-        <div className="bg-bg-card border border-border rounded-2xl p-14 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <User className="text-primary" size={26} />
-          </div>
-          <p className="font-semibold text-text-primary mb-1">
-            No patients found
-          </p>
-          <p className="text-sm text-text-secondary mb-4">
-            {search || filterStatus !== "all"
-              ? "Try adjusting your search or filters."
-              : "Get started by adding your first patient."}
-          </p>
-          {!search && filterStatus === "all" && (
-            <button
-              onClick={() => setModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition"
-            >
-              <Plus size={15} />
-              Add Patient
-            </button>
-          )}
+        <div className="bg-bg-card border border-border rounded-2xl">
+          <EmptyState
+            icon={Users}
+            title={search || filterStatus !== "all" ? "No matching patients" : "No patients yet"}
+            description={
+              search || filterStatus !== "all"
+                ? "Try adjusting your search or filters."
+                : "Add your first patient to get started."
+            }
+            action={
+              !search && filterStatus === "all"
+                ? { label: "Add Patient", onClick: () => setModalOpen(true) }
+                : undefined
+            }
+          />
         </div>
       ) : (
         <>

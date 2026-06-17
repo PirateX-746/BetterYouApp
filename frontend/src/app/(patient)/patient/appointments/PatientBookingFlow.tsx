@@ -156,17 +156,15 @@ export default function PatientBookingFlow({
 
       const allSlots = Array.isArray(res.data) ? res.data : [];
 
-      console.log("✅ Slots from backend:", allSlots);
-
       const filtered = allSlots.filter((slot) => {
         const slotStart = safeDate(slot.start);
         return slotStart && !slot.isBooked;
       });
 
       setAvailableSlots(filtered);
-    } catch (err) {
-      console.error("❌ Failed:", err);
-      toast.error("Failed to load available slots");
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast.error(e?.response?.data?.message ?? "Failed to load available slots");
     } finally {
       setSlotsLoading(false);
     }
@@ -343,11 +341,15 @@ export default function PatientBookingFlow({
                       value={selectedDate}
                       onChange={(e) => {
                         const date = e.target.value;
+                        if (!date) return;
                         setSelectedDate(date);
-                        if (selectedPractitioner)
+                        setAvailableSlots([]);
+                        setSelectedSlot(null);
+                        if (selectedPractitioner) {
                           fetchSlots(date, selectedPractitioner);
+                        }
                       }}
-                      className="w-full border border-border rounded-xl px-4 py-3 text-sm bg-bg-page text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
+                      className="w-full border border-border rounded-xl px-4 py-3 text-sm bg-bg-page text-text-primary focus:ring-1 focus:ring-primary focus:border-primary outline-none transition"
                     />
                   </div>
 
@@ -379,7 +381,8 @@ export default function PatientBookingFlow({
                             No slots available
                           </p>
                           <p className="text-xs text-center leading-relaxed">
-                            No open slots on this date.
+                            The practice may be closed on this day, or all
+                            slots are booked.
                             <br />
                             Try selecting a different date.
                           </p>
@@ -459,7 +462,14 @@ export default function PatientBookingFlow({
         <div className="px-5 py-4 border-t border-border flex gap-3 shrink-0">
           {step > 1 && (
             <button
-              onClick={() => setStep((s) => (s - 1) as Step)}
+              onClick={() => {
+                setStep((s) => (s - 1) as Step);
+                if (step === 2) {
+                  setSelectedDate("");
+                  setAvailableSlots([]);
+                  setSelectedSlot(null);
+                }
+              }}
               className="flex items-center gap-1.5 px-4 py-2.5 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover transition-colors"
             >
               <ChevronLeft size={16} /> Back

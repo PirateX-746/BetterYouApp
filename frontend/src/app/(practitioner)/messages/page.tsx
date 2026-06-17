@@ -5,6 +5,8 @@ import { Socket } from "socket.io-client";
 import { createSocket } from "@/lib/socket";
 import { api } from "@/lib/api";
 import { Message, Conversation } from "@/types/chat";
+import { usePractitionerChat } from "@/contexts/PractitionerChatContext";
+import { usePractitionerUnread } from "@/contexts/PractitionerUnreadContext";
 
 interface Patient {
   _id: string;
@@ -14,14 +16,24 @@ interface Patient {
 }
 
 export default function MessagesPage() {
-  const [practitionerId] = useState<string | null>(() =>
-    localStorage.getItem("userId")
-  );
+  const [practitionerId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("userId");
+  });
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { setChatOpen, setActiveConversationId } = usePractitionerChat();
+  const { syncUnread } = usePractitionerUnread();
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selected, setSelected] = useState<Conversation | null>(null);
+  const [selectedRaw, setSelectedRaw] = useState<Conversation | null>(null);
+  const selected = selectedRaw;
+
+  const setSelected = (conv: Conversation | null) => {
+    setSelectedRaw(conv);
+    setChatOpen(conv !== null);
+    setActiveConversationId(conv?._id ?? null);
+  };
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -132,6 +144,8 @@ export default function MessagesPage() {
 
   useEffect(() => {
     fetchConversations();
+    return () => setChatOpen(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchConversations]);
 
   useEffect(() => {
@@ -143,8 +157,14 @@ export default function MessagesPage() {
 
     if (practitionerId) {
       api
-        .post(`/chat/reset-unread/${selected._id}`, { role: "practitioner" })
+        .post(`/chat/reset-unread/${selected._id}`, {
+          role: "practitioner",
+          userId: practitionerId,
+        })
         .catch(() => {});
+      // syncUnread will be triggered by the unread_reset SSE event;
+      // call it as a fallback in case SSE isn't connected yet
+      syncUnread();
     }
 
     if (socket) {
@@ -247,7 +267,7 @@ export default function MessagesPage() {
   /* ================= UI ================= */
 
   return (
-    <div className="h-[calc(100vh-100px)] w-full flex bg-bg-page overflow-hidden">
+    <div className="flex-1 min-h-0 w-full flex bg-bg-page overflow-hidden">
       {/* LEFT PANEL */}
       <div
         className={`${selected ? "hidden md:flex" : "flex"} w-full md:w-1/3 lg:w-1/4 bg-bg-card border-r border-border flex-col transition-all duration-300`}

@@ -11,6 +11,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  LogIn,
+  Loader2,
 } from "lucide-react";
 
 export interface Practitioner {
@@ -21,9 +23,13 @@ export interface Practitioner {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  confirmed: { label: "Confirmed", className: "bg-success/10 text-success" },
-  scheduled: { label: "Scheduled", className: "bg-primary/10 text-primary" },
-  cancelled: { label: "Cancelled", className: "bg-danger/10 text-danger" },
+  confirmed:    { label: "Confirmed",    className: "bg-success/10 text-success" },
+  scheduled:    { label: "Scheduled",    className: "bg-primary/10 text-primary" },
+  checked_in:   { label: "Checked In",   className: "bg-teal/10 text-teal" },
+  in_progress:  { label: "In Progress",  className: "bg-warning/10 text-warning" },
+  completed:    { label: "Completed",    className: "bg-success/10 text-success" },
+  no_show:      { label: "No Show",      className: "bg-danger/10 text-danger" },
+  cancelled:    { label: "Cancelled",    className: "bg-danger/10 text-danger" },
 };
 
 function statusConfig(status: string) {
@@ -37,12 +43,26 @@ function statusConfig(status: string) {
 
 function StatusIcon({ status }: { status: string }) {
   const s = status.toLowerCase();
-  if (s === "confirmed")
+  if (s === "confirmed" || s === "completed")
     return <CheckCircle size={14} className="text-success" />;
-  if (s === "cancelled")
+  if (s === "cancelled" || s === "no_show")
     return <XCircle size={14} className="text-danger" />;
+  if (s === "checked_in")
+    return <LogIn size={14} className="text-teal" />;
   return <Clock size={14} className="text-primary" />;
 }
+
+function isToday(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  const t = new Date();
+  return (
+    d.getUTCFullYear() === t.getUTCFullYear() &&
+    d.getUTCMonth()    === t.getUTCMonth()    &&
+    d.getUTCDate()     === t.getUTCDate()
+  );
+}
+
+const CHECK_IN_ELIGIBLE = new Set(["scheduled", "confirmed"]);
 
 export default function AppointmentsPage() {
   // ✅ Lazy init (NO useEffect, no lint error)
@@ -58,6 +78,7 @@ export default function AppointmentsPage() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [practitioners, setPractitioners] = useState<Practitioner[]>([]);
   const [now, setNow] = useState<number>(() => Date.now());
+  const [checkingInId, setCheckingInId] = useState<string | null>(null);
 
   // Clock update
   useEffect(() => {
@@ -79,6 +100,21 @@ export default function AppointmentsPage() {
     fetchPractitioners();
   }, []);
 
+  const handleCheckIn = async (appointmentId: string) => {
+    if (!patientId) return;
+    setCheckingInId(appointmentId);
+    try {
+      await api.patch(`/appointments/${appointmentId}/check-in`, { patientId });
+      toast.success("You're checked in! Please take a seat.", { duration: 4000 });
+      refresh();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast.error(e?.response?.data?.message ?? "Check-in failed");
+    } finally {
+      setCheckingInId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -88,7 +124,7 @@ export default function AppointmentsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+    <div className="w-full px-0 py-2 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -135,42 +171,73 @@ export default function AppointmentsPage() {
             const cfg = statusConfig(appt.status);
             const startDate = new Date(appt.start);
             const isPast = startDate.getTime() < now;
+            const todayAppt = isToday(appt.start);
+            const canCheckIn =
+              todayAppt && CHECK_IN_ELIGIBLE.has(appt.status.toLowerCase());
+            const isCheckingIn = checkingInId === appt.id;
 
             return (
               <div
                 key={appt.id}
-                className={`bg-bg-card border border-border rounded-xl p-4 flex items-start gap-4 hover:border-primary/30 transition-colors ${
-                  isPast ? "opacity-60" : ""
-                }`}
+                className={`bg-bg-card border rounded-xl p-4 transition-colors ${
+                  todayAppt && canCheckIn
+                    ? "border-primary/40 shadow-sm"
+                    : "border-border hover:border-primary/30"
+                } ${isPast && !todayAppt ? "opacity-60" : ""}`}
               >
-                {/* Date */}
-                <div className="shrink-0 w-12 text-center bg-primary/5 rounded-lg py-2">
-                  <p className="text-[10px] text-text-secondary font-medium uppercase">
-                    {startDate.toLocaleDateString([], { month: "short" })}
-                  </p>
-                  <p className="text-lg font-bold text-primary">
-                    {startDate.getDate()}
-                  </p>
+                <div className="flex items-start gap-4">
+                  {/* Date */}
+                  <div className="shrink-0 w-12 text-center bg-primary/5 rounded-lg py-2">
+                    <p className="text-[10px] text-text-secondary font-medium uppercase">
+                      {startDate.toLocaleDateString([], { month: "short" })}
+                    </p>
+                    <p className="text-lg font-bold text-primary">
+                      {startDate.getDate()}
+                    </p>
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{appt.title}</p>
+                    <p className="text-xs text-text-secondary">
+                      {startDate.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                    {todayAppt && (
+                      <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-semibold text-primary">
+                        Today
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Status */}
+                  <div
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${cfg.className}`}
+                  >
+                    <StatusIcon status={appt.status} />
+                    {cfg.label}
+                  </div>
                 </div>
 
-                {/* Details */}
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{appt.title}</p>
-                  <p className="text-xs text-text-secondary">
-                    {startDate.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-
-                {/* Status */}
-                <div
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.className}`}
-                >
-                  <StatusIcon status={appt.status} />
-                  {cfg.label}
-                </div>
+                {/* Check In button — only for today's eligible appointments */}
+                {canCheckIn && (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <button
+                      disabled={isCheckingIn}
+                      onClick={() => handleCheckIn(appt.id)}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isCheckingIn ? (
+                        <Loader2 size={15} className="animate-spin" />
+                      ) : (
+                        <LogIn size={15} />
+                      )}
+                      {isCheckingIn ? "Checking in…" : "Check In"}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -183,7 +250,6 @@ export default function AppointmentsPage() {
           practitioners={practitioners}
           onClose={() => setBookingOpen(false)}
           onBookingComplete={() => {
-            console.log("Refreshing appointments...");
             refresh();
             setBookingOpen(false);
           }}

@@ -11,6 +11,9 @@ import {
   Clock,
   TrendingUp,
   Loader2,
+  MessageCircle,
+  FileText,
+  User,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -74,12 +77,26 @@ export default function HomePage() {
     const s = createSocket({ patientId: userId });
     s.on("appointmentUpdated", (incoming: Appointment) => {
       setAppointments((prev) => {
-        const exists = prev.find((a) => a.id === incoming.id);
-        return exists
+        const existing = prev.find((a) => a.id === incoming.id);
+        const prevStatus = existing?.status?.toLowerCase();
+        const newStatus  = incoming.status?.toLowerCase();
+
+        if (prevStatus && newStatus && prevStatus !== newStatus) {
+          if (newStatus === "cancelled") {
+            toast.error("Your appointment has been cancelled.");
+          } else if (newStatus === "confirmed") {
+            toast.success("Your appointment has been confirmed!");
+          } else if (newStatus === "in_progress") {
+            toast("Your session is now in progress.", { icon: "🩺" });
+          } else if (existing && incoming.start !== existing.start) {
+            toast("Your appointment has been rescheduled.", { icon: "📅" });
+          }
+        }
+
+        return existing
           ? prev.map((a) => (a.id === incoming.id ? incoming : a))
           : [incoming, ...prev];
       });
-      toast.success("Appointment updated");
     });
 
     return () => {
@@ -178,13 +195,37 @@ export default function HomePage() {
     },
   ];
 
+  const quickActions = [
+    { label: "Book Appointment", href: "/patient/appointments", icon: Calendar, color: "text-primary bg-primary/10" },
+    { label: "Messages", href: "/patient/messages", icon: MessageCircle, color: "text-teal-600 bg-teal-50" },
+    { label: "My Records", href: "/patient/profile", icon: FileText, color: "text-indigo-600 bg-indigo-50" },
+    { label: "Profile", href: "/patient/profile", icon: User, color: "text-purple-600 bg-purple-50" },
+  ];
+
   return (
-    <div className="max-w-2xl mx-auto space-y-4 pb-6">
-      {/* Quote banner */}
-      <div className="bg-primary/5 border border-primary/15 rounded-2xl px-4 py-4">
-        <p className="text-sm font-medium text-primary leading-relaxed italic">
+    <div className="w-full space-y-4 pb-6">
+      {/* Welcome + quote */}
+      <div className="bg-gradient-to-r from-primary/8 to-primary/3 border border-primary/15 rounded-2xl px-4 py-4">
+        <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Daily Insight</p>
+        <p className="text-sm font-medium text-text-primary leading-relaxed italic">
           &ldquo;{quote}&rdquo;
         </p>
+      </div>
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-4 gap-2">
+        {quickActions.map(({ label, href, icon: Icon, color }) => (
+          <Link
+            key={label}
+            href={href}
+            className="flex flex-col items-center gap-1.5 p-3 bg-bg-card border border-border rounded-2xl hover:shadow-sm transition text-center"
+          >
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}>
+              <Icon size={16} />
+            </div>
+            <span className="text-[11px] font-medium text-text-secondary leading-tight">{label}</span>
+          </Link>
+        ))}
       </div>
 
       {/* Stats */}

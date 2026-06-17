@@ -16,16 +16,25 @@ import {
   ClipboardList,
   Pill,
   ArrowLeft,
-  Loader2,
+  TrendingUp,
+  CalendarClock,
+  Target,
+  History,
 } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { calculateAge, formatDate, capitalizeWords } from "@/lib/patientUtils";
-import Prescription from "./patientTabs/Prescription";
+import PrescriptionTab from "./patientTabs/Prescription";
 import MedicalDocument from "./patientTabs/MedicalDocuments";
 import AppointmentHistory from "./patientTabs/AppointmentHistory";
+import ProgressNotesTab from "./patientTabs/ProgressNotes";
+import FollowUpNotesTab from "./patientTabs/FollowUpNotes";
+import TreatmentPlansTab from "./patientTabs/TreatmentPlans";
+import PatientTimelineTab from "./patientTabs/PatientTimeline";
+import ProgressScoreChart from "./ProgressScoreChart";
+import { SkeletonProfile } from "@/components/ui/skeleton";
 
-type Tab = "documents" | "prescriptions" | "appointments";
+type Tab = "documents" | "prescriptions" | "appointments" | "progress" | "followup" | "plans" | "timeline";
 
 type Patient = {
   _id?: string;
@@ -49,6 +58,10 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "documents", label: "Documents", icon: ClipboardList },
   { id: "prescriptions", label: "Prescriptions", icon: Pill },
   { id: "appointments", label: "Appointments", icon: Calendar },
+  { id: "progress", label: "Progress Notes", icon: TrendingUp },
+  { id: "followup", label: "Follow-Ups", icon: CalendarClock },
+  { id: "plans", label: "Treatment Plans", icon: Target },
+  { id: "timeline", label: "Timeline", icon: History },
 ];
 
 export default function PatientProfilePage() {
@@ -77,8 +90,21 @@ export default function PatientProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-primary" size={28} />
+      <div className="space-y-4 w-full">
+        <div className="h-4 w-28 bg-bg-light rounded-lg animate-pulse" />
+        <SkeletonProfile />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-bg-card border border-border rounded-2xl p-4 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-bg-light animate-pulse shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 w-16 bg-bg-light rounded animate-pulse" />
+                <div className="h-4 w-24 bg-bg-light rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="bg-bg-card border border-border rounded-2xl h-48 animate-pulse" />
       </div>
     );
   }
@@ -124,7 +150,7 @@ export default function PatientProfilePage() {
   ];
 
   return (
-    <div className="space-y-4 max-w-5xl mx-auto">
+    <div className="space-y-4 w-full">
       {/* Back */}
       <Link
         href="/patients"
@@ -241,23 +267,26 @@ export default function PatientProfilePage() {
         ))}
       </div>
 
+      {/* Progress score chart (only renders if patient has scored notes) */}
+      {id && <ProgressScoreChart patientId={id} />}
+
       {/* Tabs */}
       <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="flex border-b border-border">
+        <div className="flex overflow-x-auto border-b border-border scrollbar-hide">
           {TABS.map(({ id: tabId, label, icon: Icon }) => {
             const active = activeTab === tabId;
             return (
               <button
                 key={tabId}
                 onClick={() => setActiveTab(tabId)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition border-b-2 ${
+                className={`flex-shrink-0 flex items-center gap-2 px-4 py-3 text-sm font-medium transition border-b-2 whitespace-nowrap ${
                   active
                     ? "border-primary text-primary"
                     : "border-transparent text-text-secondary hover:text-text-primary"
                 }`}
               >
-                <Icon size={15} className="shrink-0" />
-                <span className="hidden sm:inline">{label}</span>
+                <Icon size={14} className="shrink-0" />
+                {label}
               </button>
             );
           })}
@@ -265,8 +294,12 @@ export default function PatientProfilePage() {
 
         <div className="p-4">
           {activeTab === "documents" && <MedicalDocument patientId={id} />}
-          {activeTab === "prescriptions" && <Prescription />}
+          {activeTab === "prescriptions" && <PrescriptionTab />}
           {activeTab === "appointments" && <AppointmentHistory />}
+          {activeTab === "progress" && <ProgressNotesTab />}
+          {activeTab === "followup" && <FollowUpNotesTab />}
+          {activeTab === "plans" && <TreatmentPlansTab />}
+          {activeTab === "timeline" && <PatientTimelineTab />}
         </div>
       </div>
     </div>

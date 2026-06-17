@@ -3,12 +3,10 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { useForm, useWatch } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import {
-  patientSignupSchema,
-  PatientSignupFormValues,
-} from "@/schemas/patientSignup.schema";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { patientSignupSchema, type PatientSignupValues } from "@/schemas/auth.schema";
 import { api } from "@/lib/api";
 
 export default function PatientSignup() {
@@ -19,8 +17,8 @@ export default function PatientSignup() {
     handleSubmit,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<PatientSignupFormValues>({
-    resolver: yupResolver(patientSignupSchema),
+  } = useForm<PatientSignupValues>({
+    resolver: zodResolver(patientSignupSchema),
   });
 
   /* ------------------------------
@@ -53,7 +51,7 @@ export default function PatientSignup() {
        Submit
     ------------------------------ */
 
-  const onSubmit = async (data: PatientSignupFormValues) => {
+  const onSubmit = async (data: PatientSignupValues) => {
     try {
       const { confirmPassword: _, ...payload } = data;
       void _;
@@ -72,7 +70,7 @@ export default function PatientSignup() {
       router.push("/patientLogin");
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      alert(error.response?.data?.message || "Something went wrong");
+      toast.error(error.response?.data?.message || "Something went wrong");
     }
   };
 
