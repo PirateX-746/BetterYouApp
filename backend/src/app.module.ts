@@ -11,6 +11,11 @@ import { AvailabilityModule } from './availability/availability.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { DocumentsModule } from './documents/documents.module';
 import { ChatModule } from './chat/chat.module';
+import { PrescriptionsModule } from './prescriptions/prescriptions.module';
+import { SseModule } from './sse/sse.module';
+import { ProgressNotesModule } from './progress-notes/progress-notes.module';
+import { FollowUpNotesModule } from './follow-up-notes/follow-up-notes.module';
+import { TreatmentPlansModule } from './treatment-plans/treatment-plans.module';
 
 @Module({
   imports: [
@@ -28,6 +33,11 @@ import { ChatModule } from './chat/chat.module';
     AppointmentsModule,
     DocumentsModule,
     ChatModule,
+    PrescriptionsModule,
+    SseModule,
+    ProgressNotesModule,
+    FollowUpNotesModule,
+    TreatmentPlansModule,
   ],
 
   controllers: [AppController],

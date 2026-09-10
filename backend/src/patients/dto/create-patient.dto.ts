@@ -54,4 +54,8 @@ export class CreatePatientDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  avatarBase64?: string;
 }

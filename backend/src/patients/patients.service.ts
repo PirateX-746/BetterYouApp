@@ -4,6 +4,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -108,22 +109,18 @@ export class PatientsService {
      UPDATE PATIENT
      =============================== */
   async update(id: string, dto: UpdatePatientDto) {
-    if (dto.email || dto.phoneNo) {
+    // Email is immutable — silently strip it if sent
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { email: _email, ...safeDto } = dto as UpdatePatientDto & { email?: string };
+    dto = safeDto as UpdatePatientDto;
+
+    if (dto.phoneNo) {
       const existing = await this.patientModel.findOne({
         _id: { $ne: id },
-        $or: [
-          ...(dto.email ? [{ email: dto.email }] : []),
-          ...(dto.phoneNo ? [{ phoneNo: dto.phoneNo }] : []),
-        ],
+        phoneNo: dto.phoneNo,
       });
-
       if (existing) {
-        if (existing.email === dto.email) {
-          throw new ConflictException('Email already in use');
-        }
-        if (existing.phoneNo === dto.phoneNo) {
-          throw new ConflictException('Phone number already in use');
-        }
+        throw new ConflictException('Phone number already in use');
       }
     }
 
@@ -146,5 +143,21 @@ export class PatientsService {
     }
 
     return this.findById(id);
+  }
+
+  /* ===============================
+     CHANGE PASSWORD
+     =============================== */
+  async changePassword(id: string, currentPassword: string, newPassword: string) {
+    const patient = await this.patientModel.findById(id).select('+password');
+    if (!patient) throw new NotFoundException('Patient not found');
+
+    const valid = await bcrypt.compare(currentPassword, patient.password);
+    if (!valid) throw new UnauthorizedException('Current password is incorrect');
+
+    patient.password = await bcrypt.hash(newPassword, 10);
+    await patient.save();
+
+    return { message: 'Password updated successfully' };
   }
 }

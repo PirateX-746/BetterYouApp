@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Document } from 'mongoose';
@@ -10,7 +11,6 @@ import { JwtService } from '@nestjs/jwt';
 
 import { LoginDto } from './dto/login.dto';
 import { CreatePatientDto } from './dto/patient-signup.dto';
-import { PractitionerSignupDto } from './dto/practitioner-signup.dto';
 
 import { Patient } from '../patients/schemas/patient.schema';
 import { Practitioner } from '../practitioners/schemas/practitioner.schema';
@@ -28,6 +28,8 @@ const SALT_ROUNDS = 10;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectModel(Patient.name)
     private readonly patientModel: Model<Patient>,
@@ -35,10 +37,8 @@ export class AuthService {
     @InjectModel(Practitioner.name)
     private readonly practitionerModel: Model<Practitioner>,
 
-    private readonly jwtService: JwtService, // ✅ REQUIRED
+    private readonly jwtService: JwtService,
   ) {}
-
-  //Patient Signup
 
   async patientSignup(dto: CreatePatientDto) {
     const existing = await this.patientModel.findOne({ email: dto.email });
@@ -46,13 +46,11 @@ export class AuthService {
       throw new BadRequestException('Email already exists');
     }
 
-    // 🔥 Generate MRN automatically
     const mrn = `MRN-${new Date().getFullYear()}-${Math.floor(
       1000 + Math.random() * 9000,
     )}`;
 
-    // 🔐 Hash password
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, SALT_ROUNDS);
 
     const patient = await this.patientModel.create({
       ...dto,
@@ -62,46 +60,18 @@ export class AuthService {
       isActive: true,
     });
 
+    this.logger.log(`New patient registered: ${patient._id}`);
+
     return {
       message: 'Patient created successfully',
       id: patient._id,
     };
   }
 
-  //Practitioner Signup
-
-  async practitionerSignup(dto: PractitionerSignupDto) {
-    const normalizedEmail = dto.email.toLowerCase().trim();
-    const exists = await this.practitionerModel.findOne({
-      email: normalizedEmail,
-    });
-    if (exists) {
-      throw new BadRequestException('Practitioner already exists');
-    }
-
-    const practitioner = await this.practitionerModel.create({
-      ...dto,
-      email: normalizedEmail,
-      password: await bcrypt.hash(dto.password, SALT_ROUNDS),
-      dateOfBirth: new Date(dto.dateOfBirth),
-      role: Role.PRACTITIONER,
-    });
-
-    const obj = practitioner.toObject() as unknown as Record<string, unknown>;
-    const { password: _pw, ...result } = obj;
-    void _pw;
-    return result;
-  }
-
-  //Login
-  // ===========================
-  // LOGIN WITH FULL VALIDATION
-  // ===========================
   async login(loginDto: LoginDto) {
     const { email, password, role: rawRole } = loginDto;
     const role = rawRole as unknown as Role;
 
-    // 1️⃣ Basic Validation
     if (!email || !password || !role) {
       throw new BadRequestException('Email, password and role are required');
     }
@@ -114,7 +84,6 @@ export class AuthService {
 
     let user: UserDocument | null;
 
-    // 2️⃣ Fetch User From Correct Collection
     if (role === Role.PRACTITIONER) {
       user = (await this.practitionerModel.findOne({
         email: normalizedEmail,
@@ -125,47 +94,31 @@ export class AuthService {
       })) as UserDocument | null;
     }
 
-    // 3️⃣ User Exists?
     if (!user) {
-      console.log(
-        `[AuthService] Password/User check failed: User not found for email: ${normalizedEmail}`,
-      );
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    console.log(
-      `[AuthService] Found user, password hash length: ${user.password?.length}`,
-    );
-
-    // 4️⃣ Password Match?
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log('isPasswordValid', isPasswordValid);
 
     if (!isPasswordValid) {
-      console.log(
-        `[AuthService] Password/User check failed: Invalid password for email: ${normalizedEmail}`,
-      );
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // 5️⃣ Double Role Safety Check
     if (user.role.toLowerCase() !== role.toLowerCase()) {
-      console.log(
-        `[AuthService] Role mismatch: User has "${user.role}", attempted login as "${role}"`,
-      );
       throw new UnauthorizedException(
         'You are trying to access the wrong portal',
       );
     }
 
-    // 6️⃣ Generate JWT
     const payload = {
       sub: user._id.toString(),
       role: user.role,
     };
 
     const accessToken = this.jwtService.sign(payload);
-    console.log('Logged in user role:', user.role);
+
+    this.logger.log(`User ${user._id} logged in as ${user.role}`);
+
     return {
       access_token: accessToken,
       id: user._id.toString(),

@@ -120,4 +120,20 @@ export class ChatService {
       });
     }
   }
+
+  /** Total unread message count across all conversations for one user. */
+  async getTotalUnread(
+    userId: string,
+    role: 'patient' | 'practitioner',
+  ): Promise<number> {
+    const matchKey  = role === 'patient' ? 'patientId' : 'practitionerId';
+    const sumField  = role === 'patient' ? '$unreadForPatient' : '$unreadForPractitioner';
+
+    const result = await this.conversationModel.aggregate<{ total: number }>([
+      { $match: { [matchKey]: userId } },
+      { $group: { _id: null, total: { $sum: sumField } } },
+    ]);
+
+    return result[0]?.total ?? 0;
+  }
 }

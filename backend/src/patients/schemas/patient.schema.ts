@@ -51,6 +51,9 @@ export class Patient {
   @Prop()
   allergies?: string;
 
+  @Prop()
+  avatarBase64?: string;
+
   @Prop({ default: Role.PATIENT })
   role: Role;
 

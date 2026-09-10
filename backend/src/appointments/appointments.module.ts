@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Appointment, AppointmentSchema } from './schemas/appointment.schema';
 import { AppointmentsGateway } from './appointments.gateway';
 import { AvailabilityModule } from '../availability/availability.module';
+import { PractitionersModule } from '../practitioners/practitioners.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { AvailabilityModule } from '../availability/availability.module';
       { name: Appointment.name, schema: AppointmentSchema },
     ]),
     AvailabilityModule,
+    PractitionersModule,
   ],
   controllers: [AppointmentsController],
   providers: [AppointmentsService, AppointmentsGateway],

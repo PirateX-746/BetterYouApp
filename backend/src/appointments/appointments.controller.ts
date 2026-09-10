@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Param,
   Body,
@@ -27,6 +28,11 @@ export class AppointmentsController {
     return this.appointmentsService.findByPatient(id);
   }
 
+  @Get('waiting-room/:practitionerId')
+  getWaitingRoom(@Param('practitionerId') practitionerId: string) {
+    return this.appointmentsService.getWaitingRoom(practitionerId);
+  }
+
   @Get('availability')
   getAvailability(
     @Query('practitionerId') practitionerId: string,
@@ -46,6 +52,22 @@ export class AppointmentsController {
       id,
       body as unknown as AppointmentData,
     );
+  }
+
+  @Patch(':id/check-in')
+  checkIn(
+    @Param('id') id: string,
+    @Body('patientId') patientId: string,
+  ) {
+    return this.appointmentsService.checkIn(id, patientId);
+  }
+
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: string,
+  ) {
+    return this.appointmentsService.updateStatus(id, status);
   }
 
   @Delete(':id')

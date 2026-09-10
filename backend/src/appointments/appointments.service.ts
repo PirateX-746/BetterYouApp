@@ -1,9 +1,31 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Appointment, AppointmentDocument } from './schemas/appointment.schema';
+import { Appointment, AppointmentDocument, AppointmentStatus } from './schemas/appointment.schema';
 import { AppointmentsGateway } from './appointments.gateway';
 import { AvailabilityService } from '../availability/availability.service';
+import { PractitionersService } from '../practitioners/practitioners.service';
+
+const DAY_KEYS = [
+  'sunday', 'monday', 'tuesday', 'wednesday',
+  'thursday', 'friday', 'saturday',
+] as const;
+
+interface DaySchedule {
+  isOpen: boolean;
+  openTime: string;  // "HH:mm"
+  closeTime: string; // "HH:mm"
+}
+
+const DEFAULT_HOURS: Record<string, DaySchedule> = {
+  monday:    { isOpen: true,  openTime: '09:00', closeTime: '17:00' },
+  tuesday:   { isOpen: true,  openTime: '09:00', closeTime: '17:00' },
+  wednesday: { isOpen: true,  openTime: '09:00', closeTime: '17:00' },
+  thursday:  { isOpen: true,  openTime: '09:00', closeTime: '17:00' },
+  friday:    { isOpen: true,  openTime: '09:00', closeTime: '17:00' },
+  saturday:  { isOpen: false, openTime: '09:00', closeTime: '17:00' },
+  sunday:    { isOpen: false, openTime: '09:00', closeTime: '17:00' },
+};
 
 export interface AppointmentData {
   practitionerId: string;
@@ -22,6 +44,7 @@ export class AppointmentsService {
     private readonly appointmentModel: Model<AppointmentDocument>,
     private readonly gateway: AppointmentsGateway,
     private readonly availabilityService: AvailabilityService,
+    private readonly practitionersService: PractitionersService,
   ) {}
 
   /* =====================================================
@@ -112,6 +135,10 @@ export class AppointmentsService {
       throw new BadRequestException('Invalid appointment ID');
     }
 
+    // Capture the previous start before updating, so the frontend can detect reschedules
+    const existing = await this.appointmentModel.findById(id);
+    const previousStart = existing?.start?.toISOString();
+
     const updated = await this.appointmentModel.findByIdAndUpdate(
       new Types.ObjectId(id),
       {
@@ -132,7 +159,7 @@ export class AppointmentsService {
 
     this.gateway.emitAppointmentUpdate(
       formatted.patientId,
-      formatted,
+      { ...formatted, previousStart },
       formatted.practitionerId,
     );
 
@@ -179,7 +206,167 @@ export class AppointmentsService {
       patientId: a.patientId?.toString(),
       notes: a.notes,
       status: a.status,
+      checkedInAt: a.checkedInAt ?? null,
     };
+  }
+
+  /* =====================================================
+     CHECK IN
+     ===================================================== */
+
+  async checkIn(appointmentId: string, patientId: string) {
+    if (!Types.ObjectId.isValid(appointmentId)) {
+      throw new BadRequestException('Invalid appointment ID');
+    }
+
+    const appt = await this.appointmentModel.findById(appointmentId);
+    if (!appt) throw new NotFoundException('Appointment not found');
+
+    if (appt.patientId.toString() !== patientId) {
+      throw new ForbiddenException('This appointment does not belong to you');
+    }
+
+    // Must be today (UTC date comparison)
+    const today = new Date();
+    const apptDate = new Date(appt.start);
+    const sameDay =
+      apptDate.getUTCFullYear() === today.getUTCFullYear() &&
+      apptDate.getUTCMonth()    === today.getUTCMonth()    &&
+      apptDate.getUTCDate()     === today.getUTCDate();
+
+    if (!sameDay) {
+      throw new BadRequestException('You can only check in on the day of your appointment');
+    }
+
+    const allowedStatuses = [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED];
+    if (!allowedStatuses.includes(appt.status as AppointmentStatus)) {
+      throw new BadRequestException(
+        `Cannot check in — appointment is already ${appt.status}`,
+      );
+    }
+
+    const checkedInAt = new Date();
+    const updated = await this.appointmentModel.findByIdAndUpdate(
+      appointmentId,
+      { status: AppointmentStatus.CHECKED_IN, checkedInAt },
+      { new: true },
+    );
+
+    const formatted = this.formatAppointment(updated!);
+
+    // Notify the practitioner in real time
+    const practitionerIdStr = appt.practitionerId.toString();
+
+    // Fetch patient name for the notification
+    const patient = await (this.appointmentModel.db.model('Patient') as any)
+      .findById(appt.patientId)
+      .select('firstName lastName')
+      .lean()
+      .catch(() => null);
+
+    const patientName = patient
+      ? `${patient.firstName} ${patient.lastName}`
+      : 'A patient';
+
+    this.gateway.emitPatientCheckedIn(practitionerIdStr, {
+      appointmentId: formatted.id,
+      patientName,
+      appointmentTitle: appt.title,
+      appointmentStart: appt.start.toISOString(),
+      checkedInAt: checkedInAt.toISOString(),
+    });
+
+    // Also emit standard appointment update so calendars refresh
+    this.gateway.emitAppointmentUpdate(
+      appt.patientId.toString(),
+      { ...formatted, deleted: false },
+      practitionerIdStr,
+    );
+
+    return formatted;
+  }
+
+  /* =====================================================
+     UPDATE STATUS (practitioner side)
+     ===================================================== */
+
+  async updateStatus(appointmentId: string, status: string) {
+    if (!Types.ObjectId.isValid(appointmentId)) {
+      throw new BadRequestException('Invalid appointment ID');
+    }
+
+    const validStatuses = Object.values(AppointmentStatus) as string[];
+    if (!validStatuses.includes(status)) {
+      throw new BadRequestException(`Invalid status: ${status}`);
+    }
+
+    const updated = await this.appointmentModel.findByIdAndUpdate(
+      appointmentId,
+      { status },
+      { new: true },
+    );
+    if (!updated) throw new NotFoundException('Appointment not found');
+
+    const formatted = this.formatAppointment(updated);
+    this.gateway.emitAppointmentUpdate(
+      formatted.patientId,
+      formatted,
+      formatted.practitionerId,
+    );
+    return formatted;
+  }
+
+  /* =====================================================
+     WAITING ROOM
+     ===================================================== */
+
+  async getWaitingRoom(practitionerId: string) {
+    if (!Types.ObjectId.isValid(practitionerId)) {
+      throw new BadRequestException('Invalid practitioner ID');
+    }
+
+    const now = new Date();
+    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const dayEnd   = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+
+    const waitingStatuses = [
+      AppointmentStatus.CHECKED_IN,
+      AppointmentStatus.IN_PROGRESS,
+    ];
+
+    const appointments = await this.appointmentModel
+      .find({
+        practitionerId: new Types.ObjectId(practitionerId),
+        start: { $gte: dayStart, $lt: dayEnd },
+        status: { $in: waitingStatuses },
+      })
+      .sort({ checkedInAt: 1 })
+      .lean();
+
+    // Populate patient names
+    const PatientModel = this.appointmentModel.db.model('Patient') as any;
+    const patientIds = appointments.map((a) => a.patientId);
+    const patients = await PatientModel.find({ _id: { $in: patientIds } })
+      .select('firstName lastName')
+      .lean();
+
+    const patientMap = new Map<string, { firstName: string; lastName: string }>(
+      patients.map((p: any) => [p._id.toString(), p]),
+    );
+
+    return appointments.map((a) => {
+      const p = patientMap.get(a.patientId.toString());
+      return {
+        id: (a._id as Types.ObjectId).toString(),
+        patientId: a.patientId.toString(),
+        patientName: p ? `${p.firstName} ${p.lastName}` : 'Unknown',
+        title: a.title,
+        start: a.start,
+        end: a.end,
+        status: a.status,
+        checkedInAt: a.checkedInAt ?? null,
+      };
+    });
   }
 
   /* =====================================================
@@ -190,54 +377,53 @@ export class AppointmentsService {
     if (!Types.ObjectId.isValid(practitionerId)) {
       throw new BadRequestException('Invalid practitioner ID');
     }
-
     if (!date) {
       throw new BadRequestException('Date is required');
     }
 
-    // 1. Get blocked slots (your existing logic)
-    const blocks =
-      await this.availabilityService.fetchBlockedSlots(practitionerId);
+    // 1. Resolve the day schedule from practiceHours (or fall back to defaults)
+    const practitioner = await this.practitionersService.findById(practitionerId);
+    const savedHours = practitioner.practiceHours as Record<string, DaySchedule> | undefined;
 
-    // 2. Get existing appointments (to mark booked)
-    const startOfDay = new Date(`${date}T00:00:00`);
-    const endOfDay = new Date(`${date}T23:59:59`);
+    const dayIndex = new Date(`${date}T00:00:00`).getDay();
+    const dayKey = DAY_KEYS[dayIndex];
+    const daySchedule: DaySchedule =
+      savedHours?.[dayKey] ?? DEFAULT_HOURS[dayKey];
+
+    if (!daySchedule.isOpen) {
+      return [];
+    }
+
+    // 2. Get manually blocked slots
+    const blocks = await this.availabilityService.fetchBlockedSlots(practitionerId);
+
+    // 3. Get existing appointments for this day (to mark booked)
+    const dayStart = new Date(`${date}T00:00:00`);
+    const dayEnd   = new Date(`${date}T23:59:59`);
 
     const appointments = await this.appointmentModel.find({
       practitionerId: new Types.ObjectId(practitionerId),
-      start: { $gte: startOfDay, $lte: endOfDay },
+      start: { $gte: dayStart, $lte: dayEnd },
     });
 
-    // 3. Generate slots (example: 9 AM - 6 PM, 30 min slots)
-    const slots: any[] = [];
-
-    let current = new Date(`${date}T09:00:00`);
-    const end = new Date(`${date}T18:00:00`);
+    // 4. Generate 30-min slots within practice open hours
+    const slots: { start: string; end: string; isBooked: boolean }[] = [];
+    let current = new Date(`${date}T${daySchedule.openTime}:00`);
+    const end    = new Date(`${date}T${daySchedule.closeTime}:00`);
 
     while (current < end) {
       const slotStart = new Date(current);
-      const slotEnd = new Date(current.getTime() + 30 * 60000);
+      const slotEnd   = new Date(current.getTime() + 30 * 60_000);
 
-      // Check if booked
-      const isBooked = appointments.some((a) => {
-        return new Date(a.start).getTime() === slotStart.getTime();
-      });
+      const isBooked = appointments.some(
+        (a) => new Date(a.start).getTime() === slotStart.getTime(),
+      );
 
-      // Skip blocked slots
       const isBlocked = blocks.some((b: any) => {
-        // 🔴 Case 1: Full day blocked
-        if (b.blockType === 'day') {
-          return b.date === date;
+        if (b.blockType === 'day') return b.date === date;
+        if (b.blockType === 'slot' && b.date && b.startTime) {
+          return new Date(`${b.date}T${b.startTime}:00`).getTime() === slotStart.getTime();
         }
-
-        // 🔴 Case 2: Specific time slot blocked
-        if (b.blockType === 'slot') {
-          if (!b.date || !b.startTime) return false;
-
-          const blockedStart = new Date(`${b.date}T${b.startTime}:00`);
-          return blockedStart.getTime() === slotStart.getTime();
-        }
-
         return false;
       });
 

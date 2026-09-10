@@ -1,28 +1,40 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
 
   const allowedOrigins = [
     process.env.FRONTEND_URL,
     'https://better-you-app-bay.vercel.app',
     'http://192.168.1.41:3000',
-  ];
+    // Local dev — required for SSE and direct socket connections from the browser
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ].filter(Boolean) as string[];
+
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
   });
 
+  app.useGlobalFilters(new AllExceptionsFilter());
+
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // removes extra fields
-      forbidNonWhitelisted: true, // throws error if extra fields sent
-      transform: true, // auto converts types
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      stopAtFirstError: false,
     }),
   );
 
-  await app.listen(process.env.PORT || 3001);
+  const port = process.env.PORT ?? 3001;
+  await app.listen(port);
+  Logger.log(`Server running on http://localhost:${port}`, 'Bootstrap');
 }
 void bootstrap();

@@ -51,4 +51,18 @@ export class AppointmentsGateway implements OnGatewayConnection {
       this.server.to(practitionerId).emit('appointmentUpdated', data);
     }
   }
+
+  // Notify practitioner that a patient has checked in
+  emitPatientCheckedIn(
+    practitionerId: string,
+    payload: {
+      appointmentId: string;
+      patientName: string;
+      appointmentTitle: string;
+      appointmentStart: string;
+      checkedInAt: string;
+    },
+  ) {
+    this.server.to(practitionerId).emit('patientCheckedIn', payload);
+  }
 }

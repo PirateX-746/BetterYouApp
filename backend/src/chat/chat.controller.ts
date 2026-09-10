@@ -1,9 +1,13 @@
 import { Controller, Get, Post, Param, Body } from '@nestjs/common';
 import { ChatService } from './chat.service';
+import { SseService } from '../sse/sse.service';
 
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly sseService: SseService,
+  ) {}
 
   @Get('conversations/:userId')
   async getConversations(@Param('userId') userId: string) {
@@ -28,8 +32,20 @@ export class ChatController {
   @Post('reset-unread/:conversationId')
   async resetUnread(
     @Param('conversationId') conversationId: string,
-    @Body() body: { role: 'patient' | 'practitioner' },
+    @Body() body: { role: 'patient' | 'practitioner'; userId?: string },
   ) {
-    return this.chatService.resetUnread(conversationId, body.role);
+    await this.chatService.resetUnread(conversationId, body.role);
+
+    // Push updated (zero) badge count to the user via SSE
+    const userId = body.userId;
+    if (userId) {
+      const totalUnread = await this.chatService.getTotalUnread(
+        userId,
+        body.role,
+      );
+      this.sseService.pushUnreadReset(userId, totalUnread);
+    }
+
+    return { ok: true };
   }
 }

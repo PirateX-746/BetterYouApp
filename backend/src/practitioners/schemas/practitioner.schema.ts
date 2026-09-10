@@ -25,6 +25,12 @@ export class Practitioner extends Document {
   @Prop()
   experienceYears?: number;
 
+  @Prop()
+  avatarBase64?: string;
+
+  @Prop({ type: Object })
+  practiceHours?: Record<string, { isOpen: boolean; openTime: string; closeTime: string }>;
+
   @Prop({ default: Role.PRACTITIONER })
   role: Role;
 }
