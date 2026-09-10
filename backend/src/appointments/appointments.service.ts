@@ -47,6 +47,37 @@ export class AppointmentsService {
     private readonly practitionersService: PractitionersService,
   ) {}
 
+  /**
+   * Throws unless the caller is the patient or the practitioner on this
+   * appointment. Used by the routes that mutate a single appointment, so a
+   * signed-in user cannot change someone else's booking by guessing an id.
+   */
+  async assertParticipant(
+    appointmentId: string,
+    userId: string,
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(appointmentId)) {
+      throw new BadRequestException('Invalid appointment ID');
+    }
+
+    const appt = await this.appointmentModel
+      .findById(appointmentId)
+      .select('patientId practitionerId')
+      .lean()
+      .exec();
+
+    if (!appt) throw new NotFoundException('Appointment not found');
+
+    const participants = [
+      String(appt.patientId),
+      String(appt.practitionerId),
+    ];
+
+    if (!participants.includes(userId)) {
+      throw new ForbiddenException('This appointment does not belong to you');
+    }
+  }
+
   /* =====================================================
      CREATE APPOINTMENT
      ===================================================== */
@@ -179,7 +210,7 @@ export class AppointmentsService {
       new Types.ObjectId(id),
     );
 
-    if (!deleted) return null;
+    if (!deleted) throw new NotFoundException('Appointment not found');
 
     const formatted = this.formatAppointment(deleted);
 

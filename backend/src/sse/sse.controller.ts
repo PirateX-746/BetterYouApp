@@ -1,21 +1,18 @@
-import { Controller, Get, Query, Req, Res } from '@nestjs/common';
+import { Controller, Get, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { SseService } from './sse.service';
+import type { AuthUser } from '../common/auth-user';
 
 @Controller('sse')
 export class SseController {
   constructor(private readonly sseService: SseService) {}
 
   @Get('stream')
-  stream(
-    @Query('userId') userId: string,
-    @Req() req: Request,
-    @Res() res: Response,
-  ) {
-    if (!userId) {
-      res.status(400).json({ message: 'userId is required' });
-      return;
-    }
+  stream(@Req() req: Request, @Res() res: Response) {
+    // The stream is bound to the authenticated user from the JWT. It used to
+    // take ?userId= from the query string, which let anyone subscribe to
+    // anyone else's notification feed.
+    const { userId } = (req as Request & { user: AuthUser }).user;
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');

@@ -29,10 +29,19 @@ export class Practitioner extends Document {
   avatarBase64?: string;
 
   @Prop({ type: Object })
-  practiceHours?: Record<string, { isOpen: boolean; openTime: string; closeTime: string }>;
+  practiceHours?: Record<
+    string,
+    { isOpen: boolean; openTime: string; closeTime: string }
+  >;
 
   @Prop({ default: Role.PRACTITIONER })
   role: Role;
+
+  @Prop({ default: false })
+  mustChangePassword: boolean;
+
+  @Prop({ type: Date })
+  tempPasswordExpiresAt?: Date;
 }
 
 export const PractitionerSchema = SchemaFactory.createForClass(Practitioner);

@@ -35,7 +35,11 @@ export function useSSE(userId: string | null, onEvent: Handler): void {
     if (!userId || typeof window === "undefined") return;
 
     const base = getSseBase();
-    const url = `${base}/sse/stream?userId=${userId}`;
+    // No userId in the query string: the server binds the stream to the
+    // authenticated user from the session cookie. `userId` is still a hook
+    // argument because it gates *when* to connect and forces a reconnect on
+    // account switch.
+    const url = `${base}/sse/stream`;
 
     let es: EventSource | null = null;
     let retryDelay = 1_000;

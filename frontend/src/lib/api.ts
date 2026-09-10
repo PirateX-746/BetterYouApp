@@ -2,6 +2,9 @@ import axios from "axios";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
+  // Session lives in an HttpOnly cookie set by the backend, so every request
+  // must carry credentials. Same-origin in the browser via the /api/* rewrite.
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
     "Cache-Control": "no-cache",
@@ -9,15 +12,35 @@ export const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
+/* ---------------------------------------------------------------
+   In-flight GET de-duplication.
+
+   Several sibling components legitimately ask for the same resource
+   on mount (e.g. ProgressScoreChart, PatientTimeline and ProgressNotes
+   all need /progress-notes for the same patient). Without this, one
+   page load fires the same request three times.
+
+   Only *concurrent* identical GETs share a promise — the entry is
+   dropped as soon as it settles, so a refetch after a mutation always
+   hits the network. Nothing is cached.
+   --------------------------------------------------------------- */
+const inFlight = new Map<string, Promise<unknown>>();
+
+const originalGet = api.get.bind(api);
+
+api.get = function dedupedGet(this: unknown, url: string, config?: object) {
+  const key = `${url}|${JSON.stringify((config as { params?: unknown })?.params ?? null)}`;
+
+  const existing = inFlight.get(key);
+  if (existing) return existing as ReturnType<typeof originalGet>;
+
+  const request = originalGet(url, config).finally(() => {
+    inFlight.delete(key);
+  });
+
+  inFlight.set(key, request);
+  return request;
+} as typeof api.get;
 
 api.interceptors.response.use(
   (response) => response,

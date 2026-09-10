@@ -47,7 +47,7 @@ interface Patient {
   isActive?: boolean;
 }
 
-interface Prescription {
+interface PatientMedication {
   _id: string;
   status: string;
   createdAt: string;
@@ -199,7 +199,7 @@ export default function DashboardPage() {
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [patientMedications, setPatientMedications] = useState<PatientMedication[]>([]);
   const [practiceHours, setPracticeHours] = useState<PracticeHours>(DEFAULT_HOURS);
   const [loading, setLoading] = useState(true);
   const [doctorName, setDoctorName] = useState("Doctor");
@@ -224,10 +224,10 @@ export default function DashboardPage() {
         .get<Patient[]>("/patients")
         .then((r) => setPatients(r.data ?? [])),
       api
-        .get<Prescription[]>("/prescriptions", {
+        .get<PatientMedication[]>("/patient-medications", {
           params: { practitionerId },
         })
-        .then((r) => setPrescriptions(r.data ?? [])),
+        .then((r) => setPatientMedications(r.data ?? [])),
       api
         .get(`/practitioners/${practitionerId}`)
         .then((r) => {
@@ -283,12 +283,12 @@ export default function DashboardPage() {
 
   const completionRate = pastTotal > 0 ? Math.round((completedCount / pastTotal) * 100) : 100;
 
-  const prescriptionsThisMonth = useMemo(
+  const medicationsThisMonth = useMemo(
     () =>
-      prescriptions.filter(
+      patientMedications.filter(
         (p) => new Date(p.createdAt).getTime() >= monthStart.getTime(),
       ).length,
-    [prescriptions, monthStart],
+    [patientMedications, monthStart],
   );
 
   // Patient map for joining names into appointments
@@ -364,19 +364,19 @@ export default function DashboardPage() {
         });
       });
 
-    // Recent prescriptions → "Prescription issued"
-    [...prescriptions]
+    // Recent medications → "Medication recorded"
+    [...patientMedications]
       .slice(0, 2)
-      .forEach((rx) => {
-        const name = rx.patientId
-          ? `${rx.patientId.firstName} ${rx.patientId.lastName}`
+      .forEach((pm) => {
+        const name = pm.patientId
+          ? `${pm.patientId.firstName} ${pm.patientId.lastName}`
           : "a patient";
         items.push({
-          id: `rx-${rx._id}`,
+          id: `pm-${pm._id}`,
           icon: FileText,
           color: "text-warning bg-warning/10",
-          text: `Prescription issued for ${name}`,
-          time: timeAgo(rx.createdAt),
+          text: `Medication recorded for ${name}`,
+          time: timeAgo(pm.createdAt),
         });
       });
 
@@ -417,7 +417,7 @@ export default function DashboardPage() {
       });
 
     return items.slice(0, 6);
-  }, [patients, prescriptions, appointments, patientMap, now]);
+  }, [patients, patientMedications, appointments, patientMap, now]);
 
   const todayConfirmed = todayAppointments.filter(
     (a) => a.status.toLowerCase() === "confirmed",
@@ -523,8 +523,8 @@ export default function DashboardPage() {
           sub="No ratings yet"
         />
         <StatCard
-          label="Prescriptions"
-          value={prescriptionsThisMonth}
+          label="Medications"
+          value={medicationsThisMonth}
           iconBg="bg-success/10 text-success"
           icon={<Pill size={20} />}
           sub="This month"

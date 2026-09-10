@@ -18,3 +18,11 @@ pnpm-debug.log*
 
 # OS files
 .DS_Store
+# Added by code-review-graph
+.code-review-graph/
+
+# Local DB export — contains PII and bcrypt password hashes, never commit
+better-you-app.patients.json
+
+# Playwright MCP session artifacts
+.playwright-mcp/

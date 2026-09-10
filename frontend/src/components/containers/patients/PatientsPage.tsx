@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import {
-  User,
   Search,
   Plus,
   X,
@@ -12,6 +13,7 @@ import {
   Users,
   Loader2,
 } from "lucide-react";
+import { addPatientSchema, type AddPatientValues } from "@/schemas/patient.schema";
 import { SkeletonRow } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
@@ -25,17 +27,6 @@ import {
 /* ─────────────────────────────────────────────
    Types
 ───────────────────────────────────────────── */
-const INITIAL_FORM = {
-  firstName: "",
-  lastName: "",
-  email: "",
-  phoneNo: "",
-  dateOfBirth: "",
-  gender: "" as "" | "male" | "female" | "other",
-  bloodGroup: "",
-  allergies: "",
-};
-
 type FilterStatus = "all" | "active" | "inactive";
 
 /* ─────────────────────────────────────────────
@@ -103,8 +94,11 @@ export default function PatientsPage() {
             <div className="h-9 w-28 bg-bg-light rounded-xl animate-pulse" />
           </div>
         </div>
-        <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="bg-bg-card border border-border rounded-2xl overflow-hidden hidden lg:block">
           {Array.from({ length: 7 }).map((_, i) => <SkeletonRow key={i} />)}
+        </div>
+        <div className="flex flex-col gap-2 lg:hidden">
+          {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
         </div>
       </div>
     );
@@ -224,8 +218,8 @@ export default function PatientsPage() {
         </div>
       ) : (
         <>
-          {/* ── Mobile cards ── */}
-          <div className="flex flex-col gap-2 md:hidden">
+          {/* ── Mobile / tablet cards (below the sidebar breakpoint) ── */}
+          <div className="flex flex-col gap-2 lg:hidden">
             {filtered.map((p) => (
               <button
                 key={p._id}
@@ -256,77 +250,89 @@ export default function PatientsPage() {
             ))}
           </div>
 
-          {/* ── Desktop table ── */}
-          <div className="hidden md:block bg-bg-card border border-border rounded-2xl overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-border">
-                  {[
-                    "Patient",
-                    "Age",
-                    "Gender",
-                    "Phone",
-                    "Last Visit",
-                    "Status",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="px-5 py-3.5 text-xs font-semibold text-text-secondary uppercase tracking-wide"
-                    >
-                      {h}
+          {/* ── Desktop data table (aligned to the sidebar's lg breakpoint) ── */}
+          <div className="hidden lg:block bg-bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="px-5 py-3.5 text-xs font-semibold text-text-secondary uppercase tracking-wide w-[28%]">
+                      Patient
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.map((p) => (
-                  <tr
-                    key={p._id}
-                    onClick={() => router.push(`/patients/${p._id}`)}
-                    className="hover:bg-bg-hover transition-colors cursor-pointer group"
-                  >
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <Avatar patient={p} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-text-primary truncate group-hover:text-primary transition-colors">
-                            {p.displayName}
-                          </p>
-                          <p className="text-xs text-text-secondary truncate">
-                            {p.email ?? "—"}
-                          </p>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-text-secondary uppercase tracking-wide w-[10%]">
+                      Age
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-text-secondary uppercase tracking-wide w-[10%]">
+                      Gender
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-text-secondary uppercase tracking-wide w-[13%]">
+                      Phone
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-text-secondary uppercase tracking-wide w-[17%]">
+                      Health Condition
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-text-secondary uppercase tracking-wide w-[12%]">
+                      Last Visit
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-text-secondary uppercase tracking-wide w-[10%]">
+                      Status
+                    </th>
+                    <th className="px-3 py-3.5 w-[2%]" aria-hidden />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filtered.map((p) => (
+                    <tr
+                      key={p._id}
+                      onClick={() => router.push(`/patients/${p._id}`)}
+                      className="hover:bg-bg-hover transition-colors cursor-pointer group"
+                    >
+                      <td className="px-5 py-3.5 align-middle">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar patient={p} />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-text-primary truncate group-hover:text-primary transition-colors">
+                              {p.displayName}
+                            </p>
+                            <p className="text-xs text-text-secondary truncate">
+                              {p.email ?? "—"}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-text-secondary">
-                      {calculateAge(p.dateOfBirth)}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      {p.gender ? (
-                        <GenderBadge gender={p.gender} />
-                      ) : (
-                        <span className="text-text-disabled text-sm">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-text-secondary">
-                      {p.phoneNo ?? "—"}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-text-secondary">
-                      {formatDate(p.lastVisit)}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center justify-between">
+                      </td>
+                      <td className="px-5 py-3.5 align-middle text-sm text-text-secondary whitespace-nowrap">
+                        {calculateAge(p.dateOfBirth)}
+                      </td>
+                      <td className="px-5 py-3.5 align-middle">
+                        {p.gender ? (
+                          <GenderBadge gender={p.gender} />
+                        ) : (
+                          <span className="text-text-disabled text-sm">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 align-middle text-sm text-text-secondary whitespace-nowrap">
+                        {p.phoneNo ?? "—"}
+                      </td>
+                      <td className="px-5 py-3.5 align-middle text-sm text-text-secondary truncate max-w-[220px]">
+                        {p.healthCondition || <span className="text-text-disabled">—</span>}
+                      </td>
+                      <td className="px-5 py-3.5 align-middle text-sm text-text-secondary whitespace-nowrap">
+                        {formatDate(p.lastVisit)}
+                      </td>
+                      <td className="px-5 py-3.5 align-middle">
                         <StatusBadge active={p.isActive} />
+                      </td>
+                      <td className="px-3 py-3.5 align-middle">
                         <ChevronRight
                           size={15}
                           className="text-text-disabled opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all"
                         />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {/* Table footer */}
             <div className="px-5 py-3 border-t border-border flex items-center justify-between">
@@ -352,7 +358,7 @@ export default function PatientsPage() {
 }
 
 /* ═══════════════════════════════════════════
-   Add Patient Modal (inline)
+   Add Patient Modal — react-hook-form + zod
 ═══════════════════════════════════════════ */
 function AddPatientModal({
   open,
@@ -363,232 +369,164 @@ function AddPatientModal({
   onClose: () => void;
   onCreated: (p: Patient) => void;
 }) {
-  const [form, setForm] = useState(INITIAL_FORM);
+  const [serverError, setServerError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
 
-  /* Reset on close */
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<AddPatientValues>({
+    resolver: zodResolver(addPatientSchema),
+  });
+
   useEffect(() => {
-    if (!open) {
-      setForm(INITIAL_FORM);
-      setError("");
-    }
-  }, [open]);
+    if (!open) { reset(); setServerError(""); }
+  }, [open, reset]);
 
   if (!open) return null;
 
-  const handle = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >,
-  ) => setForm({ ...form, [e.target.name]: e.target.value });
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    if (!form.firstName.trim() || !form.lastName.trim())
-      return setError("First and last name are required.");
-    if (!form.email.trim()) return setError("Email is required.");
-
+  const onSubmit = async (data: AddPatientValues) => {
+    setServerError("");
     setSaving(true);
     try {
       const res = await api.post("/patients", {
-        firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim().toLowerCase(),
-        phoneNo: form.phoneNo.trim() || undefined,
-        dateOfBirth: form.dateOfBirth || undefined,
-        gender: form.gender || undefined,
-        bloodGroup: form.bloodGroup.trim() || undefined,
-        allergies: form.allergies.trim() || undefined,
+        ...data,
+        email: data.email.toLowerCase(),
+        password: "Admin@123",
       });
       onCreated(res.data);
       onClose();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setError(e.response?.data?.message ?? "Failed to create patient.");
+      const e = err as { response?: { data?: { message?: string | string[] } } };
+      const msg = e.response?.data?.message;
+      setServerError(Array.isArray(msg) ? msg[0] : (msg ?? "Failed to create patient."));
     } finally {
       setSaving(false);
     }
   };
 
+  const err = (field: keyof AddPatientValues) =>
+    errors[field]?.message ? (
+      <p className="text-xs text-danger mt-1">{errors[field]!.message}</p>
+    ) : null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Sheet */}
       <div className="relative w-full sm:max-w-lg bg-bg-card rounded-t-3xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[92dvh]">
-        {/* Drag handle — mobile only */}
         <div className="flex justify-center pt-3 sm:hidden shrink-0">
           <div className="w-10 h-1 bg-border rounded-full" />
         </div>
 
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-text-primary">
-              Add New Patient
-            </h2>
-            <p className="text-xs text-text-secondary mt-0.5">
-              Fill in the details below
-            </p>
+            <h2 className="text-base font-semibold text-text-primary">Add New Patient</h2>
+            <p className="text-xs text-text-secondary mt-0.5">Default password is Admin@123</p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-bg-hover text-text-secondary transition"
-          >
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-bg-hover text-text-secondary transition">
             <X size={18} />
           </button>
         </div>
 
-        {/* Body */}
-        <form onSubmit={submit} className="flex flex-col flex-1 min-h-0">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-            {error && (
+            {serverError && (
               <div className="flex items-start gap-2 text-sm text-danger bg-danger/5 border border-danger/20 px-3.5 py-2.5 rounded-xl">
                 <span className="mt-0.5 shrink-0">⚠</span>
-                {error}
+                {serverError}
               </div>
             )}
 
-            {/* Name row */}
+            {/* Name */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+              <div>
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
                   First Name <span className="text-danger">*</span>
                 </label>
-                <input
-                  name="firstName"
-                  value={form.firstName}
-                  onChange={handle}
-                  placeholder="John"
-                  className={fieldCls}
-                />
+                <input {...register("firstName")} placeholder="John" className={`${fieldCls} mt-1.5`} />
+                {err("firstName")}
               </div>
-              <div className="space-y-1.5">
+              <div>
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
                   Last Name <span className="text-danger">*</span>
                 </label>
-                <input
-                  name="lastName"
-                  value={form.lastName}
-                  onChange={handle}
-                  placeholder="Doe"
-                  className={fieldCls}
-                />
+                <input {...register("lastName")} placeholder="Doe" className={`${fieldCls} mt-1.5`} />
+                {err("lastName")}
               </div>
             </div>
 
             {/* Email */}
-            <div className="space-y-1.5">
+            <div>
               <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
                 Email <span className="text-danger">*</span>
               </label>
-              <input
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handle}
-                placeholder="patient@example.com"
-                className={fieldCls}
-              />
+              <input {...register("email")} type="email" placeholder="patient@example.com" className={`${fieldCls} mt-1.5`} />
+              {err("email")}
             </div>
 
             {/* Phone + DOB */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+              <div>
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                  Phone
+                  Phone <span className="text-danger">*</span>
                 </label>
-                <input
-                  name="phoneNo"
-                  type="tel"
-                  value={form.phoneNo}
-                  onChange={handle}
-                  placeholder="+91 00000 00000"
-                  className={fieldCls}
-                />
+                <input {...register("phoneNo")} type="tel" placeholder="9876543210" className={`${fieldCls} mt-1.5`} />
+                {err("phoneNo")}
               </div>
-              <div className="space-y-1.5">
+              <div>
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                  Date of Birth
+                  Date of Birth <span className="text-danger">*</span>
                 </label>
-                <input
-                  name="dateOfBirth"
-                  type="date"
-                  value={form.dateOfBirth}
-                  onChange={handle}
-                  className={fieldCls}
-                />
+                <input {...register("dateOfBirth")} type="date" className={`${fieldCls} mt-1.5`} />
+                {err("dateOfBirth")}
               </div>
             </div>
 
             {/* Gender + Blood Group */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+              <div>
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                  Gender
+                  Gender <span className="text-danger">*</span>
                 </label>
-                <select
-                  name="gender"
-                  value={form.gender}
-                  onChange={handle}
-                  className={fieldCls}
-                >
+                <select {...register("gender")} className={`${fieldCls} mt-1.5`}>
                   <option value="">Select</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                   <option value="other">Other</option>
                 </select>
+                {err("gender")}
               </div>
-              <div className="space-y-1.5">
+              <div>
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                  Blood Group
+                  Blood Group <span className="text-danger">*</span>
                 </label>
-                <input
-                  name="bloodGroup"
-                  value={form.bloodGroup}
-                  onChange={handle}
-                  placeholder="e.g. O+"
-                  className={fieldCls}
-                />
+                <select {...register("bloodGroup")} className={`${fieldCls} mt-1.5`}>
+                  <option value="">Select</option>
+                  {["A+","A-","B+","B-","O+","O-","AB+","AB-"].map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+                {err("bloodGroup")}
               </div>
             </div>
 
             {/* Allergies */}
-            <div className="space-y-1.5">
+            <div>
               <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
                 Allergies
               </label>
-              <textarea
-                name="allergies"
-                value={form.allergies}
-                onChange={handle}
-                placeholder="Known allergies (optional)"
-                rows={2}
-                className={`${fieldCls} resize-none`}
-              />
+              <textarea {...register("allergies")} placeholder="Known allergies (optional)" rows={2} className={`${fieldCls} mt-1.5 resize-none`} />
             </div>
           </div>
 
-          {/* Footer */}
           <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:bg-bg-hover transition"
-            >
+            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:bg-bg-hover transition">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition disabled:opacity-40 disabled:cursor-not-allowed"
-            >
+            <button type="submit" disabled={saving} className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition disabled:opacity-40 disabled:cursor-not-allowed">
               {saving && <Loader2 size={14} className="animate-spin" />}
               {saving ? "Saving…" : "Add Patient"}
             </button>

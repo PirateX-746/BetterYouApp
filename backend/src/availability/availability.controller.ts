@@ -10,6 +10,12 @@ import {
 } from '@nestjs/common';
 import { AvailabilityService } from './availability.service';
 
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/role.enum';
+
+// Clinical data — practitioner-only. Authentication itself is enforced
+// globally by JwtAuthGuard (see AppModule).
+@Roles(Role.PRACTITIONER)
 @Controller('availability')
 export class AvailabilityController {
   constructor(private readonly availabilityService: AvailabilityService) {}

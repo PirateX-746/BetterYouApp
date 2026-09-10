@@ -34,19 +34,25 @@ export default function LoginContainer({ role }: LoginProps) {
     try {
       const res = await login({ ...data, role });
 
+      // The session (token + role) is set by the backend as HttpOnly cookies
+      // and is deliberately not readable here. What follows is display data
+      // only — never treat it as proof of identity or permission.
       const cookieOpts = "path=/; SameSite=Lax";
-      document.cookie = `token=${res.access_token}; ${cookieOpts}`;
-      document.cookie = `role=${res.role}; ${cookieOpts}`;
       document.cookie = `name=${encodeURIComponent(res.name)}; ${cookieOpts}`;
       document.cookie = `userId=${res.id}; ${cookieOpts}`;
 
-      localStorage.setItem("token",  res.access_token);
       localStorage.setItem("role",   res.role);
       localStorage.setItem("name",   res.name);
       localStorage.setItem("userId", res.id);
       localStorage.setItem("email",  data.email);
 
       router.refresh();
+
+      if (res.mustChangePassword) {
+        router.replace("/change-password");
+        return;
+      }
+
       router.replace(role === "practitioner" ? "/dashboard" : "/patient/home");
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
@@ -110,11 +116,12 @@ export default function LoginContainer({ role }: LoginProps) {
               <Label htmlFor="password" className="text-sm font-medium text-gray-600">
                 Password
               </Label>
-              {!isPatient && (
-                <Link href="/practitioner/forgot-password" className="text-xs text-primary hover:underline">
-                  Forgot password?
-                </Link>
-              )}
+              <Link
+                href={isPatient ? "/patientForgotPassword" : "/practitioner/forgot-password"}
+                className="text-xs text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
             </div>
             <div className="relative">
               <Input

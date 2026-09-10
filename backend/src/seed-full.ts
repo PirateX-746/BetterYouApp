@@ -68,12 +68,26 @@ const AppointmentSchema = new mongoose.Schema(
   S,
 );
 
-const PrescriptionSchema = new mongoose.Schema(
+const MedicationSchema = new mongoose.Schema(
+  {
+    practitionerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Practitioner' },
+    name: String,
+    category: String,
+    description: String,
+  },
+  S,
+);
+
+const PatientMedicationSchema = new mongoose.Schema(
   {
     patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient' },
     practitionerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Practitioner' },
+    medicationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Medication' },
+    dosage: String,
+    frequency: String,
+    startDate: Date,
+    endDate: Date,
     diagnosis: String,
-    medications: [{ name: String, dosage: String, frequency: String, duration: String }],
     notes: String,
     status: { type: String, default: 'active' },
   },
@@ -195,7 +209,8 @@ async function seed() {
   const Practitioner = mongoose.model('Practitioner', PractitionerSchema);
   const Patient      = mongoose.model('Patient',      PatientSchema);
   const Appointment  = mongoose.model('Appointment',  AppointmentSchema);
-  const Prescription = mongoose.model('Prescription', PrescriptionSchema);
+  const Medication   = mongoose.model('Medication',   MedicationSchema);
+  const PatientMedication = mongoose.model('PatientMedication', PatientMedicationSchema);
   const ProgressNote = mongoose.model('ProgressNote', ProgressNoteSchema);
   const FollowUpNote = mongoose.model('FollowUpNote', FollowUpNoteSchema);
   const TreatmentPlan= mongoose.model('TreatmentPlan',TreatmentPlanSchema);
@@ -207,7 +222,8 @@ async function seed() {
   await Promise.all([
     Patient.deleteMany({}),
     Appointment.deleteMany({}),
-    Prescription.deleteMany({}),
+    Medication.deleteMany({}),
+    PatientMedication.deleteMany({}),
     ProgressNote.deleteMany({}),
     FollowUpNote.deleteMany({}),
     TreatmentPlan.deleteMany({}),
@@ -379,9 +395,11 @@ async function seed() {
   console.log(`✅ ${appts.length} appointments created`);
 
   /* ══════════════════════════════════════════
-     PRESCRIPTIONS
+     MEDICATIONS — catalog + per-patient allocations
+     (psychologists record medications patients are already
+     taking; they don't prescribe them)
   ══════════════════════════════════════════ */
-  await Prescription.insertMany([
+  const medicationRecords = [
     /* Maya — GAD + MDD */
     {
       patientId: maya._id, practitionerId: jId,
@@ -486,8 +504,34 @@ async function seed() {
       notes: 'Monitor weight weekly. Electrolytes monthly. Refer to dietitian.',
       status: 'active',
     },
-  ]);
-  console.log('✅ Prescriptions created');
+  ];
+
+  const medicationCatalogIds = new Map<string, mongoose.Types.ObjectId>();
+  async function getOrCreateMedication(name: string) {
+    const existing = medicationCatalogIds.get(name);
+    if (existing) return existing;
+    const doc = await Medication.create({ practitionerId: jId, name });
+    medicationCatalogIds.set(name, doc._id as mongoose.Types.ObjectId);
+    return doc._id as mongoose.Types.ObjectId;
+  }
+
+  const patientMedicationDocs: Record<string, unknown>[] = [];
+  for (const record of medicationRecords) {
+    for (const med of record.medications) {
+      patientMedicationDocs.push({
+        patientId: record.patientId,
+        practitionerId: record.practitionerId,
+        medicationId: await getOrCreateMedication(med.name),
+        dosage: med.dosage,
+        frequency: med.frequency,
+        diagnosis: record.diagnosis,
+        notes: record.notes,
+        status: record.status,
+      });
+    }
+  }
+  await PatientMedication.insertMany(patientMedicationDocs);
+  console.log(`✅ ${medicationCatalogIds.size} medications catalogued, ${patientMedicationDocs.length} patient allocations created`);
 
   /* ══════════════════════════════════════════
      PROGRESS NOTES — 4-5 per patient
@@ -915,7 +959,7 @@ async function seed() {
   console.log('');
   console.log('📊 Data seeded:');
   console.log('   30  Appointments  (past, upcoming, no-show, cancelled)');
-  console.log('   8   Prescriptions (active + historical)');
+  console.log(`   ${medicationCatalogIds.size}  Medications in catalog, ${patientMedicationDocs.length} patient allocations (active + historical)`);
   console.log('   23  Progress Notes (4-5 per patient)');
   console.log('   7   Follow-Up Notes');
   console.log('   6   Treatment Plans (active + completed)');

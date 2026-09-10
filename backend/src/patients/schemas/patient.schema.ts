@@ -60,6 +60,12 @@ export class Patient {
   // ✅ IMPORTANT: this fixes empty fetch
   @Prop({ default: true })
   isActive: boolean;
+
+  @Prop({ default: false })
+  mustChangePassword: boolean;
+
+  @Prop({ type: Date })
+  tempPasswordExpiresAt?: Date;
 }
 
 export const PatientSchema = SchemaFactory.createForClass(Patient);

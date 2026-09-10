@@ -3,6 +3,12 @@ import { ProgressNotesService } from './progress-notes.service';
 import { CreateProgressNoteDto } from './dto/create-progress-note.dto';
 import { UpdateProgressNoteDto } from './dto/update-progress-note.dto';
 
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/role.enum';
+
+// Clinical data — practitioner-only. Authentication itself is enforced
+// globally by JwtAuthGuard (see AppModule).
+@Roles(Role.PRACTITIONER)
 @Controller('progress-notes')
 export class ProgressNotesController {
   constructor(private readonly progressNotesService: ProgressNotesService) {}

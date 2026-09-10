@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
@@ -21,6 +22,10 @@ async function bootstrap() {
     origin: allowedOrigins,
     credentials: true,
   });
+
+  // The JWT session arrives as an HttpOnly cookie, so it has to be parsed
+  // before the passport strategy can read it.
+  app.use(cookieParser());
 
   app.useGlobalFilters(new AllExceptionsFilter());
 

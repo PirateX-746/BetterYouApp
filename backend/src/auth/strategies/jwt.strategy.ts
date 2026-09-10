@@ -7,6 +7,7 @@ import { Model } from 'mongoose';
 import { Patient } from '../../patients/schemas/patient.schema';
 import { Practitioner } from '../../practitioners/schemas/practitioner.schema';
 import { Role } from '../../common/role.enum';
+import { AUTH_COOKIE } from '../auth.cookies';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -23,7 +24,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!secret) throw new Error('JWT_SECRET is not defined');
 
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // The browser session lives in an HttpOnly cookie, which is what the
+      // web app uses. The Bearer header is kept as a fallback so non-browser
+      // clients (curl, tests, future mobile app) still work.
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req: { cookies?: Record<string, string> }) =>
+          req?.cookies?.[AUTH_COOKIE] ?? null,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: secret,
     });

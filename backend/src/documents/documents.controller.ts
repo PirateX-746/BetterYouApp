@@ -12,6 +12,12 @@ import { DocumentsService } from './documents.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/role.enum';
+
+// Clinical data — practitioner-only. Authentication itself is enforced
+// globally by JwtAuthGuard (see AppModule).
+@Roles(Role.PRACTITIONER)
 @Controller('documents')
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}

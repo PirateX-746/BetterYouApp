@@ -13,7 +13,7 @@ import {
   ChevronUp,
   User,
   LogOut,
-  ClipboardList,
+  Pill,
   Clock,
 } from "lucide-react";
 import { usePractitionerUnread } from "@/contexts/PractitionerUnreadContext";
@@ -46,7 +46,7 @@ const NAV_ITEMS = [
   { label: "Waiting Room",  href: "/waiting-room",             icon: Clock },
   { label: "Appointments",  href: "/appointmentsPractitioner", icon: CalendarCheck },
   { label: "Patients",      href: "/patients",                 icon: Users },
-  { label: "Prescriptions", href: "/prescriptions",            icon: ClipboardList },
+  { label: "Medications",   href: "/medications",              icon: Pill },
   { label: "Messages",      href: "/messages",                 icon: MessageCircle },
   { label: "Settings",      href: "/settings",                 icon: Settings },
 ];

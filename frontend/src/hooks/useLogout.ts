@@ -15,6 +15,13 @@ export function useLogout() {
     setError(null);
     startTransition(async () => {
       try {
+        // Drop cached display data (name, role, userId) before the server
+        // action clears the session cookies and redirects.
+        try {
+          localStorage.clear();
+        } catch {
+          /* storage unavailable — nothing cached to clear */
+        }
         await logout();
       } catch (err) {
         console.error("Logout failed:", err);

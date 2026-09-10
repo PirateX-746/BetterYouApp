@@ -19,7 +19,7 @@ import toast from "react-hot-toast";
 type EventType =
   | "appointment"
   | "document"
-  | "prescription"
+  | "medication"
   | "progress-note"
   | "follow-up"
   | "treatment-plan";
@@ -35,7 +35,7 @@ interface TimelineEvent {
 const TYPE_CONFIG: Record<EventType, { icon: React.ElementType; color: string; bg: string; label: string }> = {
   appointment: { icon: CalendarCheck, color: "text-primary", bg: "bg-primary/10", label: "Appointment" },
   document: { icon: FileText, color: "text-indigo-600", bg: "bg-indigo-50", label: "Document" },
-  prescription: { icon: Pill, color: "text-teal-600", bg: "bg-teal-50", label: "Prescription" },
+  medication: { icon: Pill, color: "text-teal-600", bg: "bg-teal-50", label: "Medication" },
   "progress-note": { icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50", label: "Progress Note" },
   "follow-up": { icon: CalendarClock, color: "text-amber-600", bg: "bg-amber-50", label: "Follow-Up Note" },
   "treatment-plan": { icon: Target, color: "text-purple-600", bg: "bg-purple-50", label: "Treatment Plan" },
@@ -52,10 +52,10 @@ export default function PatientTimelineTab() {
   const fetchAll = useCallback(async () => {
     if (!patientId) return;
     try {
-      const [appts, docs, rxs, pns, fus, tps] = await Promise.allSettled([
+      const [appts, docs, meds, pns, fus, tps] = await Promise.allSettled([
         api.get("/appointments", { params: { patientId } }),
         api.get("/documents", { params: { patientId } }),
-        api.get("/prescriptions", { params: { patientId } }),
+        api.get("/patient-medications", { params: { patientId } }),
         api.get("/progress-notes", { params: { patientId } }),
         api.get("/follow-up-notes", { params: { patientId } }),
         api.get("/treatment-plans", { params: { patientId } }),
@@ -87,14 +87,14 @@ export default function PatientTimelineTab() {
         });
       }
 
-      if (rxs.status === "fulfilled") {
-        (rxs.value.data ?? []).forEach((r: { _id: string; diagnosis: string; status?: string; createdAt: string }) => {
+      if (meds.status === "fulfilled") {
+        (meds.value.data ?? []).forEach((m: { _id: string; medicationId?: { name?: string }; status?: string; createdAt: string }) => {
           timeline.push({
-            id: r._id,
-            type: "prescription",
-            title: r.diagnosis,
-            subtitle: r.status ?? "active",
-            date: r.createdAt,
+            id: m._id,
+            type: "medication",
+            title: m.medicationId?.name ?? "Medication",
+            subtitle: m.status ?? "active",
+            date: m.createdAt,
           });
         });
       }
@@ -168,7 +168,7 @@ export default function PatientTimelineTab() {
   const filterOptions: { value: EventType | "all"; label: string }[] = [
     { value: "all", label: "All" },
     { value: "appointment", label: "Appointments" },
-    { value: "prescription", label: "Prescriptions" },
+    { value: "medication", label: "Medications" },
     { value: "progress-note", label: "Progress Notes" },
     { value: "follow-up", label: "Follow-Ups" },
     { value: "treatment-plan", label: "Treatment Plans" },
@@ -198,7 +198,7 @@ export default function PatientTimelineTab() {
         <EmptyState
           icon={History}
           title="No events yet"
-          description="Patient activities across appointments, notes, and prescriptions will appear here."
+          description="Patient activities across appointments, notes, and medications will appear here."
         />
       ) : (
         <div className="space-y-6">
