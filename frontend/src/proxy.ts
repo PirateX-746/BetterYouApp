@@ -11,7 +11,15 @@ const PRACTITIONER_ROUTES = [
   "/settings",
 ];
 
-const AUTH_ROUTES = ["/patientLogin", "/patientSignup", "/practitionerLogin"];
+const AUTH_ROUTES = [
+  "/patientLogin",
+  "/patientSignup",
+  "/practitionerLogin",
+  "/adminLogin",
+];
+
+/** Platform console. Only SUPER_ADMIN may enter. */
+const ADMIN_PREFIX = "/admin";
 
 function isPractitionerRoute(pathname: string) {
   return PRACTITIONER_ROUTES.some(
@@ -24,13 +32,38 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const role = request.cookies.get("role")?.value;
 
+  const homeFor = (r: string | undefined) =>
+    r === "super_admin"
+      ? "/admin/dashboard"
+      : r === "patient"
+        ? "/patient/home"
+        : "/dashboard";
+
   // Redirect already-logged-in users away from auth pages
   if (AUTH_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"))) {
     if (token && role) {
-      const dest = role === "practitioner" ? "/dashboard" : "/patient/home";
-      return NextResponse.redirect(new URL(dest, request.url));
+      return NextResponse.redirect(new URL(homeFor(role), request.url));
     }
     return NextResponse.next();
+  }
+
+  // Platform console. The role cookie is HttpOnly and set by the API, so a
+  // signed-in practice user cannot grant themselves access by editing it.
+  if (pathname === ADMIN_PREFIX || pathname.startsWith(ADMIN_PREFIX + "/")) {
+    if (!token) {
+      return NextResponse.redirect(new URL("/adminLogin", request.url));
+    }
+    if (role !== "super_admin") {
+      // A practice user who lands here goes back to their own portal
+      // rather than being told the console exists.
+      return NextResponse.redirect(new URL(homeFor(role), request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // A platform admin has no practice portal to be in.
+  if (role === "super_admin") {
+    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
   // Protect practitioner portal routes
@@ -62,6 +95,9 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/admin/:path*",
+    "/admin",
+    "/adminLogin",
     "/dashboard/:path*",
     "/dashboard",
     "/waiting-room/:path*",

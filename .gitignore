@@ -11,6 +11,9 @@ node_modules/
 dist/
 build/
 
+# TypeScript incremental build cache — regenerated on every build
+*.tsbuildinfo
+
 # logs
 npm-debug.log*
 yarn-debug.log*
@@ -18,6 +21,7 @@ pnpm-debug.log*
 
 # OS files
 .DS_Store
+**/.DS_Store
 # Added by code-review-graph
 .code-review-graph/
 
@@ -26,3 +30,33 @@ better-you-app.patients.json
 
 # Playwright MCP session artifacts
 .playwright-mcp/
+
+# ---------------------------------------------------------------------------
+# Per-developer tooling. These are local assistant/editor state, not project
+# config — they differ per machine and cause noisy diffs. CLAUDE.md and
+# AGENTS.md stay tracked: those are shared project instructions.
+# ---------------------------------------------------------------------------
+
+# Other AI assistants
+.qoder/
+QODER.md
+.kiro/
+.cursor/
+.cursorrules
+.windsurfrules
+.opencode.json
+GEMINI.md
+.gemini/
+.aider*
+
+# Claude Code + MCP (local settings and server config)
+.claude/
+.mcp.json
+
+# Editor preferences
+.vscode/
+.idea/
+
+# Stray backups
+*.save
+*.bak

@@ -3,23 +3,15 @@ import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { allowedOrigins } from './common/cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
 
-  const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    'https://better-you-app-bay.vercel.app',
-    'http://192.168.1.41:3000',
-    // Local dev — required for SSE and direct socket connections from the browser
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-  ].filter(Boolean) as string[];
-
   app.enableCors({
-    origin: allowedOrigins,
+    origin: allowedOrigins(),
     credentials: true,
   });
 

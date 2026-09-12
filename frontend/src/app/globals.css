@@ -109,6 +109,8 @@
   /* yellow-100 */
   --purple-light: #f3e8ff;
   /* purple-100 */
+  --danger-light: #fee2e2;
+  /* red-100 — completes the status set; the others already had a -light */
 }
 
 /* ========================================

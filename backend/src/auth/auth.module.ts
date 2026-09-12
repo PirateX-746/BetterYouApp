@@ -12,12 +12,17 @@ import {
   Practitioner,
   PractitionerSchema,
 } from 'src/practitioners/schemas/practitioner.schema';
+import {
+  PlatformAdmin,
+  PlatformAdminSchema,
+} from 'src/platform-admins/schemas/platform-admin.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Patient.name, schema: PatientSchema },
       { name: Practitioner.name, schema: PractitionerSchema },
+      { name: PlatformAdmin.name, schema: PlatformAdminSchema },
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],

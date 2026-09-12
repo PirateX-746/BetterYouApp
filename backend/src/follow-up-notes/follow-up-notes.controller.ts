@@ -4,11 +4,11 @@ import { CreateFollowUpNoteDto } from './dto/create-follow-up-note.dto';
 import { UpdateFollowUpNoteDto } from './dto/update-follow-up-note.dto';
 
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '../common/role.enum';
+import { Role, CLINICAL_ROLES } from '../common/role.enum';
 
 // Clinical data — practitioner-only. Authentication itself is enforced
 // globally by JwtAuthGuard (see AppModule).
-@Roles(Role.PRACTITIONER)
+@Roles(...CLINICAL_ROLES)
 @Controller('follow-up-notes')
 export class FollowUpNotesController {
   constructor(private readonly followUpNotesService: FollowUpNotesService) {}

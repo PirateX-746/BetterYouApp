@@ -14,9 +14,14 @@ import { LoginDto } from './dto/login.dto';
 import { CreatePatientDto } from './dto/patient-signup.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { PlatformLoginDto } from './dto/platform-login.dto';
 
 import { Patient } from '../patients/schemas/patient.schema';
 import { Practitioner } from '../practitioners/schemas/practitioner.schema';
+import {
+  PlatformAdmin,
+  PlatformAdminDocument,
+} from '../platform-admins/schemas/platform-admin.schema';
 import { Role } from '../common/role.enum';
 
 type UserDocument = (Patient | Practitioner) &
@@ -53,6 +58,9 @@ export class AuthService {
 
     @InjectModel(Practitioner.name)
     private readonly practitionerModel: Model<Practitioner>,
+
+    @InjectModel(PlatformAdmin.name)
+    private readonly platformAdminModel: Model<PlatformAdminDocument>,
 
     private readonly jwtService: JwtService,
   ) {}
@@ -161,6 +169,61 @@ export class AuthService {
           ? `${user.firstName} ${user.lastName}`
           : user.firstName,
       mustChangePassword: !!user.mustChangePassword,
+    };
+  }
+
+  /**
+   * Platform console sign-in.
+   *
+   * Separate from `login()` on purpose: platform admins live in their own
+   * collection, carry no practice, and must never be reachable through the
+   * practice login (or vice versa). A practitioner's credentials will not
+   * authenticate here because this only ever looks in `platformadmins`.
+   */
+  async platformLogin(dto: PlatformLoginDto) {
+    const normalizedEmail = dto.email.toLowerCase().trim();
+
+    const admin = await this.platformAdminModel
+      .findOne({ email: normalizedEmail })
+      .select('+password')
+      .exec();
+
+    // Same generic message either way — this endpoint must not reveal
+    // whether a given address is a platform account.
+    if (!admin) {
+      this.logger.warn('Platform login attempt for unknown email');
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const valid = await bcrypt.compare(dto.password, admin.password);
+    if (!valid) {
+      this.logger.warn(`Failed platform login for ${admin._id.toString()}`);
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!admin.isActive) {
+      throw new UnauthorizedException('This account has been disabled');
+    }
+
+    await this.platformAdminModel
+      .updateOne({ _id: admin._id }, { lastLoginAt: new Date() })
+      .exec();
+
+    const accessToken = this.jwtService.sign({
+      sub: admin._id.toString(),
+      role: Role.SUPER_ADMIN,
+      // Explicit: a platform admin belongs to no practice.
+      practiceId: null,
+    });
+
+    this.logger.log(`Platform admin ${admin._id.toString()} signed in`);
+
+    return {
+      access_token: accessToken,
+      id: admin._id.toString(),
+      role: Role.SUPER_ADMIN,
+      name: admin.name,
+      mustChangePassword: !!admin.mustChangePassword,
     };
   }
 

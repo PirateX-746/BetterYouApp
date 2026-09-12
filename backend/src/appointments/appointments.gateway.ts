@@ -2,42 +2,38 @@ import {
   WebSocketGateway,
   WebSocketServer,
   OnGatewayConnection,
-  SubscribeMessage,
-  MessageBody,
-  ConnectedSocket,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
+import { WsAuthService } from '../common/ws/ws-auth.service';
+import { socketCorsOptions } from '../common/cors';
 
-@WebSocketGateway({
-  cors: {
-    origin: '*', // tighten in production
-  },
-})
+@WebSocketGateway({ cors: socketCorsOptions() })
 export class AppointmentsGateway implements OnGatewayConnection {
   @WebSocketServer()
   server: Server;
 
-  handleConnection(client: Socket) {
-    const patientId = client.handshake.query.patientId as string;
-    const practitionerId = client.handshake.query.practitionerId as string;
-    const userId = client.handshake.query.userId as string;
+  private readonly logger = new Logger(AppointmentsGateway.name);
 
-    // Join whichever room IDs are provided
-    if (patientId) client.join(patientId);
-    if (practitionerId) client.join(practitionerId);
-    // userId is a fallback used by some clients
-    if (userId && userId !== patientId && userId !== practitionerId) {
-      client.join(userId);
+  constructor(private readonly wsAuth: WsAuthService) {}
+
+  async handleConnection(client: Socket) {
+    const user = await this.wsAuth.authenticate(client);
+
+    if (!user) {
+      this.logger.warn('Rejected unauthenticated socket connection');
+      client.emit('unauthorized', { message: 'Authentication required' });
+      client.disconnect(true);
+      return;
     }
-  }
 
-  // Allow clients to join a conversation room explicitly (used by chat)
-  @SubscribeMessage('joinConversation')
-  handleJoinConversation(
-    @MessageBody() conversationId: string,
-    @ConnectedSocket() client: Socket,
-  ) {
-    client.join(conversationId);
+    client.data.user = user;
+
+    // A socket joins exactly one room: its own user id, taken from the
+    // verified session. Room ids used to come from the handshake query
+    // string, so any client could join any user's room and receive their
+    // appointment updates and check-in notifications.
+    await client.join(user.userId);
   }
 
   // Emit to both the patient AND the practitioner so both calendars update

@@ -13,11 +13,11 @@ import { CreatePatientMedicationDto } from './dto/create-patient-medication.dto'
 import { UpdatePatientMedicationDto } from './dto/update-patient-medication.dto';
 
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '../common/role.enum';
+import { Role, CLINICAL_ROLES } from '../common/role.enum';
 
 // Clinical data — practitioner-only. Authentication itself is enforced
 // globally by JwtAuthGuard (see AppModule).
-@Roles(Role.PRACTITIONER)
+@Roles(...CLINICAL_ROLES)
 @Controller('patient-medications')
 export class PatientMedicationsController {
   constructor(

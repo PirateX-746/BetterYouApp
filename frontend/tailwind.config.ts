@@ -50,6 +50,7 @@ const config: Config = {
         warning: "var(--warning)",
         "warning-light": "var(--warning-light)",
         danger: "var(--danger)",
+        "danger-light": "var(--danger-light)",
         purple: "var(--purple)",
         "purple-light": "var(--purple-light)",
 

@@ -14,7 +14,7 @@ import { PatientsService } from './patients.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '../common/role.enum';
+import { Role, CLINICAL_ROLES } from '../common/role.enum';
 import {
   assertSelfOrPractitioner,
   type AuthedRequest,
@@ -24,7 +24,7 @@ import {
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
-  @Roles(Role.PRACTITIONER)
+  @Roles(...CLINICAL_ROLES)
   @Post()
   create(@Body() dto: CreatePatientDto) {
     return this.patientsService.create(dto);
@@ -32,7 +32,7 @@ export class PatientsController {
 
   // The full roster is practitioner-only; a patient must never be able to
   // enumerate other patients.
-  @Roles(Role.PRACTITIONER)
+  @Roles(...CLINICAL_ROLES)
   @Get()
   findAll() {
     return this.patientsService.findAll();

@@ -4,11 +4,11 @@ import { CreateTreatmentPlanDto } from './dto/create-treatment-plan.dto';
 import { UpdateTreatmentPlanDto } from './dto/update-treatment-plan.dto';
 
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '../common/role.enum';
+import { Role, CLINICAL_ROLES } from '../common/role.enum';
 
 // Clinical data — practitioner-only. Authentication itself is enforced
 // globally by JwtAuthGuard (see AppModule).
-@Roles(Role.PRACTITIONER)
+@Roles(...CLINICAL_ROLES)
 @Controller('treatment-plans')
 export class TreatmentPlansController {
   constructor(private readonly treatmentPlansService: TreatmentPlansService) {}

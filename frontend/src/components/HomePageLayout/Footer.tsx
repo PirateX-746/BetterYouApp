@@ -79,7 +79,21 @@ export default function Footer() {
                 {/* Bottom */}
                 <div className="mt-16 pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
                     <p>© {new Date().getFullYear()} BetterYou. All rights reserved.</p>
-                    <p className="mt-3 md:mt-0">Designed for modern healthcare</p>
+                    <div className="mt-3 md:mt-0 flex items-center gap-3">
+                        <p>Designed for modern healthcare</p>
+                        <span aria-hidden="true" className="text-gray-700">·</span>
+                        {/* Platform console. Kept out of Quick Links on purpose:
+                            it is a separate entrance from either portal, and
+                            /auth/platform/login only ever accepts platform
+                            accounts. Practice users who follow it are bounced
+                            back to their own portal by proxy.ts. */}
+                        <a
+                            href="/adminLogin"
+                            className="hover:text-gray-300 transition-colors"
+                        >
+                            Platform access
+                        </a>
+                    </div>
                 </div>
 
             </div>

@@ -15,7 +15,7 @@ import {
 import { AppointmentsService, AppointmentData } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '../common/role.enum';
+import { Role, CLINICAL_ROLES } from '../common/role.enum';
 import {
   assertSelf,
   assertSelfOrPractitioner,
@@ -27,7 +27,7 @@ import {
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 
-  @Roles(Role.PRACTITIONER)
+  @Roles(...CLINICAL_ROLES)
   @Get('practitioner/:id')
   getByPractitioner(@Param('id') id: string, @Req() req: AuthedRequest) {
     assertSelf(req.user, id);
@@ -40,7 +40,7 @@ export class AppointmentsController {
     return this.appointmentsService.findByPatient(id);
   }
 
-  @Roles(Role.PRACTITIONER)
+  @Roles(...CLINICAL_ROLES)
   @Get('waiting-room/:practitionerId')
   getWaitingRoom(
     @Param('practitionerId') practitionerId: string,
@@ -99,7 +99,7 @@ export class AppointmentsController {
     return this.appointmentsService.checkIn(id, subject);
   }
 
-  @Roles(Role.PRACTITIONER)
+  @Roles(...CLINICAL_ROLES)
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
