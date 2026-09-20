@@ -9,7 +9,11 @@ import { PractitionerUnreadProvider } from "@/contexts/PractitionerUnreadContext
 import { PortalLockProvider, usePortalLock } from "@/contexts/PortalLockContext";
 import { PractitionerChatProvider, usePractitionerChat } from "@/contexts/PractitionerChatContext";
 import { PractitionerNotificationsProvider } from "@/contexts/PractitionerNotificationsContext";
+import { PractitionerBreadcrumbProvider } from "@/contexts/PractitionerBreadcrumbContext";
+import { useLogout } from "@/hooks/useLogout";
 import { Lock, Stethoscope } from "lucide-react";
+
+const MAX_PIN_ATTEMPTS = 3;
 
 type PinMode = "enter" | "set" | "confirm";
 
@@ -48,6 +52,7 @@ function PinBoxes({
 
 function LockOverlay() {
   const { unlock } = usePortalLock();
+  const { handleLogout } = useLogout();
 
   const storedPin =
     typeof window !== "undefined" ? localStorage.getItem("portalPin") : null;
@@ -56,6 +61,8 @@ function LockOverlay() {
   const [digits, setDigits] = useState(["", "", "", ""]);
   const [pendingPin, setPendingPin] = useState("");
   const [error, setError] = useState("");
+  const [attempts, setAttempts] = useState(0);
+  const [loggingOut, setLoggingOut] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
 
   useEffect(() => {
@@ -69,10 +76,22 @@ function LockOverlay() {
     if (mode === "enter") {
       const stored = localStorage.getItem("portalPin");
       if (pin === stored) {
+        setAttempts(0);
         unlock();
       } else {
-        setError("Incorrect PIN. Try again.");
+        const nextAttempts = attempts + 1;
+        setAttempts(nextAttempts);
         setDigits(["", "", "", ""]);
+
+        if (nextAttempts >= MAX_PIN_ATTEMPTS) {
+          setError("Too many incorrect attempts. Logging out…");
+          setLoggingOut(true);
+          setTimeout(() => handleLogout(), 1000);
+          return;
+        }
+
+        const remaining = MAX_PIN_ATTEMPTS - nextAttempts;
+        setError(`Incorrect PIN. ${remaining} attempt${remaining === 1 ? "" : "s"} left.`);
         setTimeout(() => inputRefs.current[0]?.focus(), 60);
       }
     } else if (mode === "set") {
@@ -105,12 +124,6 @@ function LockOverlay() {
     }
   };
 
-  const handleResetPin = () => {
-    localStorage.removeItem("portalPin");
-    setPendingPin("");
-    setMode("set");
-  };
-
   const titles: Record<PinMode, string> = {
     enter: "Portal Locked",
     set: "Set Your PIN",
@@ -141,23 +154,22 @@ function LockOverlay() {
         </div>
 
         <div className="space-y-3">
-          <PinBoxes
-            value={digits}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            inputRefs={inputRefs}
-            autoFocus
-          />
+          <fieldset disabled={loggingOut} className="space-y-3">
+            <PinBoxes
+              value={digits}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              inputRefs={inputRefs}
+              autoFocus
+            />
+          </fieldset>
           {error && <p className="text-sm text-danger text-center">{error}</p>}
         </div>
 
         {mode === "enter" && (
-          <button
-            onClick={handleResetPin}
-            className="w-full text-xs text-text-secondary hover:text-primary transition text-center"
-          >
-            Forgot PIN? Reset it
-          </button>
+          <p className="w-full text-xs text-text-secondary text-center">
+            Forgot your PIN? Reset it from Settings → Security after signing back in.
+          </p>
         )}
       </div>
     </div>
@@ -205,7 +217,9 @@ export default function PractitionerLayout({ children }: { children: ReactNode }
       <PractitionerChatProvider>
         <PractitionerUnreadProvider>
           <PractitionerNotificationsProvider>
-            <PractitionerLayoutInner>{children}</PractitionerLayoutInner>
+            <PractitionerBreadcrumbProvider>
+              <PractitionerLayoutInner>{children}</PractitionerLayoutInner>
+            </PractitionerBreadcrumbProvider>
           </PractitionerNotificationsProvider>
         </PractitionerUnreadProvider>
       </PractitionerChatProvider>

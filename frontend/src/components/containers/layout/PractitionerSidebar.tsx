@@ -16,7 +16,6 @@ import {
   Pill,
   Clock,
 } from "lucide-react";
-import { usePractitionerUnread } from "@/contexts/PractitionerUnreadContext";
 import { usePractitionerChat } from "@/contexts/PractitionerChatContext";
 import { useLogout } from "@/hooks/useLogout";
 import {
@@ -43,11 +42,11 @@ interface SidebarProps {
 
 const NAV_ITEMS = [
   { label: "Dashboard",     href: "/dashboard",                icon: LayoutDashboard },
-  { label: "Waiting Room",  href: "/waiting-room",             icon: Clock },
+  { label: "Waiting Room",  href: "/waiting-room",             icon: Clock,           comingSoon: true },
   { label: "Appointments",  href: "/appointmentsPractitioner", icon: CalendarCheck },
   { label: "Patients",      href: "/patients",                 icon: Users },
   { label: "Medications",   href: "/medications",              icon: Pill },
-  { label: "Messages",      href: "/messages",                 icon: MessageCircle },
+  { label: "Messages",      href: "/messages",                 icon: MessageCircle,  comingSoon: true },
   { label: "Settings",      href: "/settings",                 icon: Settings },
 ];
 
@@ -63,7 +62,6 @@ function getInitials(name: string): string {
 export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { totalUnread } = usePractitionerUnread();
   const { chatOpen } = usePractitionerChat();
   const { handleLogout, isPending } = useLogout();
   const [doctorName, setDoctorName] = useState("User");
@@ -117,10 +115,25 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
 
         {/* Nav — flex-1 so it fills space and pushes profile to bottom */}
         <nav className="p-3 space-y-0.5 flex-1">
-          {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+          {NAV_ITEMS.map(({ label, href, icon: Icon, comingSoon }) => {
+            if (comingSoon) {
+              return (
+                <div
+                  key={href}
+                  aria-disabled="true"
+                  title={`${label} — coming soon`}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-text-disabled cursor-not-allowed select-none"
+                >
+                  <Icon size={17} />
+                  <span className="flex-1">{label}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-bg-hover text-text-disabled">
+                    Soon
+                  </span>
+                </div>
+              );
+            }
+
             const active = isActive(href);
-            const isMessages = href === "/messages";
-            const badge = isMessages && totalUnread > 0 ? totalUnread : 0;
 
             return (
               <Link
@@ -136,15 +149,6 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
               >
                 <Icon size={17} />
                 <span className="flex-1">{label}</span>
-                {badge > 0 && (
-                  <span
-                    className={`text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center ${
-                      active ? "bg-white text-primary" : "bg-primary text-white"
-                    }`}
-                  >
-                    {badge > 99 ? "99+" : badge}
-                  </span>
-                )}
               </Link>
             );
           })}
@@ -185,10 +189,27 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
 
       {/* Mobile bottom nav — hidden when a chat conversation is open */}
       {!chatOpen && <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-bg-card border-t border-border flex items-center justify-around px-2">
-        {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+        {NAV_ITEMS.map(({ label, href, icon: Icon, comingSoon }) => {
+          if (comingSoon) {
+            return (
+              <div
+                key={href}
+                aria-disabled="true"
+                title={`${label} — coming soon`}
+                className="relative flex flex-col items-center gap-1 px-3 py-1 cursor-not-allowed select-none"
+              >
+                <div className="relative">
+                  <Icon size={22} className="text-text-disabled" />
+                  <span className="absolute -top-1.5 -right-3 text-[7px] font-bold uppercase px-1 py-0.5 rounded-full bg-bg-hover text-text-disabled">
+                    Soon
+                  </span>
+                </div>
+                <span className="text-[10px] font-medium text-text-disabled">{label}</span>
+              </div>
+            );
+          }
+
           const active = isActive(href);
-          const isMessages = href === "/messages";
-          const badge = isMessages && totalUnread > 0 ? totalUnread : 0;
 
           return (
             <Link
@@ -197,14 +218,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
               aria-label={label}
               className="relative flex flex-col items-center gap-1 px-3 py-1"
             >
-              <div className="relative">
-                <Icon size={22} className={active ? "text-primary" : "text-text-disabled"} />
-                {badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2 bg-primary text-white text-[9px] font-bold min-w-[16px] h-4 px-0.5 rounded-full flex items-center justify-center">
-                    {badge > 99 ? "99+" : badge}
-                  </span>
-                )}
-              </div>
+              <Icon size={22} className={active ? "text-primary" : "text-text-disabled"} />
               <span className={`text-[10px] font-medium ${active ? "text-primary" : "text-text-disabled"}`}>
                 {label}
               </span>

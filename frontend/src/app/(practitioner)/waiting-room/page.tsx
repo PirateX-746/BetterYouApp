@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { createSocket } from "@/lib/socket";
+import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -16,6 +16,9 @@ import {
   RefreshCw,
   CalendarClock,
 } from "lucide-react";
+import ComingSoon from "@/components/containers/layout/ComingSoon";
+
+const WAITING_ROOM_ENABLED = false;
 
 /* ─── Types ─── */
 
@@ -186,11 +189,24 @@ function PatientRow({
 /* ─── Page ─── */
 
 export default function WaitingRoomPage() {
+  if (!WAITING_ROOM_ENABLED) {
+    return (
+      <ComingSoon
+        icon={Users}
+        title="Waiting Room"
+        description="Live check-ins and session queueing for your patients are on the way."
+      />
+    );
+  }
+  return <WaitingRoomPageImpl />;
+}
+
+function WaitingRoomPageImpl() {
   const practitionerId = useLocalStorage("userId");
   const [patients, setPatients] = useState<WaitingPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
+  const socketRef = useRef<ReturnType<typeof acquireSocket> | null>(null);
 
   const fetchWaitingRoom = useCallback(async () => {
     if (!practitionerId) return;
@@ -212,14 +228,18 @@ export default function WaitingRoomPage() {
   // Real-time: refresh on patientCheckedIn or appointmentUpdated
   useEffect(() => {
     if (!practitionerId) return;
-    const socket = createSocket({ practitionerId });
+    const socket = acquireSocket({ practitionerId });
     socketRef.current = socket;
 
-    socket.on("patientCheckedIn", () => fetchWaitingRoom());
-    socket.on("appointmentUpdated", () => fetchWaitingRoom());
+    const handlePatientCheckedIn = () => fetchWaitingRoom();
+    const handleAppointmentUpdated = () => fetchWaitingRoom();
+    socket.on("patientCheckedIn", handlePatientCheckedIn);
+    socket.on("appointmentUpdated", handleAppointmentUpdated);
 
     return () => {
-      socket.disconnect();
+      socket.off("patientCheckedIn", handlePatientCheckedIn);
+      socket.off("appointmentUpdated", handleAppointmentUpdated);
+      releaseSocket({ practitionerId });
       socketRef.current = null;
     };
   }, [practitionerId, fetchWaitingRoom]);

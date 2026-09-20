@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid/index.js";
 import dayGridPlugin from "@fullcalendar/daygrid/index.js";
@@ -12,7 +12,7 @@ import type {
 } from "@fullcalendar/core";
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import { Loader2, Settings2 } from "lucide-react";
-import { createSocket } from "@/lib/socket";
+import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
 import toast from "react-hot-toast";
 import { api } from "@/lib/api";
 import { CalendarEvent } from "@/types/appointment";
@@ -128,6 +128,7 @@ type BlockedSlot = {
 
 export default function AppointmentsClient() {
   const practitionerId = useLocalStorage("userId");
+  const calendarRef = useRef<FullCalendar | null>(null);
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
@@ -201,22 +202,23 @@ export default function AppointmentsClient() {
   /* Real-time updates */
   useEffect(() => {
     if (!practitionerId) return;
-    const socket = createSocket({ practitionerId });
-    socket.on(
-      "appointmentUpdated",
-      (incoming: CalendarEvent & { deleted?: boolean }) => {
-        if (incoming.deleted) {
-          setEvents((prev) => prev.filter((e) => e.id !== incoming.id));
-        } else {
-          setEvents((prev) => {
-            const exists = prev.find((e) => e.id === incoming.id);
-            if (exists) return prev.map((e) => (e.id === incoming.id ? { ...e, ...incoming } : e));
-            return [...prev, incoming];
-          });
-        }
-      },
-    );
-    return () => { socket.disconnect(); };
+    const socket = acquireSocket({ practitionerId });
+    const handleAppointmentUpdated = (incoming: CalendarEvent & { deleted?: boolean }) => {
+      if (incoming.deleted) {
+        setEvents((prev) => prev.filter((e) => e.id !== incoming.id));
+      } else {
+        setEvents((prev) => {
+          const exists = prev.find((e) => e.id === incoming.id);
+          if (exists) return prev.map((e) => (e.id === incoming.id ? { ...e, ...incoming } : e));
+          return [...prev, incoming];
+        });
+      }
+    };
+    socket.on("appointmentUpdated", handleAppointmentUpdated);
+    return () => {
+      socket.off("appointmentUpdated", handleAppointmentUpdated);
+      releaseSocket({ practitionerId });
+    };
   }, [practitionerId]);
 
   /* ── Derived FullCalendar values ── */
@@ -277,6 +279,16 @@ export default function AppointmentsClient() {
     setSelectedDate(info.start);
     setSelectedEvent(null);
     setDialogOpen(true);
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setSelectedEvent(null);
+    // The select interaction leaves the slot highlighted until this is
+    // cleared explicitly — closing via Escape (or anything other than a
+    // click elsewhere on the calendar grid) doesn't trigger FullCalendar's
+    // own auto-unselect.
+    calendarRef.current?.getApi().unselect();
   };
 
   /* ── Save / delete ── */
@@ -406,6 +418,7 @@ export default function AppointmentsClient() {
 
       <div className="bg-bg-card border border-border rounded-2xl p-3 md:p-5 overflow-hidden">
         <FullCalendar
+          ref={calendarRef}
           plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
           slotMinTime={slotMinTime}
@@ -467,7 +480,7 @@ export default function AppointmentsClient() {
         initialDate={selectedDate}
         event={selectedEvent}
         practiceHours={practiceHours}
-        onClose={() => { setDialogOpen(false); setSelectedEvent(null); }}
+        onClose={handleDialogClose}
         onSave={handleSave}
         onDelete={handleDelete}
       />

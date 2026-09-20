@@ -1,4 +1,5 @@
 import axios from "axios";
+import { clearSessionStorage } from "./session";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -52,7 +53,7 @@ api.interceptors.response.use(
         path.includes("Signup") ||
         path === "/";
       if (!isAuthPage) {
-        localStorage.clear();
+        clearSessionStorage();
         document.cookie.split(";").forEach((c) => {
           document.cookie = c
             .replace(/^ +/, "")

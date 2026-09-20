@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { clearSessionStorage } from "@/lib/session";
 import {
   LayoutDashboard,
   Building2,
@@ -70,7 +71,7 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
       /* clearing the cookie is best-effort; still leave the console */
     }
     try {
-      localStorage.clear();
+      clearSessionStorage();
     } catch {
       /* storage unavailable */
     }

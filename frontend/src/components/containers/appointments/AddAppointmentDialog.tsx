@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X, Trash2, Loader2, AlertCircle, Clock } from "lucide-react";
 import { CalendarEvent } from "@/types/appointment";
 import { api } from "@/lib/api";
+import { useEscapeToClose } from "@/hooks/useEscapeToClose";
 import SearchableSelect from "../../ui/SearchableSelect";
 import type { PracticeHours } from "./AppointmentsClient";
 
@@ -134,6 +135,8 @@ export default function AddAppointmentDialog({
     return `Open ${fmt12(daySchedule.openTime)} – ${fmt12(daySchedule.closeTime)}`;
   }, [daySchedule]);
 
+  useEscapeToClose(open, onClose);
+
   if (!open) return null;
 
   const patientOptions = patients.map((p) => ({
@@ -208,7 +211,9 @@ export default function AddAppointmentDialog({
           {/* Date & Time */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Date</label>
+              <div className="flex items-center justify-between h-4">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Date</label>
+              </div>
               <input
                 type="date"
                 className={fieldCls}
@@ -217,11 +222,11 @@ export default function AddAppointmentDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between h-4">
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Time</label>
                 {hoursHint && (
-                  <span className="flex items-center gap-1 text-[10px] text-text-secondary">
-                    <Clock size={10} />
+                  <span className="flex items-center gap-1 whitespace-nowrap text-[10px] text-text-secondary shrink-0">
+                    <Clock size={10} className="shrink-0" />
                     {hoursHint}
                   </span>
                 )}

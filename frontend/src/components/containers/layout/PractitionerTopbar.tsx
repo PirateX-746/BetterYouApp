@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Menu, Lock, Bell, X, Users, XCircle, CalendarClock } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, Lock, Bell, ChevronRight, X, Users, XCircle, CalendarClock, BellRing } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { usePortalLock } from "@/contexts/PortalLockContext";
 import { usePractitionerChat } from "@/contexts/PractitionerChatContext";
+import { usePractitionerBreadcrumb } from "@/contexts/PractitionerBreadcrumbContext";
+import { PRACTITIONER_NAV_LABELS } from "@/lib/practitionerNav";
 import {
   usePractitionerNotifications,
   type CheckInNotification,
@@ -29,13 +32,27 @@ export default function PractitionerTopbar({
   onToggle,
 }: TopbarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isLocked, lock } = usePortalLock();
   const { chatOpen } = usePractitionerChat();
+  const { extraCrumb } = usePractitionerBreadcrumb();
   const { notifications, unreadCount, markAllRead, dismiss, navigateTo } =
     usePractitionerNotifications();
 
   const [bellOpen, setBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
+
+  const breadcrumbs = useMemo(() => {
+    const topLevel = Object.keys(PRACTITIONER_NAV_LABELS).find(
+      (route) => pathname === route || pathname.startsWith(route + "/"),
+    );
+    if (!topLevel) return [];
+    const crumbs = [{ label: PRACTITIONER_NAV_LABELS[topLevel], href: topLevel }];
+    if (pathname !== topLevel && extraCrumb) {
+      crumbs.push({ label: extraCrumb, href: pathname });
+    }
+    return crumbs;
+  }, [pathname, extraCrumb]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -68,7 +85,32 @@ export default function PractitionerTopbar({
         <Menu size={20} />
       </button>
 
-      <div className="hidden lg:block" />
+      {breadcrumbs.length > 0 ? (
+        <nav aria-label="Breadcrumb" className="hidden lg:flex items-center gap-1.5 text-sm min-w-0">
+          {breadcrumbs.map((crumb, i) => {
+            const isLast = i === breadcrumbs.length - 1;
+            return (
+              <span key={crumb.href} className="flex items-center gap-1.5 min-w-0">
+                {i > 0 && <ChevronRight size={14} className="text-text-disabled shrink-0" />}
+                {isLast ? (
+                  <span className="font-medium text-text-primary truncate max-w-[240px]">
+                    {crumb.label}
+                  </span>
+                ) : (
+                  <Link
+                    href={crumb.href}
+                    className="text-text-secondary hover:text-text-primary transition truncate max-w-[160px]"
+                  >
+                    {crumb.label}
+                  </Link>
+                )}
+              </span>
+            );
+          })}
+        </nav>
+      ) : (
+        <div className="hidden lg:block" />
+      )}
 
       {/* Right */}
       <div className="flex items-center gap-2">
@@ -154,6 +196,7 @@ const KIND_META: Record<string, { icon: typeof Users; iconCls: string; verb: str
   check_in:        { icon: Users,         iconCls: "bg-success/10 text-success",  verb: "has arrived",    action: "View in Waiting Room" },
   appt_cancelled:  { icon: XCircle,       iconCls: "bg-danger/10 text-danger",    verb: "cancelled",      action: "View appointments" },
   appt_rescheduled:{ icon: CalendarClock, iconCls: "bg-warning/10 text-warning",  verb: "rescheduled",    action: "View appointments" },
+  appt_reminder:   { icon: BellRing,      iconCls: "bg-primary/10 text-primary",  verb: "is coming up",   action: "View appointments" },
 };
 
 function NotificationRow({

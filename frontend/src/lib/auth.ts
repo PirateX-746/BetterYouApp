@@ -1,4 +1,7 @@
 import { api } from "./api";
+import { clearSessionStorage } from "./session";
+
+export { clearSessionStorage };
 
 export interface LoginPayload {
   email: string;

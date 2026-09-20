@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import toast from "react-hot-toast";
 import { blockSlotSchema, type BlockSlotValues } from "@/schemas/availability.schema";
 import { BlockedSlot } from "./types";
+import { useEscapeToClose } from "@/hooks/useEscapeToClose";
 
 type Props = {
   open: boolean;
@@ -54,6 +55,8 @@ export default function ManageAvailabilityDialog({
     if (open) fetchBlockedSlots();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useEscapeToClose(open, onClose);
 
   if (!open) return null;
 

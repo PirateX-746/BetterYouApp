@@ -6,6 +6,7 @@
 
 import { useTransition, useState } from "react";
 import { logout } from "@/app/actions/logout";
+import { clearSessionStorage } from "@/lib/session";
 
 export function useLogout() {
   const [isPending, startTransition] = useTransition();
@@ -18,7 +19,7 @@ export function useLogout() {
         // Drop cached display data (name, role, userId) before the server
         // action clears the session cookies and redirects.
         try {
-          localStorage.clear();
+          clearSessionStorage();
         } catch {
           /* storage unavailable — nothing cached to clear */
         }

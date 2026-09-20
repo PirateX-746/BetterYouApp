@@ -5,6 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams } from "next/navigation";
+import { useEscapeToClose } from "@/hooks/useEscapeToClose";
+import { usePractitionerBreadcrumb } from "@/contexts/PractitionerBreadcrumbContext";
 import {
   User,
   Calendar,
@@ -91,6 +93,12 @@ export default function PatientProfilePage() {
     if (!patient) return "";
     return `${capitalizeWords(patient.firstName ?? "")} ${capitalizeWords(patient.lastName ?? "")}`.trim();
   }, [patient]);
+
+  const { setExtraCrumb } = usePractitionerBreadcrumb();
+  useEffect(() => {
+    setExtraCrumb(fullName || null);
+    return () => setExtraCrumb(null);
+  }, [fullName, setExtraCrumb]);
 
   const shortId = patient?._id?.slice(-6) ?? "—";
 
@@ -390,6 +398,8 @@ function EditPatientDialog({
 
   const fieldErr = (f: keyof EditValues) =>
     errors[f]?.message ? <p className="text-xs text-danger mt-1">{errors[f]!.message}</p> : null;
+
+  useEscapeToClose(true, onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">

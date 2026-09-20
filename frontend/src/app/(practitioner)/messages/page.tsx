@@ -2,11 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
-import { createSocket } from "@/lib/socket";
+import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
 import { api } from "@/lib/api";
 import { Message, Conversation } from "@/types/chat";
 import { usePractitionerChat } from "@/contexts/PractitionerChatContext";
 import { usePractitionerUnread } from "@/contexts/PractitionerUnreadContext";
+import { MessageCircle } from "lucide-react";
+import ComingSoon from "@/components/containers/layout/ComingSoon";
+
+const MESSAGES_ENABLED = false;
 
 interface Patient {
   _id: string;
@@ -16,6 +20,19 @@ interface Patient {
 }
 
 export default function MessagesPage() {
+  if (!MESSAGES_ENABLED) {
+    return (
+      <ComingSoon
+        icon={MessageCircle}
+        title="Messages"
+        description="Secure in-app messaging with your patients is on the way."
+      />
+    );
+  }
+  return <MessagesPageImpl />;
+}
+
+function MessagesPageImpl() {
   const [practitionerId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("userId");
@@ -177,12 +194,10 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!practitionerId) return;
 
-    const s = createSocket({ userId: practitionerId });
+    const s = acquireSocket({ userId: practitionerId });
     setSocket(s);
 
-    s.on("onlineUsers", setOnlineUsers);
-
-    s.on("message", (msg: Message) => {
+    const handleMessage = (msg: Message) => {
       if (msg.conversationId === selectedRef.current?._id) {
         setMessages((prev) => [...prev, msg]);
         if (practitionerId && msg.senderId !== practitionerId) {
@@ -200,22 +215,30 @@ export default function MessagesPage() {
           )
         );
       }
-    });
-
-    s.on("typing", (conversationId: string) => {
+    };
+    const handleTypingEvent = (conversationId: string) => {
       if (conversationId === selectedRef.current?._id) setTyping(true);
-    });
-
-    s.on("stopTyping", () => setTyping(false));
-
-    s.on("messageSeen", (messageId: string) => {
+    };
+    const handleStopTyping = () => setTyping(false);
+    const handleMessageSeen = (messageId: string) => {
       setMessages((prev) =>
         prev.map((m) => (m._id === messageId ? { ...m, status: "seen" } : m))
       );
-    });
+    };
+
+    s.on("onlineUsers", setOnlineUsers);
+    s.on("message", handleMessage);
+    s.on("typing", handleTypingEvent);
+    s.on("stopTyping", handleStopTyping);
+    s.on("messageSeen", handleMessageSeen);
 
     return () => {
-      s.disconnect();
+      s.off("onlineUsers", setOnlineUsers);
+      s.off("message", handleMessage);
+      s.off("typing", handleTypingEvent);
+      s.off("stopTyping", handleStopTyping);
+      s.off("messageSeen", handleMessageSeen);
+      releaseSocket({ userId: practitionerId });
     };
   }, [practitionerId]);
 

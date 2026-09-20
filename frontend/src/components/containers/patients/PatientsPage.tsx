@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useEscapeToClose } from "@/hooks/useEscapeToClose";
 import {
   Search,
   Plus,
@@ -384,6 +385,8 @@ function AddPatientModal({
   useEffect(() => {
     if (!open) { reset(); setServerError(""); }
   }, [open, reset]);
+
+  useEscapeToClose(open, onClose);
 
   if (!open) return null;
 

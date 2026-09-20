@@ -18,7 +18,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Prevent dark mode flash by reading localStorage before React hydrates */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme');var d=document.documentElement;if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme: dark)').matches)){d.classList.add('dark')}}catch(e){}})()`,
+            __html: `(function(){try{
+              var t=localStorage.getItem('theme');
+              var d=document.documentElement;
+              var wantsDark=t==='dark'||((t===null||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+              if(wantsDark){d.classList.add('dark')}
+              var accent=localStorage.getItem('accentColor');
+              if(accent&&/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent)){
+                d.style.setProperty('--primary',accent);
+                d.style.setProperty('--ring',accent);
+                d.style.setProperty('--accent-foreground',accent);
+              }
+            }catch(e){}})()`,
           }}
         />
       </head>
