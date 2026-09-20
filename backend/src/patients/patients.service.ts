@@ -14,6 +14,7 @@ import { Patient, PatientDocument } from './schemas/patient.schema';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { Role } from '../common/role.enum';
+import { practiceScopeFilter, practiceStamp } from '../common/tenancy/practice-scope';
 
 @Injectable()
 export class PatientsService {
@@ -44,7 +45,7 @@ export class PatientsService {
   /* ===============================
      CREATE PATIENT
      =============================== */
-  async create(dto: CreatePatientDto) {
+  async create(dto: CreatePatientDto, practiceId: string | null) {
     // 🔹 Check duplicate email or phone
     const existing = await this.patientModel.findOne({
       $or: [{ email: dto.email }, { phoneNo: dto.phoneNo }],
@@ -73,17 +74,18 @@ export class PatientsService {
       lastVisit: dto.lastVisit ? new Date(dto.lastVisit) : undefined,
       role: dto.role ?? Role.PATIENT,
       isActive: dto.isActive ?? true,
+      practiceId: practiceStamp(practiceId),
     });
 
-    return this.findById(patient._id.toString());
+    return this.findById(patient._id.toString(), practiceId);
   }
 
   /* ===============================
      GET ALL ACTIVE PATIENTS
      =============================== */
-  async findAll() {
+  async findAll(practiceId: string | null) {
     return this.patientModel
-      .find({ isActive: true })
+      .find({ isActive: true, ...practiceScopeFilter(practiceId) })
       .select('-password')
       .sort({ createdAt: -1 })
       .lean();
@@ -92,9 +94,9 @@ export class PatientsService {
   /* ===============================
      GET PATIENT BY ID
      =============================== */
-  async findById(id: string) {
+  async findById(id: string, practiceId: string | null) {
     const patient = await this.patientModel
-      .findById(id)
+      .findOne({ _id: id, ...practiceScopeFilter(practiceId) })
       .select('-password')
       .lean();
 
@@ -108,7 +110,7 @@ export class PatientsService {
   /* ===============================
      UPDATE PATIENT
      =============================== */
-  async update(id: string, dto: UpdatePatientDto) {
+  async update(id: string, dto: UpdatePatientDto, practiceId: string | null) {
     // Email is immutable — silently strip it if sent
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { email: _email, ...safeDto } = dto as UpdatePatientDto & { email?: string };
@@ -135,21 +137,32 @@ export class PatientsService {
     }
 
     const updated = await this.patientModel
-      .findByIdAndUpdate(id, { $set: updateData }, { new: true })
+      .findOneAndUpdate(
+        { _id: id, ...practiceScopeFilter(practiceId) },
+        { $set: updateData },
+        { new: true },
+      )
       .lean();
 
     if (!updated) {
       throw new NotFoundException('Patient not found');
     }
 
-    return this.findById(id);
+    return this.findById(id, practiceId);
   }
 
   /* ===============================
      CHANGE PASSWORD
      =============================== */
-  async changePassword(id: string, currentPassword: string, newPassword: string) {
-    const patient = await this.patientModel.findById(id).select('+password');
+  async changePassword(
+    id: string,
+    currentPassword: string,
+    newPassword: string,
+    practiceId: string | null,
+  ) {
+    const patient = await this.patientModel
+      .findOne({ _id: id, ...practiceScopeFilter(practiceId) })
+      .select('+password');
     if (!patient) throw new NotFoundException('Patient not found');
 
     const valid = await bcrypt.compare(currentPassword, patient.password);
@@ -160,4 +173,5 @@ export class PatientsService {
 
     return { message: 'Password updated successfully' };
   }
+
 }

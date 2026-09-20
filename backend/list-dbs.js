@@ -1,6 +1,8 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 
-const uri = 'mongodb+srv://***REMOVED-CREDENTIAL***@cluster0.vsdletj.mongodb.net/?appName=Cluster0';
+const uri = process.env.MONGO_URI;
+if (!uri) throw new Error('MONGO_URI is not set — copy .env.example to .env first');
 
 async function run() {
     try {

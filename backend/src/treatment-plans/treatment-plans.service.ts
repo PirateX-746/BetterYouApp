@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { TreatmentPlan } from './schemas/treatment-plan.schema';
 import { CreateTreatmentPlanDto } from './dto/create-treatment-plan.dto';
 import { UpdateTreatmentPlanDto } from './dto/update-treatment-plan.dto';
+import { practiceScopeFilter, practiceStamp } from '../common/tenancy/practice-scope';
 
 @Injectable()
 export class TreatmentPlansService {
@@ -12,8 +13,11 @@ export class TreatmentPlansService {
     private readonly treatmentPlanModel: Model<TreatmentPlan>,
   ) {}
 
-  async create(dto: CreateTreatmentPlanDto) {
-    const plan = await this.treatmentPlanModel.create(dto);
+  async create(dto: CreateTreatmentPlanDto, practiceId: string | null) {
+    const plan = await this.treatmentPlanModel.create({
+      ...dto,
+      practiceId: practiceStamp(practiceId),
+    });
     return this.treatmentPlanModel
       .findById(plan._id)
       .populate('patientId', 'firstName lastName')
@@ -21,25 +25,25 @@ export class TreatmentPlansService {
       .lean();
   }
 
-  async findByPatient(patientId: string) {
+  async findByPatient(patientId: string, practiceId: string | null) {
     return this.treatmentPlanModel
-      .find({ patientId })
+      .find({ patientId: new Types.ObjectId(patientId), ...practiceScopeFilter(practiceId) })
       .populate('practitionerId', 'firstName lastName')
       .sort({ createdAt: -1 })
       .lean();
   }
 
-  async findByPractitioner(practitionerId: string) {
+  async findByPractitioner(practitionerId: string, practiceId: string | null) {
     return this.treatmentPlanModel
-      .find({ practitionerId })
+      .find({ practitionerId: new Types.ObjectId(practitionerId), ...practiceScopeFilter(practiceId) })
       .populate('patientId', 'firstName lastName')
       .sort({ createdAt: -1 })
       .lean();
   }
 
-  async findById(id: string) {
+  async findById(id: string, practiceId: string | null) {
     const plan = await this.treatmentPlanModel
-      .findById(id)
+      .findOne({ _id: id, ...practiceScopeFilter(practiceId) })
       .populate('patientId', 'firstName lastName')
       .populate('practitionerId', 'firstName lastName')
       .lean();
@@ -47,18 +51,26 @@ export class TreatmentPlansService {
     return plan;
   }
 
-  async update(id: string, dto: UpdateTreatmentPlanDto) {
+  async update(id: string, dto: UpdateTreatmentPlanDto, practiceId: string | null) {
     const plan = await this.treatmentPlanModel
-      .findByIdAndUpdate(id, { $set: dto }, { new: true })
+      .findOneAndUpdate(
+        { _id: id, ...practiceScopeFilter(practiceId) },
+        { $set: dto },
+        { new: true },
+      )
       .populate('patientId', 'firstName lastName')
       .lean();
     if (!plan) throw new NotFoundException('Treatment plan not found');
     return plan;
   }
 
-  async remove(id: string) {
-    const plan = await this.treatmentPlanModel.findByIdAndDelete(id);
+  async remove(id: string, practiceId: string | null) {
+    const plan = await this.treatmentPlanModel.findOneAndDelete({
+      _id: id,
+      ...practiceScopeFilter(practiceId),
+    });
     if (!plan) throw new NotFoundException('Treatment plan not found');
     return { deleted: true };
   }
+
 }

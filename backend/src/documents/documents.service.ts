@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 import {
   MedicalDocument,
@@ -13,6 +13,7 @@ import {
 } from './schemas/document.schema';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
+import { practiceScopeFilter, practiceStamp } from '../common/tenancy/practice-scope';
 
 @Injectable()
 export class DocumentsService {
@@ -21,25 +22,26 @@ export class DocumentsService {
     private documentModel: Model<DocumentDocument>,
   ) {}
 
-  async create(dto: CreateDocumentDto) {
+  async create(dto: CreateDocumentDto, practiceId: string | null) {
     return this.documentModel.create({
       ...dto,
       date: new Date(dto.date),
+      practiceId: practiceStamp(practiceId),
     });
   }
 
-  async findByPatient(patientId: string) {
+  async findByPatient(patientId: string, practiceId: string | null) {
     return this.documentModel
-      .find({ patient: patientId })
+      .find({ patient: new Types.ObjectId(patientId), ...practiceScopeFilter(practiceId) })
       .populate('doctor', 'firstName lastName')
       .populate('patient', 'firstName lastName')
       .sort({ date: -1 })
       .lean();
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, practiceId: string | null) {
     const doc = await this.documentModel
-      .findById(id)
+      .findOne({ _id: id, ...practiceScopeFilter(practiceId) })
       .populate('doctor', 'firstName lastName')
       .populate('patient', 'firstName lastName')
       .lean();
@@ -48,8 +50,11 @@ export class DocumentsService {
     return doc;
   }
 
-  async update(id: string, dto: UpdateDocumentDto) {
-    const document = await this.documentModel.findById(id);
+  async update(id: string, dto: UpdateDocumentDto, practiceId: string | null) {
+    const document = await this.documentModel.findOne({
+      _id: id,
+      ...practiceScopeFilter(practiceId),
+    });
 
     if (!document) throw new NotFoundException('Document not found');
 
@@ -61,11 +66,15 @@ export class DocumentsService {
     return document.save();
   }
 
-  async remove(id: string) {
-    const deleted = await this.documentModel.findByIdAndDelete(id);
+  async remove(id: string, practiceId: string | null) {
+    const deleted = await this.documentModel.findOneAndDelete({
+      _id: id,
+      ...practiceScopeFilter(practiceId),
+    });
 
     if (!deleted) throw new NotFoundException('Document not found');
 
     return { message: 'Document deleted successfully' };
   }
+
 }

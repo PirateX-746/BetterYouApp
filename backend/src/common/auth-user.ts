@@ -5,6 +5,8 @@ import { Role, CLINICAL_ROLES } from './role.enum';
 export interface AuthUser {
   userId: string;
   role: Role;
+  /** The caller's practice. Null for a platform admin. */
+  practiceId?: string | null;
 }
 
 /** Request with a guaranteed authenticated user (every non-@Public route). */

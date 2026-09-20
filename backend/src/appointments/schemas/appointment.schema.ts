@@ -15,6 +15,10 @@ export type AppointmentDocument = Appointment & Document;
 
 @Schema({ timestamps: true })
 export class Appointment {
+  // Backfilled by migration 001; scoped explicitly in AppointmentsService.
+  @Prop({ type: Types.ObjectId, ref: 'Practice', index: true })
+  practiceId?: Types.ObjectId;
+
   @Prop({ required: true })
   title: string;
 

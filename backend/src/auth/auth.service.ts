@@ -260,9 +260,14 @@ export class AuthService {
 
     // Dev-only: since this app has no email/SMS provider wired up yet, the
     // temp password is "simulated" by returning it directly in the response.
-    // Never do this in production — it must go out via a real email/SMS
-    // channel instead once one exists.
-    if (process.env.NODE_ENV === 'production') {
+    // Gated on two independent env vars, not just NODE_ENV — a production
+    // deploy that forgets to set NODE_ENV is still safe unless someone has
+    // *also* explicitly opted into the echo, which nobody does by accident.
+    const devEchoAllowed =
+      process.env.NODE_ENV !== 'production' &&
+      process.env.ALLOW_DEV_PASSWORD_RESET_ECHO === 'true';
+
+    if (!devEchoAllowed) {
       return genericResponse;
     }
 
@@ -270,7 +275,7 @@ export class AuthService {
       ...genericResponse,
       devTempPassword: tempPassword,
       devNote:
-        'DEV ONLY: this temporary password is only returned because NODE_ENV is not "production".',
+        'DEV ONLY: returned because ALLOW_DEV_PASSWORD_RESET_ECHO=true. Never set this in production.',
     };
   }
 

@@ -26,22 +26,22 @@ export class PatientsController {
 
   @Roles(...CLINICAL_ROLES)
   @Post()
-  create(@Body() dto: CreatePatientDto) {
-    return this.patientsService.create(dto);
+  create(@Body() dto: CreatePatientDto, @Req() req: AuthedRequest) {
+    return this.patientsService.create(dto, req.user.practiceId ?? null);
   }
 
   // The full roster is practitioner-only; a patient must never be able to
   // enumerate other patients.
   @Roles(...CLINICAL_ROLES)
   @Get()
-  findAll() {
-    return this.patientsService.findAll();
+  findAll(@Req() req: AuthedRequest) {
+    return this.patientsService.findAll(req.user.practiceId ?? null);
   }
 
   @Get(':id')
   findById(@Param('id') id: string, @Req() req: AuthedRequest) {
     assertSelfOrPractitioner(req.user, id);
-    return this.patientsService.findById(id);
+    return this.patientsService.findById(id, req.user.practiceId ?? null);
   }
 
   @Patch(':id')
@@ -51,7 +51,7 @@ export class PatientsController {
     @Req() req: AuthedRequest,
   ) {
     assertSelfOrPractitioner(req.user, id);
-    return this.patientsService.update(id, dto);
+    return this.patientsService.update(id, dto, req.user.practiceId ?? null);
   }
 
   @Post(':id/change-password')
@@ -67,6 +67,11 @@ export class PatientsController {
     if (body.newPassword.length < 8) {
       throw new BadRequestException('New password must be at least 8 characters');
     }
-    return this.patientsService.changePassword(id, body.currentPassword, body.newPassword);
+    return this.patientsService.changePassword(
+      id,
+      body.currentPassword,
+      body.newPassword,
+      req.user.practiceId ?? null,
+    );
   }
 }

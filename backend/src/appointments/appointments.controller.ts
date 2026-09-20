@@ -37,7 +37,7 @@ export class AppointmentsController {
   @Get('patient/:id')
   getByPatient(@Param('id') id: string, @Req() req: AuthedRequest) {
     assertSelfOrPractitioner(req.user, id);
-    return this.appointmentsService.findByPatient(id);
+    return this.appointmentsService.findByPatient(id, req.user.practiceId ?? null);
   }
 
   @Roles(...CLINICAL_ROLES)
@@ -69,7 +69,7 @@ export class AppointmentsController {
       data.patientId = req.user.userId;
     }
 
-    return this.appointmentsService.create(data);
+    return this.appointmentsService.create(data, req.user.practiceId ?? null);
   }
 
   @Put(':id')

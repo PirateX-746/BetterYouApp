@@ -26,6 +26,10 @@ export enum DocumentStatus {
 
 @Schema({ timestamps: true })
 export class MedicalDocument {
+  // Backfilled by migration 001; scoped explicitly in DocumentsService.
+  @Prop({ type: Types.ObjectId, ref: 'Practice', index: true })
+  practiceId?: Types.ObjectId;
+
   @Prop({ required: true, enum: DocumentType })
   type: DocumentType;
 
