@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/loading-state";
 import toast from "react-hot-toast";
 import { practitionerProfileSchema, type PractitionerProfileValues } from "@/schemas/settings.schema";
 
@@ -17,6 +18,7 @@ function getInitials(first: string, last: string) {
 
 export default function ProfileTab() {
   const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState("");
   const [avatarPreview, setAvatarPreview] = useState("");
   const [avatarBase64, setAvatarBase64] = useState("");
   const [savedAvatarBase64, setSavedAvatarBase64] = useState("");
@@ -49,6 +51,7 @@ export default function ProfileTab() {
           specialization:  d.specialization  ?? "",
           experienceYears: d.experienceYears ?? "",
         });
+        setEmail(d.email ?? "");
         if (d.avatarBase64) {
           setAvatarPreview(d.avatarBase64);
           setSavedAvatarBase64(d.avatarBase64);
@@ -109,9 +112,7 @@ export default function ProfileTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="animate-spin text-primary" size={24} />
-      </div>
+      <LoadingState size="lg" />
     );
   }
 
@@ -170,7 +171,7 @@ export default function ProfileTab() {
             Email{" "}
             <span className="text-[10px] font-semibold uppercase tracking-wide px-1 py-0.5 rounded bg-bg-hover text-text-disabled ml-1">fixed</span>
           </Label>
-          <Input value={userId ? "" : ""} readOnly className="opacity-60 cursor-not-allowed" disabled />
+          <Input value={email} readOnly className="opacity-60 cursor-not-allowed" disabled />
         </div>
 
         <div className="space-y-1.5">

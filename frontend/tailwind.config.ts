@@ -1,5 +1,15 @@
 import type { Config } from "tailwindcss";
 
+/**
+ * A theme color backed by a CSS variable that still supports Tailwind's
+ * opacity modifiers. A bare "var(--primary)" can't take an alpha, so classes
+ * like `bg-primary/10` or `focus:ring-primary/40` silently generated nothing —
+ * including every focus ring written that way. color-mix applies the alpha to
+ * any color format, including the accent ThemeProvider sets at runtime.
+ */
+const v = (name: string) =>
+  `color-mix(in srgb, var(${name}) calc(<alpha-value> * 100%), transparent)`;
+
 const config: Config = {
   darkMode: "class",
   content: ["./src/**/*.{ts,tsx}"],
@@ -7,85 +17,95 @@ const config: Config = {
     extend: {
       colors: {
         /* Shadcn-compatible */
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        background: v("--background"),
+        foreground: v("--foreground"),
         card: {
-          DEFAULT: "var(--card)",
-          foreground: "var(--card-foreground)",
+          DEFAULT: v("--card"),
+          foreground: v("--card-foreground"),
         },
         popover: {
-          DEFAULT: "var(--popover)",
-          foreground: "var(--popover-foreground)",
+          DEFAULT: v("--popover"),
+          foreground: v("--popover-foreground"),
         },
         secondary: {
-          DEFAULT: "var(--secondary)",
-          foreground: "var(--secondary-foreground)",
+          DEFAULT: v("--secondary"),
+          foreground: v("--secondary-foreground"),
         },
         muted: {
-          DEFAULT: "var(--muted)",
-          foreground: "var(--muted-foreground)",
+          DEFAULT: v("--muted"),
+          foreground: v("--muted-foreground"),
         },
         accent: {
-          DEFAULT: "var(--accent)",
-          foreground: "var(--accent-foreground)",
+          DEFAULT: v("--accent"),
+          foreground: v("--accent-foreground"),
         },
         destructive: {
-          DEFAULT: "var(--destructive)",
-          foreground: "var(--destructive-foreground)",
+          DEFAULT: v("--destructive"),
+          foreground: v("--destructive-foreground"),
         },
-        ring: "var(--ring)",
-        input: "var(--input)",
+        ring: v("--ring"),
+        input: v("--input"),
 
         /* Brand */
         primary: {
-          DEFAULT: "var(--primary)",
-          foreground: "var(--primary-foreground)",
-          light: "var(--primary-light)",
-          hover: "var(--primary-hover)",
+          DEFAULT: v("--primary"),
+          foreground: v("--primary-foreground"),
+          light: v("--primary-light"),
+          hover: v("--primary-hover"),
         },
 
         /* Status */
-        success: "var(--success)",
-        "success-light": "var(--success-light)",
-        warning: "var(--warning)",
-        "warning-light": "var(--warning-light)",
-        danger: "var(--danger)",
-        purple: "var(--purple)",
-        "purple-light": "var(--purple-light)",
+        success: v("--success"),
+        "success-light": v("--success-light"),
+        warning: v("--warning"),
+        "warning-light": v("--warning-light"),
+        danger: v("--danger"),
+        "danger-light": v("--danger-light"),
+        purple: v("--purple"),
+        "purple-light": v("--purple-light"),
+        teal: v("--teal"),
+        "teal-light": v("--teal-light"),
 
         /* Backgrounds */
         bg: {
-          page: "var(--bg-page)",
-          card: "var(--bg-card)",
-          light: "var(--bg-light)",
-          hover: "var(--bg-hover)",
+          page: v("--bg-page"),
+          card: v("--bg-card"),
+          light: v("--bg-light"),
+          hover: v("--bg-hover"),
         },
 
         /* Text */
         text: {
-          primary: "var(--text-primary)",
-          secondary: "var(--text-secondary)",
-          light: "var(--text-light)",
-          disabled: "var(--text-disabled)",
+          primary: v("--text-primary"),
+          secondary: v("--text-secondary"),
+          light: v("--text-light"),
+          disabled: v("--text-disabled"),
         },
 
         /* Border */
         border: {
-          DEFAULT: "var(--border)",
-          light: "var(--border-light)",
+          DEFAULT: v("--border"),
+          light: v("--border-light"),
         },
       },
 
       boxShadow: {
-        sm: "var(--shadow-sm)",
-        md: "var(--shadow-md)",
-        lg: "var(--shadow-lg)",
+        sm: v("--shadow-sm"),
+        md: v("--shadow-md"),
+        lg: v("--shadow-lg"),
       },
 
+      /* One corner radius for every component (6px, --radius-md): cards,
+         buttons, inputs, dialogs. lg/xl/2xl/3xl all map to it so existing
+         classes follow the design without touching each file. Pills and
+         avatars keep rounded-full. Not wrapped in v(): that's for colors. */
       borderRadius: {
         sm: "var(--radius-sm)",
         md: "var(--radius-md)",
-        lg: "var(--radius-lg)",
+        lg: "var(--radius-md)",
+        xl: "var(--radius-md)",
+        "2xl": "var(--radius-md)",
+        "3xl": "var(--radius-md)",
       },
     },
   },

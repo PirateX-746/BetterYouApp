@@ -5,6 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams } from "next/navigation";
+import { Modal } from "@/components/common/Modal";
+import { Page } from "@/components/common/PageLayout";
+import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
+import { TemporaryPasswordDialog, type IssuedPassword } from "@/components/containers/patients/TemporaryPasswordDialog";
+import toast from "react-hot-toast";
+import { useDetailCrumb } from "@/contexts/PractitionerBreadcrumbContext";
 import {
   User,
   Calendar,
@@ -23,7 +29,6 @@ import {
   CalendarClock,
   Target,
   History,
-  X,
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
@@ -54,6 +59,10 @@ type Patient = {
   healthCondition?: string;
   bloodGroup?: string;
   allergies?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  emergencyContactRelation?: string;
+  /** Legacy field names some older records/types used. */
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   isActive?: boolean;
@@ -77,6 +86,30 @@ export default function PatientProfilePage() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [issued, setIssued] = useState<IssuedPassword | null>(null);
+
+  // Lost/expired temporary password: issue a new one. The old password stops
+  // working immediately, so this sits behind a confirmation.
+  const resetPassword = async () => {
+    if (!patient) return;
+    setResetting(true);
+    try {
+      const { data } = await api.post(`/patients/${patient._id}/temporary-password`);
+      setResetConfirm(false);
+      setIssued({
+        patientName: `${patient.firstName} ${patient.lastName ?? ""}`.trim(),
+        email: patient.email ?? "",
+        temporaryPassword: data.temporaryPassword,
+        expiresAt: data.temporaryPasswordExpiresAt,
+      });
+    } catch {
+      toast.error("Couldn't reset the password. Try again.");
+    } finally {
+      setResetting(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -91,6 +124,8 @@ export default function PatientProfilePage() {
     if (!patient) return "";
     return `${capitalizeWords(patient.firstName ?? "")} ${capitalizeWords(patient.lastName ?? "")}`.trim();
   }, [patient]);
+
+  useDetailCrumb(fullName);
 
   const shortId = patient?._id?.slice(-6) ?? "—";
 
@@ -148,167 +183,160 @@ export default function PatientProfilePage() {
     },
     {
       label: "Emergency Contact",
-      value: patient.emergency_contact_name || "Not provided",
-      sub: patient.emergency_contact_phone,
+      value:
+        [patient.emergencyContactName ?? patient.emergency_contact_name, patient.emergencyContactRelation && `(${patient.emergencyContactRelation})`]
+          .filter(Boolean)
+          .join(" ") || "Not provided",
+      sub: patient.emergencyContactPhone ?? patient.emergency_contact_phone,
       icon: ShieldPlus,
-      colorClass: "bg-purple-500/10 text-purple-500",
+      colorClass: "bg-purple/10 text-purple",
     },
   ];
 
+  const actionBtn =
+    "h-10 flex-1 inline-flex items-center justify-center gap-1.5 px-3 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors cursor-pointer";
+
+  const details = [
+    { icon: User, label: "Gender", value: patient.gender ? capitalizeWords(patient.gender) : "—" },
+    { icon: Calendar, label: "Age", value: calculateAge(patient.dateOfBirth) },
+    { icon: Phone, label: "Phone", value: patient.phoneNo || "—" },
+    { icon: Mail, label: "Email", value: patient.email || "—" },
+    { icon: CalendarClock, label: "Last visit", value: formatDate(patient.lastVisit) },
+  ];
+
   return (
-    <div className="space-y-4 w-full">
-      {/* Back */}
+    <Page>
       <Link
         href="/patients"
-        className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition"
+        className="inline-flex items-center gap-1.5 h-11 -my-2 text-sm text-text-secondary hover:text-text-primary rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors no-print"
       >
-        <ArrowLeft size={15} />
+        <ArrowLeft size={16} aria-hidden />
         Back to Patients
       </Link>
 
-      {/* Profile header card */}
-      <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
-        {/* Cover */}
-        <div className="h-20 bg-gradient-to-r from-primary/15 to-primary/5" />
+      {/* Two panes: who the patient is (left, stays in view), their record (right). */}
+      <div className="grid gap-5 lg:grid-cols-[20rem_minmax(0,1fr)] items-start">
+        {/*
+          Print scope: just this summary panel, not the tabs — those hold
+          interactive lists/charts that don't make sense on paper. See the
+          @media print block in globals.css, which hides everything but this id.
+        */}
+        <aside
+          id="printable-document"
+          aria-label="Patient details"
+          className="bg-bg-card border border-border rounded-2xl overflow-hidden lg:sticky lg:top-0"
+        >
+          {/* Identity */}
+          <div className="p-5 flex flex-col items-center text-center">
+            <div className="w-20 h-20 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold overflow-hidden">
+              {patient.avatar ? (
+                <img
+                  src={patient.avatar}
+                  alt={fullName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                fullName.charAt(0).toUpperCase() || "P"
+              )}
+            </div>
+            <h1 className="mt-3 text-lg font-semibold text-text-primary break-words">
+              {fullName || "Unnamed Patient"}
+            </h1>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-xs text-text-secondary font-mono">#{shortId}</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs font-medium ${patient.isActive !== false ? "bg-success/10 text-success" : "bg-border text-text-secondary"}`}
+              >
+                {patient.isActive !== false ? "Active" : "Inactive"}
+              </span>
+            </div>
+            <div className="mt-4 flex w-full gap-2 no-print">
+              <button type="button" onClick={() => setEditOpen(true)} className={actionBtn}>
+                <Pencil size={14} aria-hidden /> Edit
+              </button>
+              {/* Patient portal is off until the next phase, so patients can't sign in
+                  yet and there's nothing to reset. Re-enable with the portal (and re-import
+                  KeyRound from lucide-react).
+              <button type="button" onClick={() => setResetConfirm(true)} className={actionBtn} aria-label="Reset patient's password" title="Reset password">
+                <KeyRound size={14} aria-hidden /> Password
+              </button>
+              */}
+              <button type="button" onClick={() => window.print()} className={actionBtn} aria-label="Print summary" title="Print summary">
+                <Printer size={14} aria-hidden />
+              </button>
+            </div>
+          </div>
 
-        <div className="px-4 md:px-6 pb-5 -mt-10">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-            {/* Avatar + name */}
-            <div className="flex items-end gap-4">
-              <div className="w-20 h-20 rounded-2xl border-4 border-bg-card bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold shadow-sm shrink-0 overflow-hidden">
-                {patient.avatar ? (
-                  <img
-                    src={patient.avatar}
-                    alt={fullName}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : (
-                  fullName.charAt(0).toUpperCase() || "P"
-                )}
+          {/* Contact & demographics */}
+          <dl className="border-t border-border px-5 py-4 space-y-3">
+            {details.map(({ icon: Icon, label, value }) => (
+              <div key={label} className="flex items-start gap-3 text-sm">
+                <Icon size={15} className="text-text-secondary mt-0.5 shrink-0" aria-hidden />
+                <dt className="text-text-secondary w-20 shrink-0">{label}</dt>
+                <dd className="text-text-primary min-w-0 truncate" title={String(value)}>{value}</dd>
               </div>
+            ))}
+          </dl>
 
-              <div className="pb-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-lg font-semibold text-text-primary">
-                    {fullName || "Unnamed Patient"}
-                  </h1>
-                  <span className="text-xs text-text-disabled font-mono">
-                    #{shortId}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${patient.isActive !== false ? "bg-success/10 text-success" : "bg-border text-text-secondary"}`}
+          {/* Clinical summary */}
+          <div className="border-t border-border px-5 py-4 space-y-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Clinical summary</h2>
+            {medicalInfo.map(({ label, value, sub, icon: Icon, colorClass }) => (
+              <div key={label} className="flex items-start gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${colorClass}`}>
+                  <Icon size={15} aria-hidden />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-text-secondary">{label}</p>
+                  <p className="text-sm font-medium text-text-primary break-words">{value}</p>
+                  {sub && <p className="text-xs text-text-secondary">{sub}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        {/* Record */}
+        <div className="space-y-5 min-w-0">
+          {/* Progress score chart (only renders if patient has scored notes) */}
+          {id && <ProgressScoreChart patientId={id} />}
+
+          <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
+            <div role="tablist" aria-label="Patient record" className="flex overflow-x-auto border-b border-border scrollbar-hide">
+              {TABS.map(({ id: tabId, label, icon: Icon }) => {
+                const active = activeTab === tabId;
+                return (
+                  <button
+                    key={tabId}
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveTab(tabId)}
+                    className={`flex-shrink-0 flex items-center gap-2 px-4 h-12 text-sm font-medium transition-colors border-b-2 whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 ${
+                      active
+                        ? "border-primary text-primary"
+                        : "border-transparent text-text-secondary hover:text-text-primary"
+                    }`}
                   >
-                    {patient.isActive !== false ? "Active" : "Inactive"}
-                  </span>
-                </div>
-
-                {/* Detail chips */}
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-                  {[
-                    { icon: User, value: patient.gender || "—" },
-                    {
-                      icon: Calendar,
-                      value: `${calculateAge(patient.dateOfBirth)}`,
-                    },
-                    { icon: Phone, value: patient.phoneNo || "—" },
-                    { icon: Mail, value: patient.email || "—" },
-                    {
-                      icon: Calendar,
-                      value: `Last visit: ${formatDate(patient.lastVisit)}`,
-                    },
-                  ].map(({ icon: Icon, value }, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-1.5 text-xs text-text-secondary"
-                    >
-                      <Icon size={12} className="opacity-60 shrink-0" />
-                      <span className="truncate max-w-[160px]">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                    <Icon size={14} className="shrink-0" aria-hidden />
+                    {label}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-2 sm:pb-1">
-              <button
-                onClick={() => setEditOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover transition"
-              >
-                <Pencil size={14} />
-                <span className="hidden sm:inline">Edit</span>
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover transition"
-              >
-                <Printer size={14} />
-                <span className="hidden sm:inline">Print</span>
-              </button>
+            <div role="tabpanel" className="p-4 md:p-5">
+              {activeTab === "documents" && <MedicalDocument patientId={id} />}
+              {activeTab === "medications" && <MedicationsTab />}
+              {activeTab === "appointments" && <AppointmentHistory />}
+              {activeTab === "progress" && <ProgressNotesTab />}
+              {activeTab === "followup" && <FollowUpNotesTab />}
+              {activeTab === "plans" && <TreatmentPlansTab />}
+              {activeTab === "timeline" && <PatientTimelineTab />}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Medical info grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {medicalInfo.map(({ label, value, sub, icon: Icon, colorClass }) => (
-          <div
-            key={label}
-            className="bg-bg-card border border-border rounded-2xl p-4 flex items-start gap-3"
-          >
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${colorClass}`}
-            >
-              <Icon size={16} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-text-secondary">{label}</p>
-              <p className="text-sm font-medium text-text-primary mt-0.5 truncate">
-                {value}
-              </p>
-              {sub && <p className="text-xs text-text-secondary">{sub}</p>}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Progress score chart (only renders if patient has scored notes) */}
-      {id && <ProgressScoreChart patientId={id} />}
-
-      {/* Tabs */}
-      <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="flex overflow-x-auto border-b border-border scrollbar-hide">
-          {TABS.map(({ id: tabId, label, icon: Icon }) => {
-            const active = activeTab === tabId;
-            return (
-              <button
-                key={tabId}
-                onClick={() => setActiveTab(tabId)}
-                className={`flex-shrink-0 flex items-center gap-2 px-4 py-3 text-sm font-medium transition border-b-2 whitespace-nowrap ${
-                  active
-                    ? "border-primary text-primary"
-                    : "border-transparent text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                <Icon size={14} className="shrink-0" />
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="p-4">
-          {activeTab === "documents" && <MedicalDocument patientId={id} />}
-          {activeTab === "medications" && <MedicationsTab />}
-          {activeTab === "appointments" && <AppointmentHistory />}
-          {activeTab === "progress" && <ProgressNotesTab />}
-          {activeTab === "followup" && <FollowUpNotesTab />}
-          {activeTab === "plans" && <TreatmentPlansTab />}
-          {activeTab === "timeline" && <PatientTimelineTab />}
         </div>
       </div>
 
@@ -319,7 +347,18 @@ export default function PatientProfilePage() {
           onSaved={(updated) => { setPatient(updated); setEditOpen(false); }}
         />
       )}
-    </div>
+
+      <ConfirmationDialog
+        open={resetConfirm}
+        onClose={() => !resetting && setResetConfirm(false)}
+        onConfirm={() => void resetPassword()}
+        title="Reset this patient's password?"
+        description="Their current password stops working immediately. You'll get a new one-time password to give them, and they'll choose their own at next sign-in."
+        confirmLabel="Reset password"
+        loading={resetting}
+      />
+      <TemporaryPasswordDialog issued={issued} onClose={() => setIssued(null)} title="New temporary password" />
+    </Page>
   );
 }
 
@@ -336,6 +375,9 @@ const editSchema = z.object({
   bloodGroup:      z.string().optional(),
   healthCondition: z.string().optional(),
   allergies:       z.string().optional(),
+  emergencyContactName:     z.string().max(100, "Too long").optional(),
+  emergencyContactRelation: z.string().max(40, "Too long").optional(),
+  emergencyContactPhone:    z.string().regex(/^([0-9+()\-\s]{7,20})?$/, "Enter a valid phone number").optional(),
 });
 type EditValues = z.infer<typeof editSchema>;
 
@@ -366,6 +408,9 @@ function EditPatientDialog({
       bloodGroup:      patient.bloodGroup ?? "",
       healthCondition: patient.healthCondition ?? "",
       allergies:       patient.allergies ?? "",
+      emergencyContactName:     patient.emergencyContactName ?? patient.emergency_contact_name ?? "",
+      emergencyContactRelation: patient.emergencyContactRelation ?? "",
+      emergencyContactPhone:    patient.emergencyContactPhone ?? patient.emergency_contact_phone ?? "",
     },
   });
 
@@ -392,26 +437,24 @@ function EditPatientDialog({
     errors[f]?.message ? <p className="text-xs text-danger mt-1">{errors[f]!.message}</p> : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="relative w-full sm:max-w-lg bg-bg-card rounded-t-3xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[92dvh]">
-        <div className="flex justify-center pt-3 sm:hidden shrink-0">
-          <div className="w-10 h-1 bg-border rounded-full" />
-        </div>
-
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <div>
-            <h2 className="text-base font-semibold text-text-primary">Edit Patient</h2>
-            <p className="text-xs text-text-secondary mt-0.5">Update patient information</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-bg-hover text-text-secondary transition">
-            <X size={18} />
+    <Modal
+      open
+      onClose={onClose}
+      title="Edit Patient"
+      subtitle="Update patient information"
+      footer={
+        <div className="flex justify-end gap-3 w-full">
+          <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:bg-bg-hover transition">
+            Cancel
+          </button>
+          <button type="submit" form="edit-patient-form" disabled={saving} className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition disabled:opacity-40 disabled:cursor-not-allowed">
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {saving ? "Saving…" : "Save Changes"}
           </button>
         </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      }
+    >
+        <form id="edit-patient-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {serverError && (
               <div className="flex items-start gap-2 text-sm text-danger bg-danger/5 border border-danger/20 px-3.5 py-2.5 rounded-xl">
                 <span className="mt-0.5 shrink-0">⚠</span>
@@ -479,19 +522,26 @@ function EditPatientDialog({
               <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Allergies</label>
               <textarea {...register("allergies")} rows={2} placeholder="Known allergies" className={`${fieldCls} mt-1.5 resize-none`} />
             </div>
-          </div>
 
-          <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-3 shrink-0">
-            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:bg-bg-hover transition">
-              Cancel
-            </button>
-            <button type="submit" disabled={saving} className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition disabled:opacity-40 disabled:cursor-not-allowed">
-              {saving && <Loader2 size={14} className="animate-spin" />}
-              {saving ? "Saving…" : "Save Changes"}
-            </button>
-          </div>
+            <fieldset className="space-y-3 pt-1">
+              <legend className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Emergency contact</legend>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="ec-name" className="text-xs text-text-secondary">Name</label>
+                  <input id="ec-name" {...register("emergencyContactName")} className={`${fieldCls} mt-1`} />
+                </div>
+                <div>
+                  <label htmlFor="ec-rel" className="text-xs text-text-secondary">Relationship</label>
+                  <input id="ec-rel" {...register("emergencyContactRelation")} placeholder="e.g. Spouse" className={`${fieldCls} mt-1`} />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="ec-phone" className="text-xs text-text-secondary">Phone</label>
+                <input id="ec-phone" type="tel" {...register("emergencyContactPhone")} className={`${fieldCls} mt-1`} />
+                {errors.emergencyContactPhone && <p role="alert" className="text-xs text-danger mt-1">{errors.emergencyContactPhone.message}</p>}
+              </div>
+            </fieldset>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

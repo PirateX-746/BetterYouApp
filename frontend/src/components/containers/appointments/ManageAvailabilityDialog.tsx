@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Trash2, Loader2, CalendarOff } from "lucide-react";
+import { Trash2, Loader2, CalendarOff } from "lucide-react";
 import { api } from "@/lib/api";
 import toast from "react-hot-toast";
 import { blockSlotSchema, type BlockSlotValues } from "@/schemas/availability.schema";
 import { BlockedSlot } from "./types";
+import { Modal } from "@/components/common/Modal";
 
 type Props = {
   open: boolean;
@@ -55,8 +56,6 @@ export default function ManageAvailabilityDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  if (!open) return null;
-
   const handleBlock = handleSubmit(async (data: BlockSlotValues) => {
     try {
       await api.post("/availability", {
@@ -91,33 +90,12 @@ export default function ManageAvailabilityDialog({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-      <div className="bg-bg-card w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-xl max-h-[92dvh] flex flex-col">
-        {/* Drag handle (mobile) */}
-        <div className="flex justify-center pt-3 sm:hidden shrink-0">
-          <div className="w-10 h-1 bg-border rounded-full" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <div>
-            <h2 className="text-base font-semibold text-text-primary">
-              Manage Availability
-            </h2>
-            <p className="text-xs text-text-secondary mt-0.5">
-              Block times you're unavailable
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-bg-hover text-text-secondary transition"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Manage Availability"
+      subtitle="Block times you're unavailable"
+    >
           {/* Add block form */}
           <div className="bg-bg-hover border border-border rounded-2xl p-4 space-y-3">
             <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
@@ -222,8 +200,6 @@ export default function ManageAvailabilityDialog({
               </div>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

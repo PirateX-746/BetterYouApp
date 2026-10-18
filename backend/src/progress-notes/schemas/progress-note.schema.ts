@@ -3,6 +3,10 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class ProgressNote extends Document {
+  // Backfilled by migration 001; scoped explicitly in ProgressNotesService.
+  @Prop({ type: Types.ObjectId, ref: 'Practice', index: true })
+  practiceId?: Types.ObjectId;
+
   @Prop({ type: Types.ObjectId, ref: 'Patient', required: true })
   patientId: Types.ObjectId;
 

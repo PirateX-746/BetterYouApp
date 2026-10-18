@@ -4,37 +4,55 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  ConnectedSocket,
+  MessageBody,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { SseService } from '../sse/sse.service';
+import { WsAuthService, type SocketUser } from '../common/ws/ws-auth.service';
+import { socketCorsOptions } from '../common/cors';
+import { Role } from '../common/role.enum';
 
 interface ChatPayload {
   conversationId: string;
-  senderId: string;
   text?: string;
   image?: string;
   file?: string;
 }
 
-@WebSocketGateway({ cors: { origin: '*' } })
+@WebSocketGateway({ cors: socketCorsOptions() })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
+  private readonly logger = new Logger(ChatGateway.name);
+
+  /** userId → socket id */
   private onlineUsers = new Map<string, string>();
 
   constructor(
     private chatService: ChatService,
     private sseService: SseService,
+    private wsAuth: WsAuthService,
   ) {}
 
-  handleConnection(client: Socket) {
-    const userId = client.handshake.query.userId as string;
-    if (userId) {
-      this.onlineUsers.set(userId, client.id);
-      this.server.emit('onlineUsers', Array.from(this.onlineUsers.keys()));
+  async handleConnection(client: Socket) {
+    const user = await this.wsAuth.authenticate(client);
+
+    if (!user) {
+      // Anonymous sockets are dropped. Identity used to come from
+      // ?userId= in the handshake, which let anyone impersonate anyone.
+      this.logger.warn('Rejected unauthenticated socket connection');
+      client.emit('unauthorized', { message: 'Authentication required' });
+      client.disconnect(true);
+      return;
     }
+
+    client.data.user = user;
+    this.onlineUsers.set(user.userId, client.id);
+    this.server.emit('onlineUsers', Array.from(this.onlineUsers.keys()));
   }
 
   handleDisconnect(client: Socket) {
@@ -46,20 +64,70 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.emit('onlineUsers', Array.from(this.onlineUsers.keys()));
   }
 
+  /**
+   * Confirms the socket's authenticated user is one of the conversation's
+   * two participants. Every conversation-scoped event goes through this, so
+   * a signed-in user cannot read or write someone else's thread by guessing
+   * an id.
+   */
+  private async participantOf(
+    client: Socket,
+    conversationId: string,
+  ): Promise<SocketUser | null> {
+    const user = WsAuthService.userOf(client);
+    if (!user || !conversationId) return null;
+
+    const conversation =
+      await this.chatService.getConversationById(conversationId);
+    if (!conversation) return null;
+
+    const participants = [
+      String(conversation.patientId),
+      String(conversation.practitionerId),
+    ];
+
+    return participants.includes(user.userId) ? user : null;
+  }
+
   @SubscribeMessage('joinConversation')
-  handleJoin(client: Socket, conversationId: string) {
-    void client.join(conversationId);
+  async handleJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() conversationId: string,
+  ) {
+    const user = await this.participantOf(client, conversationId);
+    if (!user) {
+      client.emit('error', { message: 'Not a participant in that conversation' });
+      return;
+    }
+    await client.join(conversationId);
   }
 
   @SubscribeMessage('message')
-  handleMessage(client: Socket, payload: ChatPayload) {
-    void this.processMessage(payload);
+  async handleMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: ChatPayload,
+  ) {
+    const user = await this.participantOf(client, payload?.conversationId);
+    if (!user) {
+      client.emit('error', { message: 'Not a participant in that conversation' });
+      return;
+    }
+
+    // senderId comes from the verified session, never from the payload —
+    // the client used to supply it and could claim to be anyone.
+    await this.processMessage(payload, user);
   }
 
-  private async processMessage(payload: ChatPayload) {
-    if (!payload.conversationId) return;
+  private async processMessage(payload: ChatPayload, sender: SocketUser) {
+    const senderId = sender.userId;
 
-    const saved = await this.chatService.saveMessage(payload);
+    const saved = await this.chatService.saveMessage({
+      conversationId: payload.conversationId,
+      senderId,
+      text: payload.text,
+      image: payload.image,
+      file: payload.file,
+    });
 
     const conversation = await this.chatService.getConversationById(
       payload.conversationId,
@@ -67,7 +135,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (conversation) {
       const isPractitionerSender =
-        payload.senderId === conversation.practitionerId.toString();
+        senderId === conversation.practitionerId.toString();
 
       const recipientRole: 'patient' | 'practitioner' = isPractitionerSender
         ? 'patient'
@@ -93,7 +161,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.sseService.pushNewMessage(
         recipientId,
         payload.conversationId,
-        payload.senderId, // frontend resolves name from conversation list
+        senderId, // frontend resolves name from conversation list
         preview,
         totalUnread,
       );
@@ -104,21 +172,38 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('typing')
-  handleTyping(client: Socket, conversationId: string) {
-    void client.to(conversationId).emit('typing', conversationId);
+  async handleTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() conversationId: string,
+  ) {
+    if (!(await this.participantOf(client, conversationId))) return;
+    client.to(conversationId).emit('typing', conversationId);
   }
 
   @SubscribeMessage('stopTyping')
-  handleStopTyping(client: Socket, conversationId: string) {
-    void client.to(conversationId).emit('stopTyping', conversationId);
+  async handleStopTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() conversationId: string,
+  ) {
+    if (!(await this.participantOf(client, conversationId))) return;
+    client.to(conversationId).emit('stopTyping', conversationId);
   }
 
   @SubscribeMessage('seen')
   async handleSeen(
-    client: Socket,
-    payload: { messageId: string; conversationId: string },
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { messageId: string; conversationId: string },
   ) {
+    if (!(await this.participantOf(client, payload?.conversationId))) return;
+
     await this.chatService.markSeen(payload.messageId);
-    this.server.to(payload.conversationId).emit('messageSeen', payload.messageId);
+    this.server
+      .to(payload.conversationId)
+      .emit('messageSeen', payload.messageId);
+  }
+
+  /** Exposed for the online-users list; role is unused today but kept for parity. */
+  isOnline(userId: string, _role?: Role): boolean {
+    return this.onlineUsers.has(userId);
   }
 }

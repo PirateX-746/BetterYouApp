@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createSocket } from "@/lib/socket";
+import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
 import { api } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
@@ -74,8 +74,8 @@ export default function HomePage() {
 
     fetchAppointments();
 
-    const s = createSocket({ patientId: userId });
-    s.on("appointmentUpdated", (incoming: Appointment) => {
+    const s = acquireSocket({ patientId: userId });
+    const handleAppointmentUpdated = (incoming: Appointment) => {
       setAppointments((prev) => {
         const existing = prev.find((a) => a.id === incoming.id);
         const prevStatus = existing?.status?.toLowerCase();
@@ -97,10 +97,12 @@ export default function HomePage() {
           ? prev.map((a) => (a.id === incoming.id ? incoming : a))
           : [incoming, ...prev];
       });
-    });
+    };
+    s.on("appointmentUpdated", handleAppointmentUpdated);
 
     return () => {
-      s.disconnect();
+      s.off("appointmentUpdated", handleAppointmentUpdated);
+      releaseSocket({ patientId: userId });
     };
   }, [userId]);
 

@@ -9,11 +9,12 @@ import {
   TrendingUp,
   CalendarClock,
   Target,
-  Loader2,
   History,
+  ClipboardCheck,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingState } from "@/components/ui/loading-state";
 import toast from "react-hot-toast";
 
 type EventType =
@@ -22,7 +23,8 @@ type EventType =
   | "medication"
   | "progress-note"
   | "follow-up"
-  | "treatment-plan";
+  | "treatment-plan"
+  | "session-assessment";
 
 interface TimelineEvent {
   id: string;
@@ -39,6 +41,7 @@ const TYPE_CONFIG: Record<EventType, { icon: React.ElementType; color: string; b
   "progress-note": { icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50", label: "Progress Note" },
   "follow-up": { icon: CalendarClock, color: "text-amber-600", bg: "bg-amber-50", label: "Follow-Up Note" },
   "treatment-plan": { icon: Target, color: "text-purple-600", bg: "bg-purple-50", label: "Treatment Plan" },
+  "session-assessment": { icon: ClipboardCheck, color: "text-rose-600", bg: "bg-rose-50", label: "Session Assessment" },
 };
 
 export default function PatientTimelineTab() {
@@ -52,25 +55,33 @@ export default function PatientTimelineTab() {
   const fetchAll = useCallback(async () => {
     if (!patientId) return;
     try {
-      const [appts, docs, meds, pns, fus, tps] = await Promise.allSettled([
-        api.get("/appointments", { params: { patientId } }),
-        api.get("/documents", { params: { patientId } }),
+      const [appts, docs, meds, pns, fus, tps, sas] = await Promise.allSettled([
+        // These two are path-param routes on the backend (/appointments/patient/:id,
+        // /documents/patient/:patientId) — not query-param — unlike the other four
+        // below. Getting this wrong 404s silently under allSettled and the
+        // appointment/document entries just vanish from the timeline.
+        api.get(`/appointments/patient/${patientId}`),
+        api.get(`/documents/patient/${patientId}`),
         api.get("/patient-medications", { params: { patientId } }),
         api.get("/progress-notes", { params: { patientId } }),
         api.get("/follow-up-notes", { params: { patientId } }),
         api.get("/treatment-plans", { params: { patientId } }),
+        api.get(`/session-assessments/patient/${patientId}`),
       ]);
 
       const timeline: TimelineEvent[] = [];
 
       if (appts.status === "fulfilled") {
-        (appts.value.data ?? []).forEach((a: { _id: string; appointmentType?: string; startTime: string; status?: string }) => {
+        // formatAppointment() (appointments.service.ts) returns { id, title, start, ... } —
+        // not the Mongo-default { _id, appointmentType, startTime } shape the other five
+        // resources use, which is why this needed its own field names.
+        (appts.value.data ?? []).forEach((a: { id: string; title?: string; start: string; status?: string }) => {
           timeline.push({
-            id: a._id,
+            id: a.id,
             type: "appointment",
-            title: a.appointmentType ?? "Appointment",
+            title: a.title ?? "Appointment",
             subtitle: a.status ?? "scheduled",
-            date: a.startTime,
+            date: a.start,
           });
         });
       }
@@ -137,6 +148,29 @@ export default function PatientTimelineTab() {
         });
       }
 
+      if (sas.status === "fulfilled") {
+        const LABEL: Record<string, string> = { draft: "Draft", ready_for_review: "Ready for review", submitted: "Submitted", amended: "Amended" };
+        (sas.value.data ?? []).forEach(
+          (s: {
+            _id: string;
+            status: string;
+            submittedAt?: string | null;
+            updatedAt: string;
+            practitioner?: { firstName?: string; lastName?: string } | string | null;
+            appointment?: { title?: string; start?: string } | null;
+          }) => {
+            const by = typeof s.practitioner === "object" && s.practitioner ? `Dr. ${s.practitioner.firstName ?? ""} ${s.practitioner.lastName ?? ""}`.trim() : null;
+            timeline.push({
+              id: s._id,
+              type: "session-assessment",
+              title: "Session Assessment",
+              subtitle: [s.appointment?.title, LABEL[s.status] ?? s.status, by].filter(Boolean).join(" · "),
+              date: s.appointment?.start ?? s.submittedAt ?? s.updatedAt,
+            });
+          },
+        );
+      }
+
       timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setEvents(timeline);
     } catch {
@@ -159,39 +193,43 @@ export default function PatientTimelineTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="animate-spin text-primary" size={22} />
-      </div>
+      <LoadingState />
     );
   }
 
   const filterOptions: { value: EventType | "all"; label: string }[] = [
-    { value: "all", label: "All" },
+    { value: "all", label: "All activity" },
     { value: "appointment", label: "Appointments" },
+    { value: "session-assessment", label: "Assessments" },
     { value: "medication", label: "Medications" },
-    { value: "progress-note", label: "Progress Notes" },
-    { value: "follow-up", label: "Follow-Ups" },
-    { value: "treatment-plan", label: "Treatment Plans" },
+    { value: "progress-note", label: "Progress notes" },
+    { value: "follow-up", label: "Follow-ups" },
+    { value: "treatment-plan", label: "Treatment plans" },
     { value: "document", label: "Documents" },
   ];
 
   return (
     <div className="space-y-4">
-      {/* Filter chips */}
-      <div className="flex flex-wrap gap-1.5">
-        {filterOptions.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => setFilter(opt.value)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              filter === opt.value
-                ? "bg-primary text-white"
-                : "bg-bg-light text-text-secondary hover:bg-bg-hover"
-            }`}
+      {/* One combined, chronological feed. A compact filter instead of a chip
+          row — chips repeated the profile's tab names right above them. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-text-secondary">
+          {filtered.length} {filtered.length === 1 ? "event" : "events"}, newest first
+        </p>
+        <label className="flex items-center gap-2 text-sm text-text-secondary">
+          Show
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as EventType | "all")}
+            className="h-10 px-3 text-sm bg-bg-card border border-border rounded-md text-text-primary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 cursor-pointer"
           >
-            {opt.label}
-          </button>
-        ))}
+            {filterOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {filtered.length === 0 ? (

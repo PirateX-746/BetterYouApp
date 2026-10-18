@@ -7,6 +7,7 @@ import MobileTopNav from "./MobileTopNav";
 import { HIDE_BOTTOM_NAV_PATTERN } from "@/lib/nav-config";
 import { PatientChatProvider, usePatientChat } from "@/contexts/PatientChatContext";
 import { PatientUnreadProvider } from "@/contexts/PatientUnreadContext";
+import PatientPortalDisabled from "@/components/common/PatientPortalDisabled";
 
 function PatientLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -39,11 +40,14 @@ function PatientLayoutInner({ children }: { children: React.ReactNode }) {
 }
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <PatientChatProvider>
-      <PatientUnreadProvider>
-        <PatientLayoutInner>{children}</PatientLayoutInner>
-      </PatientUnreadProvider>
-    </PatientChatProvider>
-  );
+  // Patient portal disabled for now — only Practitioner and SuperAdmin are active.
+  return <PatientPortalDisabled />;
+
+  // return (
+  //   <PatientChatProvider>
+  //     <PatientUnreadProvider>
+  //       <PatientLayoutInner>{children}</PatientLayoutInner>
+  //     </PatientUnreadProvider>
+  //   </PatientChatProvider>
+  // );
 }

@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { PatientMedication } from './schemas/patient-medication.schema';
 import { CreatePatientMedicationDto } from './dto/create-patient-medication.dto';
 import { UpdatePatientMedicationDto } from './dto/update-patient-medication.dto';
+import { practiceScopeFilter, practiceStamp } from '../common/tenancy/practice-scope';
 
 const MEDICATION_FIELDS = 'name category description';
 
@@ -14,8 +15,11 @@ export class PatientMedicationsService {
     private readonly patientMedicationModel: Model<PatientMedication>,
   ) {}
 
-  async create(dto: CreatePatientMedicationDto) {
-    const record = await this.patientMedicationModel.create(dto);
+  async create(dto: CreatePatientMedicationDto, practiceId: string | null) {
+    const record = await this.patientMedicationModel.create({
+      ...dto,
+      practiceId: practiceStamp(practiceId),
+    });
     return this.patientMedicationModel
       .findById(record._id)
       .populate('patientId', 'firstName lastName email')
@@ -23,27 +27,27 @@ export class PatientMedicationsService {
       .lean();
   }
 
-  async findByPatient(patientId: string) {
+  async findByPatient(patientId: string, practiceId: string | null) {
     return this.patientMedicationModel
-      .find({ patientId })
+      .find({ patientId: new Types.ObjectId(patientId), ...practiceScopeFilter(practiceId) })
       .populate('practitionerId', 'firstName lastName')
       .populate('medicationId', MEDICATION_FIELDS)
       .sort({ createdAt: -1 })
       .lean();
   }
 
-  async findByPractitioner(practitionerId: string) {
+  async findByPractitioner(practitionerId: string, practiceId: string | null) {
     return this.patientMedicationModel
-      .find({ practitionerId })
+      .find({ practitionerId: new Types.ObjectId(practitionerId), ...practiceScopeFilter(practiceId) })
       .populate('patientId', 'firstName lastName email')
       .populate('medicationId', MEDICATION_FIELDS)
       .sort({ createdAt: -1 })
       .lean();
   }
 
-  async findById(id: string) {
+  async findById(id: string, practiceId: string | null) {
     const record = await this.patientMedicationModel
-      .findById(id)
+      .findOne({ _id: id, ...practiceScopeFilter(practiceId) })
       .populate('patientId', 'firstName lastName email')
       .populate('practitionerId', 'firstName lastName')
       .populate('medicationId', MEDICATION_FIELDS)
@@ -52,9 +56,13 @@ export class PatientMedicationsService {
     return record;
   }
 
-  async update(id: string, dto: UpdatePatientMedicationDto) {
+  async update(id: string, dto: UpdatePatientMedicationDto, practiceId: string | null) {
     const record = await this.patientMedicationModel
-      .findByIdAndUpdate(id, { $set: dto }, { new: true })
+      .findOneAndUpdate(
+        { _id: id, ...practiceScopeFilter(practiceId) },
+        { $set: dto },
+        { new: true },
+      )
       .populate('patientId', 'firstName lastName email')
       .populate('medicationId', MEDICATION_FIELDS)
       .lean();
@@ -62,9 +70,13 @@ export class PatientMedicationsService {
     return record;
   }
 
-  async remove(id: string) {
-    const record = await this.patientMedicationModel.findByIdAndDelete(id);
+  async remove(id: string, practiceId: string | null) {
+    const record = await this.patientMedicationModel.findOneAndDelete({
+      _id: id,
+      ...practiceScopeFilter(practiceId),
+    });
     if (!record) throw new NotFoundException('Patient medication not found');
     return { deleted: true };
   }
+
 }

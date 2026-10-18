@@ -15,7 +15,7 @@ import {
 import { AppointmentsService, AppointmentData } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '../common/role.enum';
+import { Role, CLINICAL_ROLES } from '../common/role.enum';
 import {
   assertSelf,
   assertSelfOrPractitioner,
@@ -27,7 +27,7 @@ import {
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 
-  @Roles(Role.PRACTITIONER)
+  @Roles(...CLINICAL_ROLES)
   @Get('practitioner/:id')
   getByPractitioner(@Param('id') id: string, @Req() req: AuthedRequest) {
     assertSelf(req.user, id);
@@ -37,10 +37,10 @@ export class AppointmentsController {
   @Get('patient/:id')
   getByPatient(@Param('id') id: string, @Req() req: AuthedRequest) {
     assertSelfOrPractitioner(req.user, id);
-    return this.appointmentsService.findByPatient(id);
+    return this.appointmentsService.findByPatient(id, req.user.practiceId ?? null);
   }
 
-  @Roles(Role.PRACTITIONER)
+  @Roles(...CLINICAL_ROLES)
   @Get('waiting-room/:practitionerId')
   getWaitingRoom(
     @Param('practitionerId') practitionerId: string,
@@ -69,7 +69,7 @@ export class AppointmentsController {
       data.patientId = req.user.userId;
     }
 
-    return this.appointmentsService.create(data);
+    return this.appointmentsService.create(data, req.user.practiceId ?? null);
   }
 
   @Put(':id')
@@ -79,9 +79,19 @@ export class AppointmentsController {
     @Req() req: AuthedRequest,
   ) {
     await this.appointmentsService.assertParticipant(id, req.user.userId);
+
+    // Status is a clinical/scheduling determination (completed, no-show,
+    // etc.) — a patient participant may reschedule their own appointment
+    // through this route, but must not be able to set its status. That's
+    // what @Patch(':id/status') is for, and it's practitioner-only.
+    const data = { ...body } as Record<string, unknown>;
+    if (!isPractitioner(req.user)) {
+      delete data.status;
+    }
+
     return this.appointmentsService.updateById(
       id,
-      body as unknown as AppointmentData,
+      data as unknown as AppointmentData,
     );
   }
 
@@ -99,7 +109,7 @@ export class AppointmentsController {
     return this.appointmentsService.checkIn(id, subject);
   }
 
-  @Roles(Role.PRACTITIONER)
+  @Roles(...CLINICAL_ROLES)
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,

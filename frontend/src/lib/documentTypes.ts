@@ -35,4 +35,11 @@ export const DOCUMENT_TYPES = [
         label: "Psychological Testing Report",
         value: "psych-testing-report",
     },
+    {
+        // Not a form: opens the scanner (camera or device upload) instead of
+        // the structured-document editor.
+        label: "Custom Document",
+        value: "custom-document",
+        description: "Scan or upload a paper document",
+    },
 ];

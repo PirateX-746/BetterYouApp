@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Clock, Save, Loader2, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/loading-state";
 import toast from "react-hot-toast";
 
 /* ─── Types ─── */
@@ -122,9 +123,7 @@ export default function PracticeHoursTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="animate-spin text-primary" size={24} />
-      </div>
+      <LoadingState size="lg" />
     );
   }
 

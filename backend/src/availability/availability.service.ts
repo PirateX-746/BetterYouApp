@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -75,16 +75,18 @@ export class AvailabilityService {
     });
   }
 
-  async deleteBlock(blockId: string) {
+  async deleteBlock(blockId: string, requesterId: string) {
     if (!blockId || !Types.ObjectId.isValid(blockId)) {
       throw new BadRequestException('Invalid block ID');
     }
-    const deleted = await this.availabilityModel.findByIdAndDelete(
-      new Types.ObjectId(blockId),
-    );
-    if (!deleted) {
+    const block = await this.availabilityModel.findById(blockId);
+    if (!block) {
       throw new BadRequestException('Block not found');
     }
-    return deleted;
+    if (String(block.practitionerId) !== requesterId) {
+      throw new ForbiddenException('This block does not belong to you');
+    }
+    await block.deleteOne();
+    return block;
   }
 }

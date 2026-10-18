@@ -1,4 +1,5 @@
 import { Controller, Get, Req, Res } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { SseService } from './sse.service';
 import type { AuthUser } from '../common/auth-user';
@@ -7,6 +8,10 @@ import type { AuthUser } from '../common/auth-user';
 export class SseController {
   constructor(private readonly sseService: SseService) {}
 
+  // One long-lived stream per session, and the client reconnects with
+  // back-off on error. Counting it against a per-minute bucket would
+  // throttle legitimate reconnects during a network blip.
+  @SkipThrottle()
   @Get('stream')
   stream(@Req() req: Request, @Res() res: Response) {
     // The stream is bound to the authenticated user from the JWT. It used to

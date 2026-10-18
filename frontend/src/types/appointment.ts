@@ -13,6 +13,7 @@ export interface Appointment {
 export interface CalendarEvent {
     id: string;
     title: string;
+    appointmentTypeId?: string | null;
     start: string;
     end: string;
     patientId: string;

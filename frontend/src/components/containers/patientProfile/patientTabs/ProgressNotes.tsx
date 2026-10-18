@@ -16,6 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
+import { escapeHtml } from "@/lib/escapeHtml";
+import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
+import { LoadingState } from "@/components/ui/loading-state";
 import toast from "react-hot-toast";
 
 interface ProgressNote {
@@ -34,9 +37,9 @@ interface ProgressNote {
 const MOODS = ["Excellent", "Good", "Neutral", "Anxious", "Low", "Distressed"];
 
 const SCORE_COLOR = (score: number) => {
-  if (score >= 8) return "text-emerald-600 bg-emerald-50";
-  if (score >= 5) return "text-amber-600 bg-amber-50";
-  return "text-red-600 bg-red-50";
+  if (score >= 8) return "text-success bg-success-light";
+  if (score >= 5) return "text-warning bg-warning-light";
+  return "text-danger bg-danger-light";
 };
 
 export default function ProgressNotesTab() {
@@ -50,6 +53,8 @@ export default function ProgressNotesTab() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
   const [title, setTitle] = useState("");
@@ -128,14 +133,18 @@ export default function ProgressNotesTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this progress note?")) return;
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
     try {
-      await api.delete(`/progress-notes/${id}`);
-      setNotes((prev) => prev.filter((n) => n._id !== id));
+      await api.delete(`/progress-notes/${deleteId}`);
+      setNotes((prev) => prev.filter((n) => n._id !== deleteId));
       toast.success("Deleted");
+      setDeleteId(null);
     } catch {
       toast.error("Failed to delete");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -152,14 +161,14 @@ export default function ProgressNotesTab() {
         .value { font-size: 14px; }
         .score { display: inline-block; font-size: 22px; font-weight: 700; }
       </style></head><body>
-        <h1>${note.title}</h1>
+        <h1>${escapeHtml(note.title)}</h1>
         <div class="meta">Session date: ${new Date(note.sessionDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
         ${note.progressScore != null ? `<div class="section"><div class="label">Progress Score</div><div class="score">${note.progressScore}/10</div></div>` : ""}
-        ${note.mood ? `<div class="section"><div class="label">Mood</div><div class="value">${note.mood}</div></div>` : ""}
-        ${note.content ? `<div class="section"><div class="label">Session Notes</div><div class="value">${note.content}</div></div>` : ""}
-        ${note.symptoms?.length ? `<div class="section"><div class="label">Symptoms</div><div class="value">${note.symptoms.join(", ")}</div></div>` : ""}
-        ${note.observations ? `<div class="section"><div class="label">Observations</div><div class="value">${note.observations}</div></div>` : ""}
-        ${note.nextSteps ? `<div class="section"><div class="label">Next Steps</div><div class="value">${note.nextSteps}</div></div>` : ""}
+        ${note.mood ? `<div class="section"><div class="label">Mood</div><div class="value">${escapeHtml(note.mood)}</div></div>` : ""}
+        ${note.content ? `<div class="section"><div class="label">Session Notes</div><div class="value">${escapeHtml(note.content)}</div></div>` : ""}
+        ${note.symptoms?.length ? `<div class="section"><div class="label">Symptoms</div><div class="value">${escapeHtml(note.symptoms.join(", "))}</div></div>` : ""}
+        ${note.observations ? `<div class="section"><div class="label">Observations</div><div class="value">${escapeHtml(note.observations)}</div></div>` : ""}
+        ${note.nextSteps ? `<div class="section"><div class="label">Next Steps</div><div class="value">${escapeHtml(note.nextSteps)}</div></div>` : ""}
       </body></html>
     `);
     win.document.close();
@@ -168,9 +177,7 @@ export default function ProgressNotesTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="animate-spin text-primary" size={22} />
-      </div>
+      <LoadingState />
     );
   }
 
@@ -347,7 +354,7 @@ export default function ProgressNotesTab() {
                     <Printer size={14} />
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(note._id); }}
+                    onClick={(e) => { e.stopPropagation(); setDeleteId(note._id); }}
                     className="p-1.5 rounded-lg hover:bg-red-50 text-text-secondary hover:text-danger transition-colors"
                     title="Delete note"
                   >
@@ -399,6 +406,17 @@ export default function ProgressNotesTab() {
           ))}
         </div>
       )}
+
+      <ConfirmationDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={confirmDelete}
+        title="Delete progress note"
+        description="This note will be permanently removed from the patient's history. This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        loading={deleting}
+      />
     </div>
   );
 }

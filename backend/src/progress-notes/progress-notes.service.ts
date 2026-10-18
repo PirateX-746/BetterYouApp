@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { ProgressNote } from './schemas/progress-note.schema';
 import { CreateProgressNoteDto } from './dto/create-progress-note.dto';
 import { UpdateProgressNoteDto } from './dto/update-progress-note.dto';
+import { practiceScopeFilter, practiceStamp } from '../common/tenancy/practice-scope';
 
 @Injectable()
 export class ProgressNotesService {
@@ -12,8 +13,11 @@ export class ProgressNotesService {
     private readonly progressNoteModel: Model<ProgressNote>,
   ) {}
 
-  async create(dto: CreateProgressNoteDto) {
-    const note = await this.progressNoteModel.create(dto);
+  async create(dto: CreateProgressNoteDto, practiceId: string | null) {
+    const note = await this.progressNoteModel.create({
+      ...dto,
+      practiceId: practiceStamp(practiceId),
+    });
     return this.progressNoteModel
       .findById(note._id)
       .populate('patientId', 'firstName lastName')
@@ -21,25 +25,25 @@ export class ProgressNotesService {
       .lean();
   }
 
-  async findByPatient(patientId: string) {
+  async findByPatient(patientId: string, practiceId: string | null) {
     return this.progressNoteModel
-      .find({ patientId })
+      .find({ patientId: new Types.ObjectId(patientId), ...practiceScopeFilter(practiceId) })
       .populate('practitionerId', 'firstName lastName')
       .sort({ sessionDate: -1 })
       .lean();
   }
 
-  async findByPractitioner(practitionerId: string) {
+  async findByPractitioner(practitionerId: string, practiceId: string | null) {
     return this.progressNoteModel
-      .find({ practitionerId })
+      .find({ practitionerId: new Types.ObjectId(practitionerId), ...practiceScopeFilter(practiceId) })
       .populate('patientId', 'firstName lastName')
       .sort({ sessionDate: -1 })
       .lean();
   }
 
-  async findById(id: string) {
+  async findById(id: string, practiceId: string | null) {
     const note = await this.progressNoteModel
-      .findById(id)
+      .findOne({ _id: id, ...practiceScopeFilter(practiceId) })
       .populate('patientId', 'firstName lastName')
       .populate('practitionerId', 'firstName lastName')
       .lean();
@@ -47,18 +51,26 @@ export class ProgressNotesService {
     return note;
   }
 
-  async update(id: string, dto: UpdateProgressNoteDto) {
+  async update(id: string, dto: UpdateProgressNoteDto, practiceId: string | null) {
     const note = await this.progressNoteModel
-      .findByIdAndUpdate(id, { $set: dto }, { new: true })
+      .findOneAndUpdate(
+        { _id: id, ...practiceScopeFilter(practiceId) },
+        { $set: dto },
+        { new: true },
+      )
       .populate('patientId', 'firstName lastName')
       .lean();
     if (!note) throw new NotFoundException('Progress note not found');
     return note;
   }
 
-  async remove(id: string) {
-    const note = await this.progressNoteModel.findByIdAndDelete(id);
+  async remove(id: string, practiceId: string | null) {
+    const note = await this.progressNoteModel.findOneAndDelete({
+      _id: id,
+      ...practiceScopeFilter(practiceId),
+    });
     if (!note) throw new NotFoundException('Progress note not found');
     return { deleted: true };
   }
+
 }

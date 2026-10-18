@@ -11,9 +11,12 @@ import {
   Printer,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { escapeHtml } from "@/lib/escapeHtml";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
+import { LoadingState } from "@/components/ui/loading-state";
 import toast from "react-hot-toast";
 
 interface MedicationOption {
@@ -36,9 +39,9 @@ interface PatientMedication {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  active: "bg-emerald-100 text-emerald-700",
-  discontinued: "bg-red-100 text-red-700",
-  completed: "bg-blue-100 text-blue-700",
+  active: "bg-success-light text-success",
+  discontinued: "bg-danger-light text-danger",
+  completed: "bg-primary-light text-primary",
 };
 
 const EMPTY_FORM = {
@@ -65,6 +68,8 @@ export default function MedicationsTab() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addingNewMed, setAddingNewMed] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [newMed, setNewMed] = useState(EMPTY_NEW_MED);
@@ -171,14 +176,18 @@ export default function MedicationsTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Remove this medication record?")) return;
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
     try {
-      await api.delete(`/patient-medications/${id}`);
-      setRecords((prev) => prev.filter((r) => r._id !== id));
+      await api.delete(`/patient-medications/${deleteId}`);
+      setRecords((prev) => prev.filter((r) => r._id !== deleteId));
       toast.success("Removed");
+      setDeleteId(null);
     } catch {
       toast.error("Failed to remove");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -196,7 +205,7 @@ export default function MedicationsTab() {
         <h1>Medication Record</h1>
         <table>
           <thead><tr><th>Medication</th><th>Dosage</th><th>Frequency</th><th>Status</th></tr></thead>
-          <tbody>${records.map(r=>`<tr><td>${r.medicationId?.name ?? "—"}</td><td>${r.dosage}</td><td>${r.frequency}</td><td>${r.status}</td></tr>`).join("")}</tbody>
+          <tbody>${records.map(r=>`<tr><td>${escapeHtml(r.medicationId?.name ?? "—")}</td><td>${escapeHtml(r.dosage)}</td><td>${escapeHtml(r.frequency)}</td><td>${escapeHtml(r.status)}</td></tr>`).join("")}</tbody>
         </table>
       </body></html>
     `);
@@ -206,9 +215,7 @@ export default function MedicationsTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="animate-spin text-primary" size={22} />
-      </div>
+      <LoadingState />
     );
   }
 
@@ -371,7 +378,7 @@ export default function MedicationsTab() {
                     <option value="discontinued">Discontinued</option>
                     <option value="completed">Completed</option>
                   </select>
-                  <button onClick={() => handleDelete(r._id)} className="text-text-secondary hover:text-danger transition p-1">
+                  <button onClick={() => setDeleteId(r._id)} className="text-text-secondary hover:text-danger transition p-1">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -380,6 +387,17 @@ export default function MedicationsTab() {
           ))}
         </div>
       )}
+
+      <ConfirmationDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={confirmDelete}
+        title="Remove medication record"
+        description="This medication record will be permanently removed from the patient's history. This cannot be undone."
+        confirmLabel="Remove"
+        danger
+        loading={deleting}
+      />
     </div>
   );
 }

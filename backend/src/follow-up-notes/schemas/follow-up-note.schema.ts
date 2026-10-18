@@ -3,6 +3,10 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class FollowUpNote extends Document {
+  // Backfilled by migration 001; scoped explicitly in FollowUpNotesService.
+  @Prop({ type: Types.ObjectId, ref: 'Practice', index: true })
+  practiceId?: Types.ObjectId;
+
   @Prop({ type: Types.ObjectId, ref: 'Patient', required: true })
   patientId: Types.ObjectId;
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { createSocket } from "@/lib/socket";
+import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -16,6 +16,11 @@ import {
   RefreshCw,
   CalendarClock,
 } from "lucide-react";
+import ComingSoon from "@/components/containers/layout/ComingSoon";
+import { Badge, type BadgeTone } from "@/components/common/Badge";
+import { LoadingState } from "@/components/ui/loading-state";
+
+const WAITING_ROOM_ENABLED = false;
 
 /* ─── Types ─── */
 
@@ -54,9 +59,9 @@ function useWaitTimer(checkedInAt: string | null): string {
   return `${Math.floor(diff / 60)}h ${diff % 60}m`;
 }
 
-const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
-  checked_in:  { label: "Waiting",    cls: "bg-primary/10 text-primary" },
-  in_progress: { label: "In Session", cls: "bg-warning/10 text-warning" },
+const STATUS_STYLES: Record<string, { label: string; tone: BadgeTone }> = {
+  checked_in:  { label: "Waiting",    tone: "primary" },
+  in_progress: { label: "In Session", tone: "warning" },
 };
 
 /* ─── Row component ─── */
@@ -72,7 +77,7 @@ function PatientRow({
 }) {
   const router = useRouter();
   const waitTime = useWaitTimer(patient.checkedInAt);
-  const style = STATUS_STYLES[patient.status] ?? { label: patient.status, cls: "bg-bg-hover text-text-secondary" };
+  const style = STATUS_STYLES[patient.status] ?? { label: patient.status, tone: "neutral" as BadgeTone };
   const isUpdating = updating === patient.id;
 
   return (
@@ -80,7 +85,7 @@ function PatientRow({
       {/* Patient */}
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+          <div className="w-8 h-8 rounded-full bg-primary-light text-primary flex items-center justify-center text-xs font-bold shrink-0">
             {patient.patientName
               .split(" ")
               .map((w) => w[0])
@@ -122,11 +127,7 @@ function PatientRow({
 
       {/* Status */}
       <td className="px-4 py-3.5">
-        <span
-          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${style.cls}`}
-        >
-          {style.label}
-        </span>
+        <Badge tone={style.tone}>{style.label}</Badge>
       </td>
 
       {/* Actions */}
@@ -186,11 +187,24 @@ function PatientRow({
 /* ─── Page ─── */
 
 export default function WaitingRoomPage() {
+  if (!WAITING_ROOM_ENABLED) {
+    return (
+      <ComingSoon
+        icon={Users}
+        title="Waiting Room"
+        description="Live check-ins and session queueing for your patients are on the way."
+      />
+    );
+  }
+  return <WaitingRoomPageImpl />;
+}
+
+function WaitingRoomPageImpl() {
   const practitionerId = useLocalStorage("userId");
   const [patients, setPatients] = useState<WaitingPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
+  const socketRef = useRef<ReturnType<typeof acquireSocket> | null>(null);
 
   const fetchWaitingRoom = useCallback(async () => {
     if (!practitionerId) return;
@@ -212,14 +226,18 @@ export default function WaitingRoomPage() {
   // Real-time: refresh on patientCheckedIn or appointmentUpdated
   useEffect(() => {
     if (!practitionerId) return;
-    const socket = createSocket({ practitionerId });
+    const socket = acquireSocket({ practitionerId });
     socketRef.current = socket;
 
-    socket.on("patientCheckedIn", () => fetchWaitingRoom());
-    socket.on("appointmentUpdated", () => fetchWaitingRoom());
+    const handlePatientCheckedIn = () => fetchWaitingRoom();
+    const handleAppointmentUpdated = () => fetchWaitingRoom();
+    socket.on("patientCheckedIn", handlePatientCheckedIn);
+    socket.on("appointmentUpdated", handleAppointmentUpdated);
 
     return () => {
-      socket.disconnect();
+      socket.off("patientCheckedIn", handlePatientCheckedIn);
+      socket.off("appointmentUpdated", handleAppointmentUpdated);
+      releaseSocket({ practitionerId });
       socketRef.current = null;
     };
   }, [practitionerId, fetchWaitingRoom]);
@@ -301,9 +319,7 @@ export default function WaitingRoomPage() {
       {/* Table */}
       <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="animate-spin text-primary" size={24} />
-          </div>
+          <LoadingState size="lg" />
         ) : patients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-text-disabled">
             <CalendarClock size={36} />

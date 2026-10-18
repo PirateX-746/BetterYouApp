@@ -2,13 +2,17 @@ import {
   IsString,
   IsEmail,
   IsDateString,
-  IsEnum,
-  MinLength,
   IsOptional,
-  IsBoolean,
+  Matches,
+  MaxLength,
 } from 'class-validator';
-import { Role } from '../../common/role.enum';
 
+/**
+ * A practitioner adding a patient. Deliberately has no `password`, `role` or
+ * `isActive`: the server issues a one-time temporary password (see
+ * PatientsService.create), the role is always patient, and new records are
+ * always active. With forbidNonWhitelisted on, sending any of them is a 400.
+ */
 export class CreatePatientDto {
   @IsString()
   firstName: string;
@@ -21,10 +25,6 @@ export class CreatePatientDto {
 
   @IsEmail()
   email: string;
-
-  @IsString()
-  @MinLength(6)
-  password: string;
 
   @IsString()
   phoneNo: string;
@@ -48,12 +48,21 @@ export class CreatePatientDto {
   allergies?: string;
 
   @IsOptional()
-  @IsEnum(Role)
-  role?: Role; // optional, default is PATIENT
+  @IsString()
+  @MaxLength(100)
+  emergencyContactName?: string;
 
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  // Empty clears it on update.
+  @Matches(/^([0-9+()\-\s]{7,20})?$/, {
+    message: 'Emergency contact phone must be a valid phone number',
+  })
+  emergencyContactPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  emergencyContactRelation?: string;
 
   @IsOptional()
   @IsString()

@@ -1,11 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import { Role } from '../../common/role.enum';
 
 export type PatientDocument = Patient & Document;
 
 @Schema({ timestamps: true })
 export class Patient {
+  // Backfilled by migration 001. Optional here (not `required`) so existing
+  // writes never break; every read/write path scopes by it explicitly in
+  // PatientsService rather than relying on a hard schema constraint.
+  @Prop({ type: Types.ObjectId, ref: 'Practice', index: true })
+  practiceId?: Types.ObjectId;
+
   @Prop({ required: true })
   firstName: string;
 
@@ -50,6 +56,17 @@ export class Patient {
 
   @Prop()
   allergies?: string;
+
+  /** Who to contact in an emergency — optional, entered by the practitioner. */
+  @Prop({ trim: true, maxlength: 100 })
+  emergencyContactName?: string;
+
+  @Prop({ trim: true, maxlength: 20 })
+  emergencyContactPhone?: string;
+
+  /** e.g. "Spouse", "Parent". */
+  @Prop({ trim: true, maxlength: 40 })
+  emergencyContactRelation?: string;
 
   @Prop()
   avatarBase64?: string;

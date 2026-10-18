@@ -1,10 +1,12 @@
 import { ForbiddenException } from '@nestjs/common';
-import { Role } from './role.enum';
+import { Role, CLINICAL_ROLES } from './role.enum';
 
 /** Shape that JwtStrategy.validate() puts on `request.user`. */
 export interface AuthUser {
   userId: string;
   role: Role;
+  /** The caller's practice. Null for a platform admin. */
+  practiceId?: string | null;
 }
 
 /** Request with a guaranteed authenticated user (every non-@Public route). */
@@ -12,8 +14,15 @@ export interface AuthedRequest {
   user: AuthUser;
 }
 
+/**
+ * True for anyone on the clinic's side of the app.
+ *
+ * Checks the whole clinical set rather than `Role.PRACTITIONER` alone: a
+ * practice admin is a clinician too, and comparing against the single role
+ * would silently deny them access to their own practice's records.
+ */
 export function isPractitioner(user: AuthUser): boolean {
-  return user.role === Role.PRACTITIONER;
+  return (CLINICAL_ROLES as readonly Role[]).includes(user.role);
 }
 
 /**

@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2, Save } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Save } from "lucide-react";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import toast from "react-hot-toast";
 import { changePasswordSchema, type ChangePasswordValues } from "@/schemas/settings.schema";
 
@@ -18,6 +26,19 @@ export default function SecurityTab() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [hasPortalPin, setHasPortalPin] = useState(false);
+  const [resetPinOpen, setResetPinOpen] = useState(false);
+
+  useEffect(() => {
+    setHasPortalPin(!!localStorage.getItem("portalPin"));
+  }, []);
+
+  const handleResetPin = () => {
+    localStorage.removeItem("portalPin");
+    setHasPortalPin(false);
+    setResetPinOpen(false);
+    toast.success("Portal PIN reset — you'll be asked to set a new one next time you lock the portal");
+  };
 
   const {
     register,
@@ -126,6 +147,49 @@ export default function SecurityTab() {
           </Button>
         </div>
       </form>
+
+      {/* Portal lock PIN */}
+      <div className="pt-6 border-t border-border-light">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <KeyRound size={16} className="text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text-primary">Portal Lock PIN</p>
+              <p className="text-xs text-text-secondary mt-0.5 max-w-sm">
+                {hasPortalPin
+                  ? "Your 4-digit PIN is used to lock and unlock this portal on this device."
+                  : "No PIN is set on this device yet — you'll be asked to create one next time you lock the portal."}
+              </p>
+            </div>
+          </div>
+          {hasPortalPin && (
+            <Button type="button" variant="outline" onClick={() => setResetPinOpen(true)}>
+              Reset PIN
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={resetPinOpen} onOpenChange={setResetPinOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reset portal PIN?</DialogTitle>
+            <DialogDescription>
+              This clears your current PIN on this device. You&apos;ll be asked to set a new one the next time you lock the portal.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPinOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleResetPin}>
+              Reset PIN
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

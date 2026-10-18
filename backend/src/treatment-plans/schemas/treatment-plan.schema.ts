@@ -8,6 +8,10 @@ const GoalSchema = {
 
 @Schema({ timestamps: true })
 export class TreatmentPlan extends Document {
+  // Backfilled by migration 001; scoped explicitly in TreatmentPlansService.
+  @Prop({ type: Types.ObjectId, ref: 'Practice', index: true })
+  practiceId?: Types.ObjectId;
+
   @Prop({ type: Types.ObjectId, ref: 'Patient', required: true })
   patientId: Types.ObjectId;
 

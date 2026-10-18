@@ -116,13 +116,13 @@ export default function InitialEvaluationForm({ patientId }: Props) {
     return `${patient.firstName ?? ""} ${patient.lastName ?? ""}`.trim() || "—";
   }, [patient]);
 
+  // Prints the live page in place (via #printable-document, see globals.css)
+  // rather than cloning innerHTML into a bare popup — a clone loses the
+  // current value of every input/textarea (that's a DOM property, not
+  // reflected in innerHTML) and had no stylesheet at all, which is why it
+  // used to print as unstyled black-and-white browser-default HTML.
   const handlePrint = () => {
-    if (!printRef.current) return;
-    const w = window.open("", "_blank");
-    if (!w) return;
-    w.document.write(`<html><body>${printRef.current.innerHTML}</body></html>`);
-    w.document.close();
-    w.print();
+    window.print();
   };
 
   const onSubmit = async (data: FormValues) => {
@@ -177,7 +177,7 @@ export default function InitialEvaluationForm({ patientId }: Props) {
         </button>
       </div>
 
-      <div className="space-y-4" ref={printRef}>
+      <div className="space-y-4" ref={printRef} id="printable-document">
         {/* Patient info */}
         <SectionCard title="Patient Information">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

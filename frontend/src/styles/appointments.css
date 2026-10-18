@@ -2,10 +2,8 @@
    APPOINTMENTS PAGE SPECIFIC STYLES
    ======================================== */
 
-.appointments-container {
-  max-width: 1400px;
-  margin: 0 auto;
-}
+/* Page width comes from <Page> (components/common/PageLayout) like every
+   other screen; no per-page max-width here. */
 
 /* Page Header - Simple Layout */
 .appointments-container .page-header-actions {
@@ -46,44 +44,96 @@
 
 /* Toolbar Spacing */
 .fc .fc-toolbar {
-  padding: 16px 0 !important;
-  gap: 16px !important;
-  padding: 20px !important;
+  gap: 12px !important;
+  padding: 0 0 12px !important;
+}
+.fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 0 !important;
 }
 
 .fc-toolbar-title {
-  font-size: var(--font-size-2xl) !important;
+  font-size: 1.125rem !important;
   font-weight: 600 !important;
   color: var(--text-primary) !important;
 }
 
-/* Buttons */
-.fc-button {
-  background: var(--bg-light) !important;
+/* Buttons — same language as the app's outline buttons: card surface,
+   1px border, 40px tall, quiet hover, visible keyboard focus. */
+.fc .fc-button {
+  height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--bg-card) !important;
   border: 1px solid var(--border) !important;
   color: var(--text-primary) !important;
-  padding: 10px 16px !important;
-  border-radius: var(--radius-sm) !important;
-  font-size: var(--font-size-base) !important;
+  padding: 0 14px !important;
+  border-radius: var(--radius-md) !important;
+  font-size: 0.875rem !important;
   font-weight: 500 !important;
   text-transform: capitalize !important;
-  transition: all 0.2s !important;
-}
-
-.fc-button:hover {
-  background: var(--primary) !important;
-  border-color: var(--primary) !important;
-  color: white !important;
-}
-
-.fc-button:focus {
   box-shadow: none !important;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s !important;
 }
+.fc .fc-button:hover:not(:disabled) {
+  background: var(--bg-hover) !important;
+}
+.fc .fc-button:focus { box-shadow: none !important; }
+.fc .fc-button:focus-visible {
+  outline: 2px solid var(--primary) !important;
+  outline-offset: 2px !important;
+  z-index: 2;
+}
+.fc .fc-button:disabled {
+  opacity: 0.5 !important;
+  cursor: default !important;
+}
+/* prev / next: square icon buttons */
+.fc .fc-prev-button,
+.fc .fc-next-button {
+  width: 40px !important;
+  padding: 0 !important;
+}
+.fc .fc-button .fc-icon { font-size: 1.15em !important; }
 
-.fc-button-active {
-  background: var(--primary) !important;
-  border-color: var(--primary) !important;
-  color: white !important;
+/* Joined groups (prev|next) share one border */
+.fc .fc-button-group { gap: 0 !important; }
+.fc .fc-button-group > .fc-button:not(:first-child) {
+  margin-left: -1px !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+.fc .fc-button-group > .fc-button:not(:last-child) {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.fc .fc-today-button { margin-left: 8px !important; }
+
+/* View switcher (Month / Week / Day): segmented control */
+.fc .fc-toolbar-chunk:last-child .fc-button-group {
+  padding: 3px;
+  background: var(--bg-page);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.fc .fc-toolbar-chunk:last-child .fc-button-group > .fc-button {
+  height: 34px !important;
+  margin-left: 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: calc(var(--radius-md) - 2px) !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+}
+.fc .fc-toolbar-chunk:last-child .fc-button-group > .fc-button:hover:not(.fc-button-active) {
+  color: var(--text-primary) !important;
+  background: var(--bg-hover) !important;
+}
+.fc .fc-toolbar-chunk:last-child .fc-button-group > .fc-button.fc-button-active {
+  background: var(--bg-card) !important;
+  border-color: var(--border) !important;
+  color: var(--primary) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06) !important;
 }
 
 /* Calendar Headers - More Padding */
@@ -176,12 +226,24 @@
   background: var(--primary) !important;
   margin: 2px 4px !important;
   cursor: pointer !important;
-  transition: all 0.2s !important;
+  /* Not `all`: FullCalendar positions events with top/left/inset, and a
+     transition on those made dragged and re-laid-out events lag and jump. */
+  transition: box-shadow 0.2s, background-color 0.2s !important;
 }
 
 .fc-event:hover {
   transform: translateY(-1px) !important;
   box-shadow: var(--shadow-sm) !important;
+}
+
+/* While dragging/resizing, the preview must track the pointer exactly. */
+.fc-event-mirror,
+.fc-event-dragging,
+.fc-event-resizing,
+.fc-event-mirror .appt-card,
+.fc-event-dragging .appt-card {
+  transition: none !important;
+  transform: none !important;
 }
 
 .fc-event-title {
@@ -358,4 +420,91 @@
     display: flex !important;
     justify-content: center !important;
   }
+}
+
+/* ─── Appointment cards (AppointmentEventContent) ─────────────────────────
+   The card paints itself, tinted from its type color (--appt), so the
+   generic .fc-event chrome above is neutralised wherever a card renders. */
+.fc-event:has(.appt-card) {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+.fc-event:has(.appt-card):hover {
+  transform: none !important; /* no layout shift on hover */
+}
+.fc-event:has(.appt-card) .fc-event-main {
+  padding: 0 !important;
+  color: inherit !important;
+}
+
+.appt-card {
+  height: 100%;
+  overflow: hidden;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--appt);
+  background: color-mix(in srgb, var(--appt) 16%, var(--bg-card));
+  color: var(--text-primary);
+  line-height: 1.35; /* room for descenders — no clipped "g"/"y" */
+  transition: background-color 150ms ease;
+}
+.fc-event:hover .appt-card {
+  background: color-mix(in srgb, var(--appt) 26%, var(--bg-card));
+}
+.appt-card--compact {
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.appt-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.appt-meta {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.appt-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The type name wins the space; the patient name truncates first. */
+.appt-line .appt-title { flex: 0 1 auto; min-width: 0; }
+.appt-line .appt-meta { flex: 1 1 0; min-width: 0; font-weight: 400; }
+.appt-icon { flex-shrink: 0; color: var(--appt); }
+
+.appt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Cancelled / no-show: kept visible for the record, clearly not happening. */
+.appt-card--closed {
+  opacity: 0.6;
+}
+.appt-card--closed .appt-title {
+  text-decoration: line-through;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appt-card { transition: none; }
 }

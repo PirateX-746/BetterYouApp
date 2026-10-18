@@ -1,10 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Appointment, AppointmentDocument, AppointmentStatus } from './schemas/appointment.schema';
 import { AppointmentsGateway } from './appointments.gateway';
 import { AvailabilityService } from '../availability/availability.service';
 import { PractitionersService } from '../practitioners/practitioners.service';
+import { practiceScopeFilter, practiceStamp } from '../common/tenancy/practice-scope';
+import { AppointmentTypesService } from '../appointment-types/appointment-types.service';
 
 const DAY_KEYS = [
   'sunday', 'monday', 'tuesday', 'wednesday',
@@ -33,18 +35,22 @@ export interface AppointmentData {
   start: string;
   end: string;
   title?: string;
+  appointmentTypeId?: string | null;
   notes?: string;
   status?: string;
 }
 
 @Injectable()
 export class AppointmentsService {
+  private readonly logger = new Logger(AppointmentsService.name);
+
   constructor(
     @InjectModel(Appointment.name)
     private readonly appointmentModel: Model<AppointmentDocument>,
     private readonly gateway: AppointmentsGateway,
     private readonly availabilityService: AvailabilityService,
     private readonly practitionersService: PractitionersService,
+    private readonly appointmentTypesService: AppointmentTypesService,
   ) {}
 
   /**
@@ -82,7 +88,7 @@ export class AppointmentsService {
      CREATE APPOINTMENT
      ===================================================== */
 
-  async create(data: AppointmentData) {
+  async create(data: AppointmentData, practiceId: string | null = null) {
     try {
       if (!Types.ObjectId.isValid(data.practitionerId)) {
         throw new BadRequestException('Invalid practitioner ID');
@@ -96,11 +102,55 @@ export class AppointmentsService {
         throw new BadRequestException('Start and end time are required');
       }
 
+      const start = new Date(data.start);
+      const end = new Date(data.end);
+
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        throw new BadRequestException('Invalid start or end time');
+      }
+      if (end <= start) {
+        throw new BadRequestException('End time must be after start time');
+      }
+
+      // A chosen type must be one of this practitioner's active types, and
+      // its name becomes the title — the client can't book under a type it
+      // doesn't own or relabel it.
+      let appointmentTypeId: Types.ObjectId | undefined;
+      if (data.appointmentTypeId) {
+        const type = await this.appointmentTypesService.resolveForBooking(
+          data.appointmentTypeId,
+          data.practitionerId,
+          { requireActive: true },
+        );
+        appointmentTypeId = type._id as Types.ObjectId;
+        data.title = type.name;
+      }
+      if (!data.title?.trim()) {
+        throw new BadRequestException('Appointment type is required');
+      }
+
+      // Reject any overlap with an existing, still-live booking for the same
+      // practitioner. [start, end) semantics: a slot ending exactly when the
+      // next one starts does not count as an overlap.
+      const overlapping = await this.appointmentModel.exists({
+        practitionerId: new Types.ObjectId(data.practitionerId),
+        status: { $nin: [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW] },
+        start: { $lt: end },
+        end: { $gt: start },
+      });
+      if (overlapping) {
+        throw new ConflictException(
+          'This practitioner already has an appointment in that time slot',
+        );
+      }
+
       const appointment = await this.appointmentModel.create({
         ...data,
         practitionerId: new Types.ObjectId(data.practitionerId),
         patientId: new Types.ObjectId(data.patientId),
+        appointmentTypeId,
         status: data.status || 'scheduled',
+        practiceId: practiceStamp(practiceId),
       });
 
       const formatted = this.formatAppointment(appointment);
@@ -113,9 +163,14 @@ export class AppointmentsService {
 
       return formatted;
     } catch (error: unknown) {
-      console.error('Error creating appointment:', error);
+      if (error instanceof BadRequestException || error instanceof ConflictException) {
+        throw error;
+      }
 
-      if (error instanceof BadRequestException) throw error;
+      this.logger.error(
+        'Error creating appointment',
+        error instanceof Error ? error.stack : String(error),
+      );
 
       throw new BadRequestException(
         error instanceof Error ? error.message : 'Failed to create appointment',
@@ -144,13 +199,13 @@ export class AppointmentsService {
      FETCH BY PATIENT
      ===================================================== */
 
-  async findByPatient(patientId: string) {
+  async findByPatient(patientId: string, practiceId: string | null = null) {
     if (!Types.ObjectId.isValid(patientId)) {
       throw new BadRequestException('Invalid patient ID');
     }
 
     const appointments = await this.appointmentModel
-      .find({ patientId: new Types.ObjectId(patientId) })
+      .find({ patientId: new Types.ObjectId(patientId), ...practiceScopeFilter(practiceId) })
       .sort({ start: -1 })
       .exec();
 
@@ -168,12 +223,84 @@ export class AppointmentsService {
 
     // Capture the previous start before updating, so the frontend can detect reschedules
     const existing = await this.appointmentModel.findById(id);
-    const previousStart = existing?.start?.toISOString();
+    if (!existing) {
+      throw new NotFoundException('Appointment not found');
+    }
+    const previousStart = existing.start?.toISOString();
+
+    if (data.status !== undefined) {
+      const validStatuses = Object.values(AppointmentStatus) as string[];
+      if (!validStatuses.includes(data.status)) {
+        throw new BadRequestException(`Invalid status: ${data.status}`);
+      }
+    }
+
+    // A closed-out appointment (completed/cancelled/no-show) can still have
+    // its title/notes edited, but its time is locked — otherwise the UI's
+    // reschedule restriction is purely cosmetic and any direct API call
+    // bypasses it.
+    const CLOSED_OUT_STATUSES: string[] = [
+      AppointmentStatus.COMPLETED,
+      AppointmentStatus.CANCELLED,
+      AppointmentStatus.NO_SHOW,
+    ];
+    if (
+      CLOSED_OUT_STATUSES.includes(existing.status) &&
+      (data.start !== undefined || data.end !== undefined)
+    ) {
+      throw new BadRequestException(
+        'This appointment is closed out and can no longer be rescheduled',
+      );
+    }
+
+    // Re-run the same overlap check create() does whenever the time is
+    // changing — otherwise editing an appointment's time is a second,
+    // unguarded path to double-booking a practitioner.
+    const start = data.start ? new Date(data.start) : existing.start;
+    const end = data.end ? new Date(data.end) : existing.end;
+    if (data.start || data.end) {
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        throw new BadRequestException('Invalid start or end time');
+      }
+      if (end <= start) {
+        throw new BadRequestException('End time must be after start time');
+      }
+      const overlapping = await this.appointmentModel.exists({
+        _id: { $ne: existing._id },
+        practitionerId: existing.practitionerId,
+        status: { $nin: [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW] },
+        start: { $lt: end },
+        end: { $gt: start },
+      });
+      if (overlapping) {
+        throw new ConflictException(
+          'This practitioner already has an appointment in that time slot',
+        );
+      }
+    }
+
+    // Changing the type re-validates it against this appointment's own
+    // practitioner. Keeping the current type is allowed even if it has
+    // since been deactivated, so old appointments stay editable.
+    let title = data.title;
+    let appointmentTypeId: Types.ObjectId | undefined;
+    if (data.appointmentTypeId) {
+      const unchanged =
+        String(existing.appointmentTypeId) === String(data.appointmentTypeId);
+      const type = await this.appointmentTypesService.resolveForBooking(
+        String(data.appointmentTypeId),
+        String(existing.practitionerId),
+        { requireActive: !unchanged },
+      );
+      appointmentTypeId = type._id as Types.ObjectId;
+      title = type.name;
+    }
 
     const updated = await this.appointmentModel.findByIdAndUpdate(
       new Types.ObjectId(id),
       {
-        title: data.title,
+        title,
+        appointmentTypeId,
         start: data.start,
         end: data.end,
         notes: data.notes,
@@ -231,6 +358,7 @@ export class AppointmentsService {
     return {
       id: a._id.toString(),
       title: a.title,
+      appointmentTypeId: a.appointmentTypeId?.toString() ?? null,
       start: a.start,
       end: a.end,
       practitionerId: a.practitionerId?.toString(),
@@ -413,7 +541,7 @@ export class AppointmentsService {
     }
 
     // 1. Resolve the day schedule from practiceHours (or fall back to defaults)
-    const practitioner = await this.practitionersService.findById(practitionerId);
+    const practitioner = await this.practitionersService.findByIdInternal(practitionerId);
     const savedHours = practitioner.practiceHours as Record<string, DaySchedule> | undefined;
 
     const dayIndex = new Date(`${date}T00:00:00`).getDay();

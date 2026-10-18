@@ -1,9 +1,15 @@
-import { IsString, IsDateString, IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsDateString, IsEnum, IsOptional, IsMongoId } from 'class-validator';
 import { AppointmentStatus } from '../schemas/appointment.schema';
 
 export class CreateAppointmentDto {
+  // Required unless appointmentTypeId is given — then the type's name is used.
+  @IsOptional()
   @IsString()
-  title: string;
+  title?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  appointmentTypeId?: string;
 
   @IsString()
   patientId: string;

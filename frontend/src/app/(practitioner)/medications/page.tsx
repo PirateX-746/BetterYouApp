@@ -1,5 +1,6 @@
 "use client";
 
+import { Page, PageHeader } from "@/components/common/PageLayout";
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Trash2, Pencil, Loader2, Pill, X, Search } from "lucide-react";
 import { api } from "@/lib/api";
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DataTable, type DataTableColumn } from "@/components/common/DataTable";
+import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import toast from "react-hot-toast";
 
 interface Medication {
@@ -20,6 +23,65 @@ interface Medication {
 
 const EMPTY_FORM = { name: "", category: "", description: "" };
 
+function medicationColumns(
+  onEdit: (m: Medication) => void,
+  onDelete: (m: Medication) => void,
+): DataTableColumn<Medication>[] {
+  return [
+    {
+      key: "name",
+      header: "Name",
+      width: "30%",
+      render: (m) => (
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary-light text-primary flex items-center justify-center shrink-0">
+            <Pill size={14} />
+          </div>
+          <p className="text-sm font-medium text-text-primary">{m.name}</p>
+        </div>
+      ),
+    },
+    {
+      key: "category",
+      header: "Category",
+      width: "20%",
+      className: "text-sm text-text-secondary",
+      render: (m) => m.category || <span className="text-text-disabled">—</span>,
+    },
+    {
+      key: "description",
+      header: "Description",
+      width: "35%",
+      className: "text-sm text-text-secondary truncate max-w-xs",
+      render: (m) => m.description || <span className="text-text-disabled">—</span>,
+    },
+    {
+      key: "actions",
+      header: "",
+      width: "15%",
+      align: "right",
+      render: (m) => (
+        <div className="flex items-center justify-end gap-1">
+          <button
+            onClick={() => onEdit(m)}
+            className="text-text-secondary hover:text-primary transition p-1.5"
+            title="Edit"
+          >
+            <Pencil size={14} />
+          </button>
+          <button
+            onClick={() => onDelete(m)}
+            className="text-text-secondary hover:text-danger transition p-1.5"
+            title="Remove"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+}
+
 export default function MedicationsPage() {
   const practitionerId = useLocalStorage("userId");
 
@@ -30,6 +92,8 @@ export default function MedicationsPage() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [deleteTarget, setDeleteTarget] = useState<Medication | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchMedications = useCallback(async () => {
     if (!practitionerId) return;
@@ -95,14 +159,18 @@ export default function MedicationsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Remove this medication from your library?")) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await api.delete(`/medications/${id}`);
-      setMedications((prev) => prev.filter((m) => m._id !== id));
+      await api.delete(`/medications/${deleteTarget._id}`);
+      setMedications((prev) => prev.filter((m) => m._id !== deleteTarget._id));
       toast.success("Medication removed");
+      setDeleteTarget(null);
     } catch {
       toast.error("Failed to remove medication");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -115,25 +183,22 @@ export default function MedicationsPage() {
   }
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-text-primary">Medications</h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            Your medication library — allocate these to patients from their profile
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            setShowForm((v) => !v);
-            if (showForm) resetForm();
-          }}
-        >
-          {showForm ? <X size={15} className="mr-1.5" /> : <Plus size={15} className="mr-1.5" />}
-          {showForm ? "Cancel" : "Add Medication"}
-        </Button>
-      </div>
+    <Page fill>
+      <PageHeader
+        title="Medications"
+        subtitle="Your medication library — allocate these to patients from their profile"
+        actions={
+          <Button
+            onClick={() => {
+              setShowForm((v) => !v);
+              if (showForm) resetForm();
+            }}
+          >
+            {showForm ? <X size={15} className="mr-1.5" /> : <Plus size={15} className="mr-1.5" />}
+            {showForm ? "Cancel" : "Add Medication"}
+          </Button>
+        }
+      />
 
       {/* Create/edit form */}
       {showForm && (
@@ -206,66 +271,29 @@ export default function MedicationsPage() {
           />
         </div>
       ) : (
-        <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-border">
-                  {["Name", "Category", "Description", ""].map((h) => (
-                    <th key={h} className="px-5 py-3.5 text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {medications.map((m) => (
-                  <tr key={m._id} className="hover:bg-bg-hover transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                          <Pill size={14} />
-                        </div>
-                        <p className="text-sm font-medium text-text-primary">{m.name}</p>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-text-secondary">
-                      {m.category || <span className="text-text-disabled">—</span>}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-text-secondary max-w-xs truncate">
-                      {m.description || <span className="text-text-disabled">—</span>}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => startEdit(m)}
-                          className="text-text-secondary hover:text-primary transition p-1.5"
-                          title="Edit"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(m._id)}
-                          className="text-text-secondary hover:text-danger transition p-1.5"
-                          title="Remove"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="px-5 py-3 border-t border-border">
+        <DataTable
+          fill
+          columns={medicationColumns(startEdit, setDeleteTarget)}
+          data={medications}
+          getRowId={(m) => m._id}
+          footer={
             <p className="text-xs text-text-disabled">
               {medications.length} medication{medications.length !== 1 ? "s" : ""} in your library
             </p>
-          </div>
-        </div>
+          }
+        />
       )}
-    </div>
+
+      <ConfirmationDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Remove medication"
+        description={`Remove "${deleteTarget?.name ?? ""}" from your medication library? This cannot be undone.`}
+        confirmLabel="Remove"
+        danger
+        loading={deleting}
+      />
+    </Page>
   );
 }
