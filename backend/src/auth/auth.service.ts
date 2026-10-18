@@ -7,8 +7,8 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Document } from 'mongoose';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
+import { generateTempPassword } from '../common/temp-password';
 
 import { LoginDto } from './dto/login.dto';
 import { CreatePatientDto } from './dto/patient-signup.dto';
@@ -22,7 +22,7 @@ import {
   PlatformAdmin,
   PlatformAdminDocument,
 } from '../platform-admins/schemas/platform-admin.schema';
-import { Role } from '../common/role.enum';
+import { Role, PRACTICE_MEMBER_ROLES } from '../common/role.enum';
 
 type UserDocument = (Patient | Practitioner) &
   Document & {
@@ -36,17 +36,6 @@ type UserDocument = (Patient | Practitioner) &
 
 const SALT_ROUNDS = 10;
 const TEMP_PASSWORD_TTL_MS = 60 * 60 * 1000; // 1 hour
-const TEMP_PASSWORD_CHARSET =
-  'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
-
-function generateTempPassword(length = 12): string {
-  const bytes = crypto.randomBytes(length);
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += TEMP_PASSWORD_CHARSET[bytes[i] % TEMP_PASSWORD_CHARSET.length];
-  }
-  return password;
-}
 
 @Injectable()
 export class AuthService {
@@ -135,7 +124,18 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (user.role.toLowerCase() !== role.toLowerCase()) {
+    // The "practitioner" portal serves every practice-member role (practice
+    // admin, practitioner, staff) — not just the literal Role.PRACTITIONER
+    // string. Matches CLINICAL_ROLES/isPractitioner() elsewhere: a practice
+    // admin is a clinician too and must not be locked out of their own
+    // practice's login because their role isn't spelled "practitioner".
+    const actualRole = user.role as Role;
+    const validPortal =
+      role === Role.PATIENT
+        ? actualRole === Role.PATIENT
+        : (PRACTICE_MEMBER_ROLES as readonly Role[]).includes(actualRole);
+
+    if (!validPortal) {
       throw new UnauthorizedException(
         'You are trying to access the wrong portal',
       );
@@ -165,9 +165,9 @@ export class AuthService {
       id: user._id.toString(),
       role: user.role,
       name:
-        user.role === Role.PRACTITIONER
-          ? `${user.firstName} ${user.lastName}`
-          : user.firstName,
+        actualRole === Role.PATIENT
+          ? user.firstName
+          : `${user.firstName} ${user.lastName ?? ''}`.trim(),
       mustChangePassword: !!user.mustChangePassword,
     };
   }

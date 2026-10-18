@@ -34,10 +34,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      const mongoErr = exception as Error & { code?: number };
+      const mongoErr = exception as Error & { code?: number; kind?: string };
       if (mongoErr.code === 11000) {
         status = HttpStatus.CONFLICT;
         message = 'A record with this information already exists';
+      } else if (mongoErr.name === 'CastError') {
+        // A malformed id (e.g. GET /patients/abc) fails Mongoose's ObjectId
+        // cast before any query runs. That is a bad request, not a crash.
+        status = HttpStatus.BAD_REQUEST;
+        message =
+          mongoErr.kind === 'ObjectId' ? 'Invalid id' : 'Invalid request';
       } else {
         this.logger.error(exception.message, exception.stack);
       }

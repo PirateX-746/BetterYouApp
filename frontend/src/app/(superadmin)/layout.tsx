@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Menu, ShieldCheck } from "lucide-react";
 import SuperAdminSidebar from "@/components/containers/superadmin/SuperAdminSidebar";
 import ThemeToggle from "@/components/containers/layout/ThemeToggle";
+import { SupportLiveToaster } from "@/components/containers/support/SupportLiveToaster";
 
 /**
  * Platform console shell.
@@ -18,7 +19,10 @@ export default function SuperAdminLayout({ children }: { children: ReactNode }) 
   const [open, setOpen] = useState(false);
 
   return (
-    <>
+    // theme-mono (globals.css) re-points the color tokens to black/white/grey
+    // for everything in the console, so pages need no per-page styling.
+    <div className="theme-mono">
+      <SupportLiveToaster side="support" />
       <SuperAdminSidebar open={open} setOpen={setOpen} />
 
       <div className="lg:ml-64 min-h-screen bg-bg-page flex flex-col">
@@ -43,10 +47,10 @@ export default function SuperAdminLayout({ children }: { children: ReactNode }) 
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6 w-full max-w-[1400px]">
+        <main className="flex-1 p-4 md:p-6 w-full">
           {children}
         </main>
       </div>
-    </>
+    </div>
   );
 }

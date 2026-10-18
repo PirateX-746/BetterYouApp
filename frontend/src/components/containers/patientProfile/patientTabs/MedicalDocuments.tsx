@@ -5,9 +5,13 @@ import {
     useMemo,
     useEffect,
     useRef,
+    useCallback,
 } from "react";
 
 import { useRouter } from "next/navigation";
+
+import dynamic from "next/dynamic";
+import toast from "react-hot-toast";
 
 import {
     CheckCircle,
@@ -15,10 +19,54 @@ import {
     User,
     FileText,
     Plus,
+    ScanLine,
+    Download,
+    ExternalLink,
+    Loader2,
+    ClipboardList,
+    ShieldAlert,
+    CalendarClock,
+    MessagesSquare,
+    Siren,
+    Pill,
+    FileCheck2,
+    NotebookPen,
+    Brain,
+    Printer,
+    type LucideIcon,
 } from "lucide-react";
+
+/** Icon per document type in the "Select Document Type" picker. */
+const DOCUMENT_TYPE_ICONS: Record<string, LucideIcon> = {
+    "initial-evaluation": ClipboardList,
+    "risk-assessment": ShieldAlert,
+    "follow-up-note": CalendarClock,
+    "individual-therapy-session": MessagesSquare,
+    "crisis-intervention": Siren,
+    "medication-review": Pill,
+    "discharge-summary": FileCheck2,
+    "progress-note-soap": NotebookPen,
+    "psych-testing-report": Brain,
+    "custom-document": ScanLine,
+};
 
 import { DOCUMENT_TYPES } from "@/lib/documentTypes";
 import { api } from "@/lib/api";
+import { Modal } from "@/components/common/Modal";
+import { DocumentSheet, docTypeLabel, printSheet } from "@/components/containers/documents/DocumentSheet";
+import {
+    CUSTOM_DOCUMENT_TYPE,
+    categoryLabel,
+    fetchDocumentFile,
+    formatBytes,
+} from "@/lib/scanner/document";
+
+// Camera + image processing are browser-only and only needed once the
+// practitioner opens the scanner.
+const DocumentScannerDialog = dynamic(
+    () => import("@/components/containers/documents/scanner/DocumentScannerDialog"),
+    { ssr: false },
+);
 
 /* ========================================
    TYPES
@@ -35,7 +83,16 @@ type Document = {
     status?: "draft" | "finalized" | "signed";
     pdfUrl?: string;
     content?: Record<string, unknown>;
+    // Custom (scanned / uploaded) documents
+    title?: string;
+    category?: string;
+    description?: string;
+    source?: "camera_scan" | "device_upload";
+    file?: { mimeType: string; size: number; pageCount: number; fileName: string };
+    createdAt?: string;
 };
+
+const isCustom = (doc: Document) => doc.type === CUSTOM_DOCUMENT_TYPE;
 
 type Props = {
     patientId: string;
@@ -81,9 +138,9 @@ const getSectionStyle = (type: string) => {
 type Patient = {
     firstName?: string;
     lastName?: string;
-    dob?: string;
+    dateOfBirth?: string;
     gender?: string;
-    phone?: string;
+    phoneNo?: string;
     mrn?: string;
 };
 
@@ -97,9 +154,14 @@ export default function MedicalDocuments({ patientId }: Props) {
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
     const [showTypeModal, setShowTypeModal] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [showScanner, setShowScanner] = useState(false);
+    // Keyed by document id so a stale result never shows for another document.
+    const [loadedFile, setLoadedFile] = useState<
+        { id: string; url: string } | { id: string; error: true } | null
+    >(null);
 
     const router = useRouter();
-    const modalRef = useRef<HTMLDivElement | null>(null);
+    const sheetRef = useRef<HTMLDivElement | null>(null);
 
 
     useEffect(() => {
@@ -119,8 +181,13 @@ export default function MedicalDocuments({ patientId }: Props) {
        FETCH DOCUMENTS
     ======================================== */
 
+    const fetchDocuments = useCallback(async () => {
+        const res = await api.get(`/documents/patient/${patientId}`);
+        setDocuments(res.data);
+    }, [patientId]);
+
     useEffect(() => {
-        async function fetchDocuments() {
+        async function loadDocuments() {
             try {
                 const res = await api.get(`/documents/patient/${patientId}`);
                 setDocuments(res.data);
@@ -131,8 +198,61 @@ export default function MedicalDocuments({ patientId }: Props) {
             }
         }
 
-        fetchDocuments();
+        loadDocuments();
     }, [patientId]);
+
+    /**
+     * Show the saved scan immediately, then reconcile with the server. A
+     * failed refresh must not hide a document that was already persisted.
+     */
+    const handleScanSaved = (saved: unknown) => {
+        const doc = saved as Document;
+        if (doc?._id) {
+            setDocuments((prev) => [doc, ...prev.filter((d) => d._id !== doc._id)]);
+        }
+        fetchDocuments().catch(() => {
+            toast("Saved. The list will fully refresh next time you open this tab.");
+        });
+    };
+
+    // Load the stored PDF through the authorized endpoint when a custom
+    // document is opened; the object URL is revoked when it closes.
+    useEffect(() => {
+        if (!selectedDoc || !isCustom(selectedDoc)) return;
+        const id = selectedDoc._id;
+        let url: string | null = null;
+        let cancelled = false;
+        fetchDocumentFile(id)
+            .then((blob) => {
+                if (cancelled) return;
+                url = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+                setLoadedFile({ id, url });
+            })
+            .catch(() => {
+                if (!cancelled) setLoadedFile({ id, error: true });
+            });
+        return () => {
+            cancelled = true;
+            if (url) URL.revokeObjectURL(url);
+        };
+    }, [selectedDoc]);
+
+    const fileState: { status: "loading" } | { status: "ready"; url: string } | { status: "error" } =
+        !selectedDoc || loadedFile?.id !== selectedDoc._id
+            ? { status: "loading" }
+            : "url" in loadedFile
+              ? { status: "ready", url: loadedFile.url }
+              : { status: "error" };
+
+    const downloadFile = (doc: Document) => {
+        if (fileState?.status !== "ready") return;
+        const a = document.createElement("a");
+        a.href = fileState.url;
+        a.download = doc.file?.fileName || "document.pdf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    };
 
     const openDocument = async (id: string) => {
         try {
@@ -174,9 +294,7 @@ export default function MedicalDocuments({ patientId }: Props) {
         const grouped: Record<string, Document[]> = {};
 
         documents.forEach((doc) => {
-            const typeLabel =
-                DOCUMENT_TYPES.find((d) => d.value === doc.type)?.label ||
-                doc.type;
+            const typeLabel = docTypeLabel(doc.type);
 
             if (!grouped[typeLabel]) grouped[typeLabel] = [];
             grouped[typeLabel].push(doc);
@@ -190,183 +308,14 @@ export default function MedicalDocuments({ patientId }: Props) {
     }
 
 
-    const handleCustomPrint = () => {
-        const content = document.getElementById("printable-document");
-        if (!content || !patient) return;
-
-        const printWindow = window.open("", "_blank", "width=auto,height=auto");
-        if (!printWindow) return;
-
-        printWindow.document.write(`
-    <html>
-      <head>
-        <title>Medical Document</title>
-        <style>
-          @page {
-            size: A4;
-            margin: 18mm 18mm 22mm 18mm;
-          }
-
-          body {
-            font-family: Helvetica, Arial, sans-serif;
-            color: #111;
-            margin: 0;
-          }
-
-          /* ================= HEADER ================= */
-
-          .letterhead { margin-bottom: 14px; }
-
-          .letterhead-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-          }
-
-          .clinic-name {
-            font-size: 18px;
-            font-weight: 700;
-            color: #5b8def;
-            margin: 0;
-          }
-
-          .clinic-tagline {
-            font-size: 11px;
-            margin-top: 2px;
-            opacity: 0.7;
-          }
-
-          .clinic-contact {
-            font-size: 11px;
-            text-align: right;
-            line-height: 1.4;
-          }
-
-          .letterhead-divider {
-            height: 1.5px;
-            background: #5b8def;
-            margin-top: 8px;
-          }
-
-          /* ================= PATIENT BLOCK ================= */
-
-          .patient-block {
-            margin: 12px 0 14px 0;
-            padding: 8px 10px;
-            font-size: 11px;
-          }
-
-          .patient-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px 20px;
-          }
-
-          .patient-label {
-            font-weight: 600;
-            opacity: 0.8;
-          }
-
-          /* ================= META ================= */
-
-          .document-meta { margin-bottom: 12px; }
-
-          .document-meta strong {
-            font-size: 14px;
-          }
-
-          .meta-sub {
-            font-size: 11px;
-            margin-top: 2px;
-            opacity: 0.75;
-          }
-
-          /* ================= CONTENT ================= */
-
-          .document-content {
-            font-size: 13px;
-            line-height: 1.55;
-          }
-
-          .section-block {
-            margin-bottom: 14px;
-            page-break-inside: avoid;
-          }
-
-          .section-title {
-            font-weight: 600;
-            font-size: 12px;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-            color: #5b8def;
-            letter-spacing: 0.4px;
-          }
-
-          .section-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px 22px;
-          }
-
-          .field-label {
-            font-size: 10px;
-            margin-bottom: 2px;
-            opacity: 0.65;
-          }
-
-          .field-value {
-            font-size: 12px;
-          }
-
-          .paragraph-text {
-            font-size: 13px;
-            line-height: 1.6;
-          }
-
-          /* ================= FOOTER ================= */
-
-          .letter-footer {
-            margin-top: 24px;
-            padding-top: 8px;
-            border-top: 1px solid #ddd;
-            font-size: 10px;
-            text-align: center;
-            color: #666;
-          }
-
-        </style>
-      </head>
-
-      <body>
-
-        ${content.querySelector(".letterhead")?.outerHTML || ""}
-
-        <div class="patient-block">
-          <div class="patient-grid">
-            <div><span class="patient-label">Patient:</span> ${patient.firstName || ""} ${patient.lastName || ""}</div>
-            <div><span class="patient-label">MRN:</span> ${patient.mrn || "—"}</div>
-            <div><span class="patient-label">DOB:</span> ${patient.dob || "—"}</div>
-            <div><span class="patient-label">Gender:</span> ${patient.gender || "—"}</div>
-            <div><span class="patient-label">Contact:</span> ${patient.phone || "—"}</div>
-          </div>
-        </div>
-
-        ${content.querySelector(".document-meta")?.outerHTML || ""}
-        ${content.querySelector(".document-content")?.outerHTML || ""}
-        ${content.querySelector(".letter-footer")?.outerHTML || ""}
-
-      </body>
-    </html>
-  `);
-
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
+    const openType = (value: string) => {
+        setShowTypeModal(false);
+        if (value === CUSTOM_DOCUMENT_TYPE) {
+            setShowScanner(true);
+            return;
+        }
+        router.push(`/patients/${patientId}/documents/new?type=${value}`);
     };
-
-
-
 
     return (
         <div>
@@ -425,9 +374,20 @@ export default function MedicalDocuments({ patientId }: Props) {
                                     }}
                                     onClick={() => openDocument(doc._id)}
                                 >
-                                    <div>
+                                    <div className="min-w-0">
+                                        {isCustom(doc) && (
+                                            <div className="text-sm font-semibold truncate">
+                                                {doc.title}
+                                            </div>
+                                        )}
                                         <div className="text-sm font-medium">
                                             {formatDate(doc.date)}
+                                            {isCustom(doc) && (
+                                                <span className="font-normal opacity-70">
+                                                    {" "}· {categoryLabel(doc.category)}
+                                                    {doc.file && ` · ${doc.file.pageCount} ${doc.file.pageCount === 1 ? "page" : "pages"}`}
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2 text-xs mt-1 opacity-70">
                                             <User size={14} />
@@ -439,6 +399,16 @@ export default function MedicalDocuments({ patientId }: Props) {
                                         <span className="text-green-600 text-sm flex items-center gap-1">
                                             <CheckCircle size={16} />
                                             Signed
+                                        </span>
+                                    ) : isCustom(doc) ? (
+                                        <span className="text-sm flex items-center gap-1" style={{ color: "var(--primary)" }}>
+                                            <ScanLine size={16} />
+                                            {doc.source === "camera_scan" ? "Scanned" : "Uploaded"}
+                                        </span>
+                                    ) : doc.status === "finalized" ? (
+                                        <span className="text-green-600 text-sm flex items-center gap-1">
+                                            <CheckCircle size={16} />
+                                            Finalized
                                         </span>
                                     ) : (
                                         <span className="text-yellow-600 text-sm flex items-center gap-1">
@@ -461,7 +431,9 @@ export default function MedicalDocuments({ patientId }: Props) {
                     onClick={() => setShowTypeModal(false)}
                 >
                     <div
-                        ref={modalRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="document-type-title"
                         className="w-full max-w-xl p-6"
                         style={{
                             background: "var(--bg-card)",
@@ -471,182 +443,129 @@ export default function MedicalDocuments({ patientId }: Props) {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-semibold">
+                            <h3 id="document-type-title" className="text-lg font-semibold">
                                 Select Document Type
                             </h3>
-                            <button onClick={() => setShowTypeModal(false)}>✕</button>
+                            <button onClick={() => setShowTypeModal(false)} aria-label="Close">✕</button>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            {DOCUMENT_TYPES.map((doc) => (
-                                <div
-                                    key={doc.value}
-                                    className="p-4 cursor-pointer"
-                                    style={{
-                                        border: "1px solid var(--border-light)",
-                                        borderRadius: "var(--radius-md)",
-                                        background: "var(--bg-light)",
-                                    }}
-                                    onClick={() => {
-                                        setShowTypeModal(false);
-                                        router.push(
-                                            `/patients/${patientId}/documents/new?type=${doc.value}`
-                                        );
-                                    }}
-                                >
-                                    <div className="font-medium">{doc.label}</div>
-                                    <div className="text-xs mt-1 opacity-70">
-                                        Create new {doc.label.toLowerCase()}
-                                    </div>
-                                </div>
-                            ))}
+                            {DOCUMENT_TYPES.map((doc) => {
+                                const Icon = DOCUMENT_TYPE_ICONS[doc.value] ?? FileText;
+                                return (
+                                    <button
+                                        key={doc.value}
+                                        type="button"
+                                        onClick={() => openType(doc.value)}
+                                        className="group flex items-start gap-3 p-4 text-left rounded-md border border-border bg-bg-light hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors cursor-pointer"
+                                    >
+                                        <span className="w-10 h-10 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                            <Icon size={19} aria-hidden />
+                                        </span>
+                                        <span className="min-w-0">
+                                            <span className="block font-medium text-text-primary group-hover:text-primary transition-colors">
+                                                {doc.label}
+                                            </span>
+                                            <span className="block text-xs mt-1 text-text-secondary">
+                                                {doc.description ?? `Create new ${doc.label.toLowerCase()}`}
+                                            </span>
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ================= CUSTOM DOCUMENT SCANNER ================= */}
+            {showScanner && (
+                <DocumentScannerDialog
+                    patientId={patientId}
+                    onClose={() => setShowScanner(false)}
+                    onSaved={handleScanSaved}
+                />
             )}
 
             {/* ================= DOCUMENT VIEW MODAL ================= */}
-            {selectedDoc && (
-                <div
-                    className="fixed inset-0 flex items-center justify-center z-50"
-                    style={{ background: "rgba(0,0,0,0.5)" }}
-                    onClick={() => setSelectedDoc(null)}
-                >
-                    <div
-                        className="w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
-                        style={{
-                            background: "var(--bg-card)",
-                            borderRadius: "var(--radius-lg)",
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="px-6 py-4 flex justify-between items-center border-b">
-                            <div className="font-semibold">Document Preview</div>
-                            <button onClick={() => setSelectedDoc(null)}>✕</button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-8">
-                            <div id="printable-document">
-
-                                {/* ================= LETTERHEAD ================= */}
-                                <div className="letterhead">
-                                    <div className="letterhead-top">
-                                        <div>
-                                            <h1 className="clinic-name">BetterYou Clinic</h1>
-                                            <div className="clinic-tagline">
-                                                Mental Health & Wellness Center
-                                            </div>
-                                        </div>
-
-                                        <div className="clinic-contact">
-                                            +91 98765 43210 <br />
-                                            contact@betteryou.com <br />
-                                            Ahmedabad, Gujarat
-                                        </div>
-                                    </div>
-
-                                    <div className="letterhead-divider" />
-                                </div>
-
-                                {/* ================= DOCUMENT META ================= */}
-                                <div className="document-meta">
-                                    <div>
-                                        <strong>
-                                            {
-                                                DOCUMENT_TYPES.find(
-                                                    (d) => d.value === selectedDoc.type
-                                                )?.label
-                                            }
-                                        </strong>
-                                        <div className="meta-sub">
-                                            Date: {formatDate(selectedDoc.date)}
-                                        </div>
-                                        <div className="meta-sub">
-                                            Doctor: {selectedDoc.doctor?.firstName}{" "}
-                                            {selectedDoc.doctor?.lastName}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* ================= CONTENT ================= */}
-                                <div className="document-content">
-                                    {selectedDoc.content &&
-                                        Object.entries(selectedDoc.content).map(
-                                            ([sectionKey, sectionValue]) => (
-                                                <div key={sectionKey} className="section-block">
-                                                    <div className="section-title">
-                                                        {sectionKey.replace(/([A-Z])/g, " $1")}
-                                                    </div>
-
-                                                    {typeof sectionValue === "object" && sectionValue !== null ? (
-                                                        <div className="section-grid">
-                                                            {Object.entries(sectionValue as Record<string, unknown>).map(
-                                                                ([fieldKey, fieldValue]) => (
-                                                                    <div key={fieldKey} className="field-item">
-                                                                        <div className="field-label">
-                                                                            {fieldKey.replace(/([A-Z])/g, " $1")}
-                                                                        </div>
-                                                                        <div className="field-value">
-                                                                            {String(fieldValue)}
-                                                                        </div>
-                                                                    </div>
-                                                                )
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="paragraph-text">
-                                                            {String(sectionValue)}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )
-                                        )}
-                                </div>
-
-                                {/* ================= FOOTER ================= */}
-                                <div className="letter-footer">
-                                    This document is electronically generated and does not require a signature.
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div className="px-6 py-4 flex justify-end gap-4 border-t no-print">
-                            {selectedDoc.pdfUrl && (
+            <Modal
+                open={!!selectedDoc}
+                onClose={() => setSelectedDoc(null)}
+                maxWidth="sm:max-w-4xl"
+                title={selectedDoc ? (isCustom(selectedDoc) ? selectedDoc.title || "Document" : docTypeLabel(selectedDoc.type)) : ""}
+                subtitle={
+                    selectedDoc
+                        ? [
+                              isCustom(selectedDoc) ? categoryLabel(selectedDoc.category) : null,
+                              formatDate(selectedDoc.date),
+                              selectedDoc.doctor?.firstName ? `Dr. ${selectedDoc.doctor.firstName} ${selectedDoc.doctor.lastName ?? ""}`.trim() : null,
+                          ]
+                              .filter(Boolean)
+                              .join(" · ")
+                        : undefined
+                }
+                footer={
+                    selectedDoc && (
+                        <div className="w-full flex flex-wrap items-center justify-end gap-2">
+                            {isCustom(selectedDoc) ? (
+                                <>
+                                    <button
+                                        onClick={() => fileState?.status === "ready" && window.open(fileState.url, "_blank", "noopener")}
+                                        disabled={fileState?.status !== "ready"}
+                                        className="h-10 inline-flex items-center gap-2 px-4 rounded-md border border-border bg-bg-card text-sm text-text-primary hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        <ExternalLink size={15} aria-hidden /> Open in new tab
+                                    </button>
+                                    <button
+                                        onClick={() => downloadFile(selectedDoc)}
+                                        disabled={fileState?.status !== "ready"}
+                                        className="h-10 inline-flex items-center gap-2 px-4 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        <Download size={15} aria-hidden /> Download PDF
+                                    </button>
+                                </>
+                            ) : (
                                 <button
-                                    onClick={() =>
-                                        window.open(
-                                            `/api${selectedDoc.pdfUrl}`,
-                                            "_blank"
-                                        )
-                                    }
-                                    className="px-4 py-2 text-sm font-medium"
-                                    style={{
-                                        background: "var(--primary)",
-                                        color: "white",
-                                        borderRadius: "var(--radius-sm)",
-                                    }}
+                                    onClick={() => printSheet(sheetRef.current, `${docTypeLabel(selectedDoc.type)} — ${patient?.firstName ?? ""} ${patient?.lastName ?? ""}`)}
+                                    className="h-10 inline-flex items-center gap-2 px-4 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer"
                                 >
-                                    Download PDF
+                                    <Printer size={15} aria-hidden /> Print
                                 </button>
                             )}
-
-                            <button
-                                onClick={handleCustomPrint}
-                                className="px-4 py-2 text-sm font-medium"
-                                style={{
-                                    border: "1px solid var(--primary)",
-                                    color: "var(--primary)",
-                                    borderRadius: "var(--radius-sm)",
-                                }}
-                            >
-                                Print
-                            </button>
+                        </div>
+                    )
+                }
+            >
+                {selectedDoc && (isCustom(selectedDoc) ? (
+                    <div className="flex flex-col gap-4">
+                        <div className="text-xs text-text-secondary">
+                            {selectedDoc.file && `${selectedDoc.file.pageCount} ${selectedDoc.file.pageCount === 1 ? "page" : "pages"} · ${formatBytes(selectedDoc.file.size)} · `}
+                            {selectedDoc.source === "camera_scan" ? "Camera scan" : "Device upload"}
+                            {selectedDoc.description && <p className="text-sm text-text-primary mt-2 whitespace-pre-wrap">{selectedDoc.description}</p>}
+                        </div>
+                        <div className="rounded-md overflow-hidden border border-border bg-bg-page">
+                            {fileState?.status === "ready" ? (
+                                <iframe src={fileState.url} title={selectedDoc.title || "Document"} className="w-full h-[60vh]" />
+                            ) : fileState?.status === "error" ? (
+                                <div role="alert" className="h-[60vh] grid place-items-center text-sm p-6 text-center text-danger">
+                                    The file couldn&apos;t be loaded. Close and reopen the document to try again.
+                                </div>
+                            ) : (
+                                <div className="h-[60vh] flex items-center justify-center gap-2 text-sm text-text-secondary">
+                                    <Loader2 className="animate-spin" size={18} aria-hidden /> Loading document…
+                                </div>
+                            )}
                         </div>
                     </div>
-                </div>
-            )}
+                ) : (
+                    /* Paper-like sheet: the same markup is what prints. */
+                    <div className="-m-1 rounded-md bg-bg-page p-2 sm:p-4">
+                        <div className="mx-auto max-w-[800px] bg-white text-[#0f172a] rounded-md border border-border shadow-sm p-5 sm:p-10">
+                            <DocumentSheet ref={sheetRef} doc={selectedDoc} patient={patient} />
+                        </div>
+                    </div>
+                ))}
+            </Modal>
         </div>
     );
 }

@@ -17,6 +17,8 @@ import {
   CalendarClock,
 } from "lucide-react";
 import ComingSoon from "@/components/containers/layout/ComingSoon";
+import { Badge, type BadgeTone } from "@/components/common/Badge";
+import { LoadingState } from "@/components/ui/loading-state";
 
 const WAITING_ROOM_ENABLED = false;
 
@@ -57,9 +59,9 @@ function useWaitTimer(checkedInAt: string | null): string {
   return `${Math.floor(diff / 60)}h ${diff % 60}m`;
 }
 
-const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
-  checked_in:  { label: "Waiting",    cls: "bg-primary/10 text-primary" },
-  in_progress: { label: "In Session", cls: "bg-warning/10 text-warning" },
+const STATUS_STYLES: Record<string, { label: string; tone: BadgeTone }> = {
+  checked_in:  { label: "Waiting",    tone: "primary" },
+  in_progress: { label: "In Session", tone: "warning" },
 };
 
 /* ─── Row component ─── */
@@ -75,7 +77,7 @@ function PatientRow({
 }) {
   const router = useRouter();
   const waitTime = useWaitTimer(patient.checkedInAt);
-  const style = STATUS_STYLES[patient.status] ?? { label: patient.status, cls: "bg-bg-hover text-text-secondary" };
+  const style = STATUS_STYLES[patient.status] ?? { label: patient.status, tone: "neutral" as BadgeTone };
   const isUpdating = updating === patient.id;
 
   return (
@@ -83,7 +85,7 @@ function PatientRow({
       {/* Patient */}
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+          <div className="w-8 h-8 rounded-full bg-primary-light text-primary flex items-center justify-center text-xs font-bold shrink-0">
             {patient.patientName
               .split(" ")
               .map((w) => w[0])
@@ -125,11 +127,7 @@ function PatientRow({
 
       {/* Status */}
       <td className="px-4 py-3.5">
-        <span
-          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${style.cls}`}
-        >
-          {style.label}
-        </span>
+        <Badge tone={style.tone}>{style.label}</Badge>
       </td>
 
       {/* Actions */}
@@ -321,9 +319,7 @@ function WaitingRoomPageImpl() {
       {/* Table */}
       <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="animate-spin text-primary" size={24} />
-          </div>
+          <LoadingState size="lg" />
         ) : patients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-text-disabled">
             <CalendarClock size={36} />

@@ -6,6 +6,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { TenantGuard } from './common/tenancy/tenant.guard';
 import { PracticeResolverMiddleware } from './common/tenancy/practice-resolver.middleware';
+import { CsrfOriginMiddleware } from './common/csrf-origin.middleware';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -31,6 +32,9 @@ import { SseModule } from './sse/sse.module';
 import { ProgressNotesModule } from './progress-notes/progress-notes.module';
 import { FollowUpNotesModule } from './follow-up-notes/follow-up-notes.module';
 import { TreatmentPlansModule } from './treatment-plans/treatment-plans.module';
+import { SessionAssessmentsModule } from './session-assessments/session-assessments.module';
+import { AppointmentTypesModule } from './appointment-types/appointment-types.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -79,6 +83,9 @@ import { TreatmentPlansModule } from './treatment-plans/treatment-plans.module';
     ProgressNotesModule,
     FollowUpNotesModule,
     TreatmentPlansModule,
+    SessionAssessmentsModule,
+    AppointmentTypesModule,
+    SupportModule,
   ],
 
   controllers: [AppController],
@@ -101,6 +108,8 @@ import { TreatmentPlansModule } from './treatment-plans/treatment-plans.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    // Rejects forged cross-site writes before any other work is done.
+    consumer.apply(CsrfOriginMiddleware).forRoutes('*');
     // Resolves the practice from the Host header for every route, including
     // public ones — login needs it to scope the lookup by practice.
     consumer.apply(PracticeResolverMiddleware).forRoutes('*');

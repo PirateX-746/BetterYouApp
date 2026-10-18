@@ -3,15 +3,18 @@
 import { api } from "@/lib/api";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
-  Loader2,
   Calendar,
   Clock,
   CheckCircle2,
   XCircle,
   Clock3,
   AlertCircle,
+  ClipboardList,
+  ClipboardCheck,
 } from "lucide-react";
+import Link from "next/link";
 
 type Appointment = {
   _id?: string;
@@ -28,10 +31,14 @@ const STATUS_CONFIG: Record<
   string,
   { label: string; color: string; dot: string; Icon: React.ElementType }
 > = {
-  confirmed: { label: "Confirmed", color: "text-emerald-600", dot: "bg-emerald-500", Icon: CheckCircle2 },
-  completed: { label: "Completed", color: "text-blue-600",    dot: "bg-blue-500",    Icon: CheckCircle2 },
-  cancelled: { label: "Cancelled", color: "text-red-500",     dot: "bg-red-400",     Icon: XCircle },
-  pending:   { label: "Pending",   color: "text-amber-600",   dot: "bg-amber-400",   Icon: Clock3 },
+  scheduled:   { label: "Scheduled",  color: "text-text-secondary", dot: "bg-text-disabled", Icon: Clock3 },
+  confirmed:   { label: "Confirmed",  color: "text-emerald-600",    dot: "bg-emerald-500",    Icon: CheckCircle2 },
+  checked_in:  { label: "Checked In", color: "text-teal",           dot: "bg-teal",           Icon: CheckCircle2 },
+  in_progress: { label: "Ongoing",    color: "text-warning",        dot: "bg-warning",        Icon: Clock3 },
+  completed:   { label: "Completed",  color: "text-blue-600",       dot: "bg-blue-500",       Icon: CheckCircle2 },
+  no_show:     { label: "No Show",    color: "text-purple",         dot: "bg-purple",         Icon: XCircle },
+  cancelled:   { label: "Cancelled",  color: "text-red-500",        dot: "bg-red-400",        Icon: XCircle },
+  pending:     { label: "Pending",    color: "text-amber-600",      dot: "bg-amber-400",      Icon: Clock3 },
 };
 
 function getStatus(raw: string) {
@@ -60,8 +67,28 @@ function groupByMonth(appointments: Appointment[]) {
 export default function AppointmentHistory() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [assessedIds, setAssessedIds] = useState<Set<string>>(new Set());
   const params = useParams();
   const patientId = params?.id as string;
+
+  const refreshAssessed = () => {
+    if (!patientId) return;
+    api
+      .get(`/session-assessments/patient/${patientId}`)
+      .then((res) => {
+        const rows = Array.isArray(res.data) ? res.data : [];
+        setAssessedIds(
+          new Set(
+            rows
+              .map((r: { appointment?: { _id?: string } | string | null }) =>
+                typeof r.appointment === "string" ? r.appointment : r.appointment?._id,
+              )
+              .filter((id: string | undefined): id is string => !!id),
+          ),
+        );
+      })
+      .catch(() => setAssessedIds(new Set()));
+  };
 
   useEffect(() => {
     if (!patientId) return;
@@ -79,13 +106,13 @@ export default function AppointmentHistory() {
       })
       .catch(() => setAppointments([]))
       .finally(() => setLoading(false));
+    refreshAssessed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="animate-spin text-primary" size={22} />
-      </div>
+      <LoadingState />
     );
   }
 
@@ -173,12 +200,29 @@ export default function AppointmentHistory() {
                           )}
                         </div>
 
-                        <span
-                          className={`flex items-center gap-1 text-[11px] font-medium shrink-0 mt-0.5 ${color}`}
-                        >
-                          <Icon size={12} />
-                          {label}
-                        </span>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <span className={`flex items-center gap-1 text-[11px] font-medium mt-0.5 ${color}`}>
+                            <Icon size={12} />
+                            {label}
+                          </span>
+                          {appt.status.toLowerCase() === "completed" && key && (
+                            <Link
+                              href={`/assessments?appointment=${key}`}
+                              className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border transition ${
+                                assessedIds.has(key)
+                                  ? "border-primary/30 text-primary hover:bg-primary/5"
+                                  : "border-border text-text-secondary hover:bg-bg-hover"
+                              }`}
+                            >
+                              {assessedIds.has(key) ? (
+                                <ClipboardCheck size={11} />
+                              ) : (
+                                <ClipboardList size={11} />
+                              )}
+                              {assessedIds.has(key) ? "Assessment" : "Add Assessment"}
+                            </Link>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -188,6 +232,7 @@ export default function AppointmentHistory() {
           </div>
         </div>
       ))}
+
     </div>
   );
 }

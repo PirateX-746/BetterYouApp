@@ -2,22 +2,20 @@
 
 import Link from "next/link";
 import {
+  Activity,
   Building2,
+  CalendarCheck,
+  PauseCircle,
+  ShieldCheck,
   Stethoscope,
   Users,
-  CalendarCheck,
-  ChevronRight,
-  Activity,
-  ShieldCheck,
 } from "lucide-react";
+import { Page, PageHeader } from "@/components/common/PageLayout";
+import { CardLink, EmptyBlock, SectionCard, StatCard } from "@/components/common/Dashboard";
 import {
-  PageHeader,
-  StatTile,
-  Panel,
   StatusPill,
   LoadingState,
   ErrorState,
-  EmptyState,
   toneForPracticeStatus,
 } from "@/components/containers/superadmin/console-ui";
 import {
@@ -30,8 +28,14 @@ import {
 } from "@/lib/superadmin/api";
 
 /** Tallest bar in the signups chart, in pixels. */
-const BAR_MAX_PX = 84;
+const BAR_MAX_PX = 100;
 
+/**
+ * Platform overview. Same structure and type scale as the practitioner
+ * dashboard (components/common/Dashboard): headline metrics, a totals strip,
+ * then sections in one card style. Counts and metadata only — the console
+ * never shows clinical records.
+ */
 export default function PlatformDashboardPage() {
   const metrics = useAsync(fetchMetrics, []);
   const practices = useAsync(fetchPractices, []);
@@ -41,244 +45,176 @@ export default function PlatformDashboardPage() {
   const recentPractices = (practices.data ?? []).slice(0, 5);
   const signups = m?.signupsByMonth ?? [];
   const peak = Math.max(...signups.map((s) => s.count), 1);
+  const thisMonth = signups[signups.length - 1]?.count ?? 0;
 
   return (
-    <>
-      <PageHeader
-        title="Platform overview"
-        subtitle="Across every practice on BetterYou"
-      />
+    <Page>
+      <PageHeader title="Platform overview" subtitle="Across every practice on BetterYou" />
 
       {metrics.loading && (
-        <div className="bg-bg-card border border-border rounded-2xl mb-6">
+        <div className="bg-bg-card border border-border rounded-2xl">
           <LoadingState label="Loading platform metrics…" />
         </div>
       )}
-
       {metrics.error && (
-        <div className="bg-bg-card border border-border rounded-2xl mb-6">
+        <div className="bg-bg-card border border-border rounded-2xl">
           <ErrorState message={metrics.error} onRetry={metrics.reload} />
         </div>
       )}
 
       {m && (
         <>
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-4">
-            <StatTile
+          {/* ── Headline metrics ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <StatCard
               label="Total practices"
               value={m.practicesTotal}
-              hint={`${m.practicesActive} active · ${m.practicesTrial} trial`}
               icon={Building2}
+              tone="neutral"
+              sub={`${m.practicesActive} active · ${m.practicesTrial} trial`}
+              href="/admin/practices"
             />
-            <StatTile
-              label="Active"
-              value={m.practicesActive}
-              hint="Billing and running"
-              icon={Activity}
-              tone="success"
-            />
-            <StatTile
-              label="Trial"
-              value={m.practicesTrial}
-              hint="Converting or expiring"
-              icon={ShieldCheck}
-              tone="purple"
-            />
-            <StatTile
+            <StatCard label="Active" value={m.practicesActive} icon={Activity} tone="success" sub="Billing and running" />
+            <StatCard label="Trial" value={m.practicesTrial} icon={ShieldCheck} tone="purple" sub="Converting or expiring" />
+            <StatCard
               label="Suspended"
               value={m.practicesSuspended}
-              hint="Access blocked, data retained"
-              icon={Building2}
+              icon={PauseCircle}
               tone="warning"
+              sub="Access blocked, data retained"
             />
           </div>
 
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 mb-6">
-            <StatTile
-              label="Practitioners"
-              value={m.practitionersTotal}
-              hint="All practices"
-              icon={Stethoscope}
-            />
-            <StatTile
-              label="Patients"
-              value={m.patientsTotal.toLocaleString("en-IN")}
-              hint="Counts only — no records here"
-              icon={Users}
-            />
-            <StatTile
-              label="Appointments"
-              value={m.appointmentsTotal.toLocaleString("en-IN")}
-              hint="All time"
-              icon={CalendarCheck}
-            />
-          </div>
+          {/* ── Totals strip ── */}
+          <dl className="grid grid-cols-1 sm:grid-cols-3 bg-bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border">
+            {[
+              { label: "Practitioners", value: m.practitionersTotal.toLocaleString("en-IN"), icon: Stethoscope },
+              { label: "Patients (counts only)", value: m.patientsTotal.toLocaleString("en-IN"), icon: Users },
+              { label: "Appointments, all time", value: m.appointmentsTotal.toLocaleString("en-IN"), icon: CalendarCheck },
+            ].map(({ label, value, icon: Icon }) => (
+              <div key={label} className="flex items-center gap-3 px-5 py-3.5">
+                <Icon size={16} className="text-text-secondary shrink-0" aria-hidden />
+                <dt className="text-sm text-text-secondary flex-1 min-w-0 truncate">{label}</dt>
+                <dd className="text-base font-semibold text-text-primary tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
         </>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3 mb-6">
-        <Panel title="New practices" padded>
-          <p className="text-xs text-text-secondary -mt-1 mb-4">
-            Last six months
-          </p>
-
+      {/* ── New practices + recent registrations ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <SectionCard title="New practices" subtitle={`Last six months · ${thisMonth} this month`}>
           {metrics.loading ? (
             <LoadingState />
           ) : signups.length === 0 ? (
-            <p className="text-sm text-text-secondary py-8 text-center">
-              No data yet
-            </p>
+            <EmptyBlock icon={Building2} title="No signups yet" />
           ) : (
-            <>
-              {/* Bar heights are computed in pixels: a percentage height
-                  would not resolve against an auto-height flex column. */}
-              <div className="flex items-end gap-2">
-                {signups.map((s) => (
-                  <div
-                    key={s.month}
-                    className="flex-1 flex flex-col items-center gap-1.5"
-                  >
-                    <span className="text-xs font-semibold text-text-primary tabular-nums">
-                      {s.count}
-                    </span>
-                    <div
-                      className="w-full rounded-t-md bg-purple"
-                      style={{
-                        height: `${Math.max(3, (s.count / peak) * BAR_MAX_PX)}px`,
-                      }}
-                      aria-hidden
-                    />
-                    <span className="text-[11px] text-text-disabled">
-                      {s.month}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                <p className="text-xs text-text-secondary">
-                  Signed up this month
-                </p>
-                <p className="text-sm font-bold text-text-primary tabular-nums">
-                  {signups[signups.length - 1]?.count ?? 0}
-                </p>
-              </div>
-            </>
+            <div className="p-5">
+              {/* Each bar carries its count as text, so height isn't the only cue. */}
+              <ol className="flex items-end justify-between gap-2 h-40" aria-label="New practices per month">
+                {signups.map((s, i) => {
+                  const current = i === signups.length - 1;
+                  return (
+                    <li key={s.month} className="flex-1 h-full flex flex-col items-center justify-end gap-1.5">
+                      <span className="text-xs font-medium text-text-primary tabular-nums">{s.count}</span>
+                      <div
+                        className={`w-full max-w-10 rounded-md ${current ? "bg-primary" : s.count === 0 ? "bg-border" : "bg-primary/35"}`}
+                        style={{ height: `${Math.max(4, (s.count / peak) * BAR_MAX_PX)}px` }}
+                        aria-hidden
+                      />
+                      <span className={`text-xs ${current ? "font-semibold text-text-primary" : "text-text-secondary"}`}>
+                        {s.month}
+                        <span className="sr-only">: {s.count} new practices</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
           )}
-        </Panel>
+        </SectionCard>
 
-        <div className="lg:col-span-2">
-          <Panel
-            title="Recent registrations"
-            action={
-              <Link
-                href="/admin/practices"
-                className="text-xs text-primary flex items-center gap-1 hover:underline"
-              >
-                All practices <ChevronRight size={13} />
-              </Link>
-            }
-          >
-            {practices.loading ? (
-              <LoadingState />
-            ) : practices.error ? (
-              <ErrorState message={practices.error} onRetry={practices.reload} />
-            ) : recentPractices.length === 0 ? (
-              <EmptyState
-                icon={Building2}
-                title="No practices yet"
-                hint="Onboard the first practice from the Practices screen."
-              />
-            ) : (
-              <div className="divide-y divide-border">
-                {recentPractices.map((p) => (
+        <SectionCard
+          className="lg:col-span-2"
+          title="Recent registrations"
+          subtitle="Newest practices first"
+          action={<CardLink href="/admin/practices">All practices</CardLink>}
+        >
+          {practices.loading ? (
+            <LoadingState />
+          ) : practices.error ? (
+            <ErrorState message={practices.error} onRetry={practices.reload} />
+          ) : recentPractices.length === 0 ? (
+            <EmptyBlock icon={Building2} title="No practices yet" hint="Onboard the first practice from the Practices screen." />
+          ) : (
+            <ul className="divide-y divide-border">
+              {recentPractices.map((p) => (
+                <li key={p.id}>
                   <Link
-                    key={p.id}
                     href={`/admin/practices/${p.id}`}
-                    className="flex items-center gap-4 px-5 py-3.5 hover:bg-bg-hover transition-colors group"
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-purple-light text-purple flex items-center justify-center text-xs font-semibold shrink-0">
+                    <span className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0" aria-hidden>
                       {p.name.slice(0, 2).toUpperCase()}
-                    </div>
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-text-primary truncate group-hover:text-primary transition-colors">
-                        {p.name}
-                      </p>
+                      <p className="text-sm font-medium text-text-primary truncate">{p.name}</p>
                       <p className="text-xs text-text-secondary truncate">
                         {p.subdomain} · {formatDate(p.createdAt)}
                       </p>
                     </div>
                     <div className="text-right shrink-0 hidden sm:block">
-                      <p className="text-xs text-text-secondary tabular-nums">
-                        {p.practitioners} practitioners
+                      <p className="text-sm font-medium text-text-primary tabular-nums">
+                        {p.practitioners} practitioner{p.practitioners === 1 ? "" : "s"}
                       </p>
-                      <p className="text-xs text-text-disabled tabular-nums">
-                        {p.patients.toLocaleString("en-IN")} patients
-                      </p>
+                      <p className="text-xs text-text-secondary tabular-nums">{p.patients.toLocaleString("en-IN")} patients</p>
                     </div>
-                    <StatusPill
-                      label={p.status}
-                      tone={toneForPracticeStatus(p.status)}
-                    />
+                    <StatusPill label={p.status} tone={toneForPracticeStatus(p.status)} />
                   </Link>
-                ))}
-              </div>
-            )}
-          </Panel>
-        </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
       </div>
 
-      <Panel
+      {/* ── Activity ── */}
+      <SectionCard
         title="Recent activity"
-        action={
-          <Link
-            href="/admin/audit-logs"
-            className="text-xs text-primary flex items-center gap-1 hover:underline"
-          >
-            Full audit log <ChevronRight size={13} />
-          </Link>
-        }
+        subtitle="Platform actions — names of what changed, never its contents"
+        action={<CardLink href="/admin/audit-logs">Full audit log</CardLink>}
       >
         {audit.loading ? (
           <LoadingState />
         ) : audit.error ? (
           <ErrorState message={audit.error} onRetry={audit.reload} />
         ) : (audit.data ?? []).length === 0 ? (
-          <EmptyState
+          <EmptyBlock
             icon={Activity}
             title="No recorded activity"
             hint="Platform actions such as onboarding or suspending a practice appear here."
           />
         ) : (
-          <div className="divide-y divide-border">
+          <ul className="divide-y divide-border">
             {(audit.data ?? []).map((a) => (
-              <div key={a._id} className="px-5 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm text-text-primary">
-                      <span className="font-mono text-xs text-purple">
-                        {a.action}
-                      </span>
-                      <span className="text-text-secondary">
-                        {" "}
-                        on {a.entityType}{" "}
-                      </span>
-                      <span className="font-mono text-xs text-text-secondary">
-                        {a.entityId}
-                      </span>
-                    </p>
-                    <p className="text-xs text-text-secondary mt-0.5 truncate">
-                      {a.actorRole}
-                    </p>
-                  </div>
-                  <span className="text-xs text-text-disabled whitespace-nowrap shrink-0">
-                    {formatDateTime(a.createdAt)}
-                  </span>
+              <li key={a._id} className="flex items-start justify-between gap-3 px-5 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-text-primary">
+                    <span className="font-mono">{a.action}</span>
+                    <span className="text-text-secondary"> on {a.entityType} </span>
+                    <span className="font-mono text-xs text-text-secondary">{a.entityId}</span>
+                  </p>
+                  <p className="text-xs text-text-secondary mt-0.5 truncate">{a.actorRole.replace("_", " ")}</p>
                 </div>
-              </div>
+                <time dateTime={a.createdAt} className="text-xs text-text-secondary whitespace-nowrap shrink-0">
+                  {formatDateTime(a.createdAt)}
+                </time>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
-      </Panel>
-    </>
+      </SectionCard>
+    </Page>
   );
 }

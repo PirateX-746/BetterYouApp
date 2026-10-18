@@ -79,6 +79,7 @@ export enum AppointmentStatus {
 export interface Appointment {
   id: string;
   title: string;
+  appointmentTypeId?: string | null;
   start: string;
   end: string;
   practitionerId: string;
@@ -93,7 +94,9 @@ export interface AvailabilitySlot {
 }
 
 export interface CreateAppointmentPayload {
-  title: string;
+  /** Ignored by the server when appointmentTypeId is set — the type's name wins. */
+  title?: string;
+  appointmentTypeId?: string;
   patientId: string;
   practitionerId: string;
   start: string;
@@ -104,6 +107,7 @@ export interface CreateAppointmentPayload {
 
 export interface UpdateAppointmentPayload {
   title?: string;
+  appointmentTypeId?: string;
   start?: string;
   end?: string;
   notes?: string;
@@ -141,3 +145,47 @@ export const appointmentsApi = {
   delete: (id: string) =>
     api.delete<void>(`/appointments/${id}`),
 };
+
+/* =====================================================
+   APPOINTMENT TYPES API
+   ===================================================== */
+
+export interface AppointmentType {
+  _id: string;
+  name: string;
+  durationMinutes: number;
+  /** "#rrggbb" */
+  color: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export type AppointmentTypeInput = Pick<
+  AppointmentType,
+  "name" | "durationMinutes" | "color"
+> & { isActive?: boolean };
+
+export const appointmentTypesApi = {
+  // GET /appointment-types — the caller's own list (practitioner), or a
+  // practitioner's bookable list when called by a patient with practitionerId.
+  list: (practitionerId?: string) =>
+    api.get<AppointmentType[]>(`/appointment-types`, {
+      params: practitionerId ? { practitionerId } : undefined,
+    }),
+
+  create: (input: AppointmentTypeInput) =>
+    api.post<AppointmentType>(`/appointment-types`, input),
+
+  update: (id: string, input: Partial<AppointmentTypeInput>) =>
+    api.patch<AppointmentType>(`/appointment-types/${id}`, input),
+
+  delete: (id: string) => api.delete<{ deleted: true }>(`/appointment-types/${id}`),
+};
+
+/** The server's error message (validation, conflict, ...) or a fallback. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  const msg = (err as { response?: { data?: { message?: unknown } } })?.response
+    ?.data?.message;
+  if (Array.isArray(msg)) return msg.join(", ");
+  return typeof msg === "string" && msg ? msg : fallback;
+}

@@ -17,6 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
+import { escapeHtml } from "@/lib/escapeHtml";
+import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
+import { LoadingState } from "@/components/ui/loading-state";
 import toast from "react-hot-toast";
 
 interface FollowUpNote {
@@ -40,6 +43,8 @@ export default function FollowUpNotesTab() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
   const [title, setTitle] = useState("");
@@ -107,14 +112,18 @@ export default function FollowUpNotesTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this follow-up note?")) return;
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
     try {
-      await api.delete(`/follow-up-notes/${id}`);
-      setNotes((prev) => prev.filter((n) => n._id !== id));
+      await api.delete(`/follow-up-notes/${deleteId}`);
+      setNotes((prev) => prev.filter((n) => n._id !== deleteId));
       toast.success("Deleted");
+      setDeleteId(null);
     } catch {
       toast.error("Failed to delete");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -132,12 +141,12 @@ export default function FollowUpNotesTab() {
         ul { padding-left: 20px; margin: 0; }
         li { margin-bottom: 4px; font-size: 14px; }
       </style></head><body>
-        <h1>${note.title}</h1>
+        <h1>${escapeHtml(note.title)}</h1>
         <div class="meta">Created: ${new Date(note.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
         ${note.followUpDate ? `<div class="section"><div class="label">Follow-Up Date</div><div class="value">${new Date(note.followUpDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div></div>` : ""}
-        ${note.summary ? `<div class="section"><div class="label">Summary</div><div class="value">${note.summary}</div></div>` : ""}
-        ${note.recommendations ? `<div class="section"><div class="label">Recommendations</div><div class="value">${note.recommendations}</div></div>` : ""}
-        ${note.actionItems?.length ? `<div class="section"><div class="label">Action Items</div><ul>${note.actionItems.map((a) => `<li>${a}</li>`).join("")}</ul></div>` : ""}
+        ${note.summary ? `<div class="section"><div class="label">Summary</div><div class="value">${escapeHtml(note.summary)}</div></div>` : ""}
+        ${note.recommendations ? `<div class="section"><div class="label">Recommendations</div><div class="value">${escapeHtml(note.recommendations)}</div></div>` : ""}
+        ${note.actionItems?.length ? `<div class="section"><div class="label">Action Items</div><ul>${note.actionItems.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}</ul></div>` : ""}
       </body></html>
     `);
     win.document.close();
@@ -146,9 +155,7 @@ export default function FollowUpNotesTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="animate-spin text-primary" size={22} />
-      </div>
+      <LoadingState />
     );
   }
 
@@ -283,7 +290,7 @@ export default function FollowUpNotesTab() {
                     <Printer size={14} />
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(note._id); }}
+                    onClick={(e) => { e.stopPropagation(); setDeleteId(note._id); }}
                     className="p-1.5 rounded-lg hover:bg-red-50 text-text-secondary hover:text-danger transition-colors"
                     title="Delete"
                   >
@@ -330,6 +337,17 @@ export default function FollowUpNotesTab() {
           ))}
         </div>
       )}
+
+      <ConfirmationDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={confirmDelete}
+        title="Delete follow-up note"
+        description="This note will be permanently removed from the patient's history. This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        loading={deleting}
+      />
     </div>
   );
 }

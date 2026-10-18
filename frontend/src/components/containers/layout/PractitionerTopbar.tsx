@@ -139,6 +139,7 @@ export default function PractitionerTopbar({
                 <span className="text-sm font-semibold text-text-primary">
                   Notifications
                 </span>
+                {/* Waiting Room is disabled for now.
                 <button
                   onClick={() => {
                     router.push("/waiting-room");
@@ -148,6 +149,7 @@ export default function PractitionerTopbar({
                 >
                   View Waiting Room
                 </button>
+                */}
               </div>
 
               {/* List */}

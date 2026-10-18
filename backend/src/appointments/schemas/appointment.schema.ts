@@ -19,8 +19,13 @@ export class Appointment {
   @Prop({ type: Types.ObjectId, ref: 'Practice', index: true })
   practiceId?: Types.ObjectId;
 
+  /** Copied from the appointment type when one is chosen, so history survives renames. */
   @Prop({ required: true })
   title: string;
+
+  // Optional: appointments booked before types existed have only a title.
+  @Prop({ type: Types.ObjectId, ref: 'AppointmentType' })
+  appointmentTypeId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, required: true, ref: 'Patient' })
   patientId: Types.ObjectId;

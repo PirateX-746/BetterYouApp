@@ -1,5 +1,6 @@
 "use client";
 
+import { Page, PageHeader } from "@/components/common/PageLayout";
 import { useState } from "react";
 import SettingsSidebar from "@/components/containers/settings/SettingsSidebar";
 import ProfileTab from "@/components/containers/settings/ProfileTab";
@@ -7,8 +8,15 @@ import SecurityTab from "@/components/containers/settings/SecurityTab";
 import NotificationsTab from "@/components/containers/settings/NotificationsTab";
 import AppearanceTab from "@/components/containers/settings/AppearanceTab";
 import PracticeHoursTab from "@/components/containers/settings/PracticeHoursTab";
+import AppointmentTypesTab from "@/components/containers/settings/AppointmentTypesTab";
 
-type Tab = "profile" | "security" | "notifications" | "appearance" | "practice-hours";
+type Tab =
+  | "profile"
+  | "security"
+  | "notifications"
+  | "appearance"
+  | "practice-hours"
+  | "appointment-types";
 
 const TAB_COMPONENTS: Record<Tab, React.ReactNode> = {
   profile: <ProfileTab />,
@@ -16,19 +24,15 @@ const TAB_COMPONENTS: Record<Tab, React.ReactNode> = {
   notifications: <NotificationsTab />,
   appearance: <AppearanceTab />,
   "practice-hours": <PracticeHoursTab />,
+  "appointment-types": <AppointmentTypesTab />,
 };
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("profile");
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">Settings</h1>
-        <p className="text-sm text-text-secondary mt-0.5">
-          Manage your account and preferences
-        </p>
-      </div>
+    <Page>
+      <PageHeader title="Settings" subtitle="Manage your account and preferences" />
 
       <div className="flex flex-col md:flex-row gap-4">
         <SettingsSidebar
@@ -39,6 +43,6 @@ export default function SettingsPage() {
           {TAB_COMPONENTS[activeTab]}
         </div>
       </div>
-    </div>
+    </Page>
   );
 }

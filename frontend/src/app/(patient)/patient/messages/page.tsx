@@ -7,9 +7,11 @@ import { api } from "@/lib/api";
 import { Message, Conversation } from "@/types/chat";
 import { usePractitioners } from "@/hooks/usePractitioners";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { Loader2, ArrowLeft, Plus, X, Send } from "lucide-react";
+import { ArrowLeft, Plus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePatientChat } from "@/contexts/PatientChatContext";
+import { Modal } from "@/components/common/Modal";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export default function MessagesPage() {
   const userId = useLocalStorage("userId");
@@ -350,53 +352,37 @@ export default function MessagesPage() {
       </div>
 
       {/* ── New Chat Modal ── */}
-      {showNewChat && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
-          onClick={e => e.target === e.currentTarget && setShowNewChat(false)}
-        >
-          <div className="bg-bg-card w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 max-h-[80vh] flex flex-col shadow-xl">
-            <div className="flex justify-between items-center mb-4 shrink-0">
-              <div>
-                <h2 className="text-base font-semibold text-text-primary">New Conversation</h2>
-                <p className="text-xs text-text-secondary mt-0.5">Choose a practitioner to message</p>
-              </div>
+      <Modal
+        open={showNewChat}
+        onClose={() => setShowNewChat(false)}
+        title="New Conversation"
+        subtitle="Choose a practitioner to message"
+        maxWidth="sm:max-w-md"
+      >
+        {loadingPractitioners ? (
+          <LoadingState />
+        ) : practitioners.length === 0 ? (
+          <p className="text-center text-text-secondary text-sm py-10">No practitioners available.</p>
+        ) : (
+          <div className="space-y-2">
+            {practitioners.map(p => (
               <button
-                onClick={() => setShowNewChat(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-bg-hover text-text-secondary transition"
+                key={p._id}
+                onClick={() => startNewChat(p._id)}
+                className="w-full flex items-center gap-3 p-3 border border-border rounded-xl hover:bg-bg-hover hover:border-primary/30 transition text-left"
               >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-2">
-              {loadingPractitioners ? (
-                <div className="flex items-center justify-center py-10">
-                  <Loader2 className="animate-spin text-primary" size={24} />
+                <div className="w-10 h-10 rounded-full bg-primary-light text-primary flex items-center justify-center font-semibold text-sm shrink-0">
+                  {p.firstName[0]}{p.lastName[0]}
                 </div>
-              ) : practitioners.length === 0 ? (
-                <p className="text-center text-text-secondary text-sm py-10">No practitioners available.</p>
-              ) : (
-                practitioners.map(p => (
-                  <button
-                    key={p._id}
-                    onClick={() => startNewChat(p._id)}
-                    className="w-full flex items-center gap-3 p-3 border border-border rounded-xl hover:bg-bg-hover hover:border-primary/30 transition text-left"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm shrink-0">
-                      {p.firstName[0]}{p.lastName[0]}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-text-primary text-sm truncate">Dr. {p.firstName} {p.lastName}</p>
-                      {p.specialization && <p className="text-xs text-text-secondary truncate">{p.specialization}</p>}
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-text-primary text-sm truncate">Dr. {p.firstName} {p.lastName}</p>
+                  {p.specialization && <p className="text-xs text-text-secondary truncate">{p.specialization}</p>}
+                </div>
+              </button>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

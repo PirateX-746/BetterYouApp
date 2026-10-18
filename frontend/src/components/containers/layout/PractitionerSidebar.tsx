@@ -15,6 +15,9 @@ import {
   LogOut,
   Pill,
   Clock,
+  type LucideIcon,
+  LifeBuoy,
+  ClipboardList,
 } from "lucide-react";
 import { usePractitionerChat } from "@/contexts/PractitionerChatContext";
 import { useLogout } from "@/hooks/useLogout";
@@ -40,13 +43,15 @@ interface SidebarProps {
   setOpen: (value: boolean) => void;
 }
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { label: string; href: string; icon: LucideIcon; comingSoon?: boolean }[] = [
   { label: "Dashboard",     href: "/dashboard",                icon: LayoutDashboard },
-  { label: "Waiting Room",  href: "/waiting-room",             icon: Clock,           comingSoon: true },
+  // { label: "Waiting Room",  href: "/waiting-room",             icon: Clock,           comingSoon: true },
   { label: "Appointments",  href: "/appointmentsPractitioner", icon: CalendarCheck },
   { label: "Patients",      href: "/patients",                 icon: Users },
+  { label: "Assessments",   href: "/assessments",              icon: ClipboardList },
   { label: "Medications",   href: "/medications",              icon: Pill },
-  { label: "Messages",      href: "/messages",                 icon: MessageCircle,  comingSoon: true },
+  // { label: "Messages",      href: "/messages",                 icon: MessageCircle,  comingSoon: true },
+  { label: "Help & Support", href: "/support",                 icon: LifeBuoy },
   { label: "Settings",      href: "/settings",                 icon: Settings },
 ];
 
@@ -158,7 +163,15 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
         <div className="border-t border-border p-3 shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 w-full px-3 py-2 rounded-xl hover:bg-bg-hover transition text-left focus:outline-none">
+              {/* suppressHydrationWarning: Radix's useId()-generated id for this
+                  trigger legitimately differs between the dev-mode SSR pass and
+                  client hydration (Turbopack Fast Refresh artifact — confirmed
+                  absent in a production build). The id is only used to wire up
+                  aria-controls internally; a mismatch here is inert. */}
+              <button
+                suppressHydrationWarning
+                className="flex items-center gap-3 w-full px-3 py-2 rounded-xl hover:bg-bg-hover transition text-left focus:outline-none"
+              >
                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-semibold shrink-0">
                   {initials}
                 </div>

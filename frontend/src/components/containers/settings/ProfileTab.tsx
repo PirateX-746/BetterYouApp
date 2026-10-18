@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/loading-state";
 import toast from "react-hot-toast";
 import { practitionerProfileSchema, type PractitionerProfileValues } from "@/schemas/settings.schema";
 
@@ -111,9 +112,7 @@ export default function ProfileTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="animate-spin text-primary" size={24} />
-      </div>
+      <LoadingState size="lg" />
     );
   }
 

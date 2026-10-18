@@ -10,6 +10,7 @@ import { PortalLockProvider, usePortalLock } from "@/contexts/PortalLockContext"
 import { PractitionerChatProvider, usePractitionerChat } from "@/contexts/PractitionerChatContext";
 import { PractitionerNotificationsProvider } from "@/contexts/PractitionerNotificationsContext";
 import { PractitionerBreadcrumbProvider } from "@/contexts/PractitionerBreadcrumbContext";
+import { SupportLiveToaster } from "@/components/containers/support/SupportLiveToaster";
 import { useLogout } from "@/hooks/useLogout";
 import { Lock, Stethoscope } from "lucide-react";
 
@@ -218,6 +219,7 @@ export default function PractitionerLayout({ children }: { children: ReactNode }
         <PractitionerUnreadProvider>
           <PractitionerNotificationsProvider>
             <PractitionerBreadcrumbProvider>
+              <SupportLiveToaster side="requester" />
               <PractitionerLayoutInner>{children}</PractitionerLayoutInner>
             </PractitionerBreadcrumbProvider>
           </PractitionerNotificationsProvider>

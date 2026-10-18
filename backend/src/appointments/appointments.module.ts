@@ -6,6 +6,7 @@ import { Appointment, AppointmentSchema } from './schemas/appointment.schema';
 import { AppointmentsGateway } from './appointments.gateway';
 import { AvailabilityModule } from '../availability/availability.module';
 import { PractitionersModule } from '../practitioners/practitioners.module';
+import { AppointmentTypesModule } from '../appointment-types/appointment-types.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { PractitionersModule } from '../practitioners/practitioners.module';
     ]),
     AvailabilityModule,
     PractitionersModule,
+    AppointmentTypesModule,
   ],
   controllers: [AppointmentsController],
   providers: [AppointmentsService, AppointmentsGateway],

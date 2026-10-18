@@ -8,4 +8,6 @@ export enum DocumentType {
   DISCHARGE_SUMMARY = 'discharge-summary',
   PROGRESS_NOTE_SOAP = 'progress-note-soap',
   PSYCH_TESTING_REPORT = 'psych-testing-report',
+  /** Scanned or uploaded file (PDF) rather than a structured form. */
+  CUSTOM = 'custom-document',
 }

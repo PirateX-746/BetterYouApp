@@ -4,7 +4,7 @@ import "./globals.css";
 
 import { ThemeProvider } from "@/components/containers/layout/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as HotToaster } from "react-hot-toast";
+import AppToaster from "@/components/containers/layout/AppToaster";
 
 export const metadata = {
   title: "BetterYou – Psychology & Wellness Portal",
@@ -37,16 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           {children}
           <Toaster />
-          <HotToaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                borderRadius: "12px",
-                fontSize: "14px",
-              },
-            }}
-          />
+          <AppToaster />
         </ThemeProvider>
       </body>
     </html>

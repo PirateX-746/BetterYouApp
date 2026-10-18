@@ -8,6 +8,10 @@ import {
   Practitioner,
   PractitionerSchema,
 } from '../../practitioners/schemas/practitioner.schema';
+import {
+  PlatformAdmin,
+  PlatformAdminSchema,
+} from '../../platform-admins/schemas/platform-admin.schema';
 
 /** Global so any gateway can authenticate a socket without extra wiring. */
 @Global()
@@ -16,6 +20,7 @@ import {
     MongooseModule.forFeature([
       { name: Patient.name, schema: PatientSchema },
       { name: Practitioner.name, schema: PractitionerSchema },
+      { name: PlatformAdmin.name, schema: PlatformAdminSchema },
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],

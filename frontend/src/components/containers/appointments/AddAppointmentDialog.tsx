@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, Trash2, Loader2, AlertCircle, Clock } from "lucide-react";
+import { Trash2, Loader2, AlertCircle, Clock, CheckCircle2, ClipboardList, XCircle, UserX } from "lucide-react";
 import { CalendarEvent } from "@/types/appointment";
-import { api } from "@/lib/api";
-import { useEscapeToClose } from "@/hooks/useEscapeToClose";
+import Link from "next/link";
+import { api, type AppointmentType } from "@/lib/api";
+import { DURATION_PRESETS, formatDuration } from "@/lib/appointmentTypes";
+import { Modal } from "@/components/common/Modal";
+import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
+import { Badge, type BadgeTone } from "@/components/common/Badge";
 import SearchableSelect from "../../ui/SearchableSelect";
 import type { PracticeHours } from "./AppointmentsClient";
 
@@ -15,19 +19,27 @@ type Props = {
   initialDate: Date | null;
   event: CalendarEvent | null;
   practiceHours?: PracticeHours;
+  /** The practitioner's configured types (all of them; inactive ones are filtered here). */
+  appointmentTypes: AppointmentType[];
+  typesLoading?: boolean;
   onClose: () => void;
   onSave: (data: Record<string, unknown>, id?: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onStatusChange?: (id: string, status: string) => Promise<void>;
 };
 
-const APPOINTMENT_TYPES = [
-  "New Patient Visit",
-  "Follow-Up Session",
-  "Counselling Session",
-  "CBT Session",
-  "Couples Therapy",
-  "Family Therapy",
-];
+const STATUS_BADGE: Record<string, { label: string; tone: BadgeTone }> = {
+  scheduled: { label: "Scheduled", tone: "warning" },
+  confirmed: { label: "Confirmed", tone: "success" },
+  checked_in: { label: "Checked in", tone: "teal" },
+  in_progress: { label: "In session", tone: "primary" },
+  completed: { label: "Completed", tone: "success" },
+  no_show: { label: "No-show", tone: "neutral" },
+  cancelled: { label: "Cancelled", tone: "danger" },
+};
+
+/** Option value for an appointment booked before types existed: it has a title but no type. */
+const LEGACY_PREFIX = "legacy:";
 
 const DAY_KEYS = [
   "sunday", "monday", "tuesday", "wednesday",
@@ -55,15 +67,23 @@ export default function AddAppointmentDialog({
   initialDate,
   event,
   practiceHours,
+  appointmentTypes,
+  typesLoading = false,
   onClose,
   onSave,
   onDelete,
+  onStatusChange,
 }: Props) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [markingComplete, setMarkingComplete] = useState(false);
+  const [markingNoShow, setMarkingNoShow] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [confirm, setConfirm] = useState<"delete" | "cancel" | null>(null);
 
-  const [title, setTitle] = useState("");
+  // A type _id, or LEGACY_PREFIX + title for pre-types appointments.
+  const [typeValue, setTypeValue] = useState("");
   const [patientId, setPatientId] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -75,12 +95,21 @@ export default function AddAppointmentDialog({
     if (!event) return;
     const start = new Date(event.start);
     const end   = new Date(event.end);
-    setTitle(event.title);
+    setTypeValue(
+      event.appointmentTypeId
+        ? event.appointmentTypeId
+        : // Old appointments: match a same-named type if there is one.
+          appointmentTypes.find((t) => t.name === event.title)?._id ??
+            `${LEGACY_PREFIX}${event.title}`,
+    );
     setPatientId(event.patientId);
     setNotes(event.notes ?? "");
     setDate(start.toISOString().slice(0, 10));
     setTime(start.toTimeString().slice(0, 5));
     setDuration((end.getTime() - start.getTime()) / 60_000);
+    // appointmentTypes is deliberately not a dependency: types reload when the
+    // dialog opens, and re-running this would discard the user's edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event]);
 
   /* Prefill date/time for create */
@@ -103,7 +132,7 @@ export default function AddAppointmentDialog({
   /* Reset on close */
   useEffect(() => {
     if (open) return;
-    setTitle(""); setNotes(""); setPatientId(""); setDuration(30);
+    setTypeValue(""); setNotes(""); setPatientId(""); setDuration(30);
   }, [open]);
 
   /* ── Practice hours validation for selected date ── */
@@ -135,17 +164,46 @@ export default function AddAppointmentDialog({
     return `Open ${fmt12(daySchedule.openTime)} – ${fmt12(daySchedule.closeTime)}`;
   }, [daySchedule]);
 
-  useEscapeToClose(open, onClose);
-
-  if (!open) return null;
-
   const patientOptions = patients.map((p) => ({
     value: p._id,
     label: `${p.firstName} ${p.lastName ?? ""}`.trim(),
   }));
-  const typeOptions = APPOINTMENT_TYPES.map((t) => ({ value: t, label: t }));
+  // Active types, plus whatever this appointment already has even if that
+  // type has since been deactivated (or predates types entirely).
+  const typeOptions = useMemo(() => {
+    const opts = appointmentTypes
+      .filter((t) => t.isActive || t._id === typeValue)
+      .map((t) => ({
+        value: t._id,
+        label: `${t.name} · ${formatDuration(t.durationMinutes)}${t.isActive ? "" : " (inactive)"}`,
+      }));
+    if (typeValue.startsWith(LEGACY_PREFIX)) {
+      opts.unshift({ value: typeValue, label: typeValue.slice(LEGACY_PREFIX.length) });
+    }
+    return opts;
+  }, [appointmentTypes, typeValue]);
+  const noActiveTypes = !typesLoading && !appointmentTypes.some((t) => t.isActive);
 
-  const canSave = !saving && !!date && !!time && !!title && !hoursError;
+  /** Picking a type prefills its duration; the duration stays editable. */
+  const handleTypeChange = (value: string) => {
+    setTypeValue(value);
+    const type = appointmentTypes.find((t) => t._id === value);
+    if (type) setDuration(type.durationMinutes);
+  };
+
+  // Presets plus the current value, so a type's 50- or 75-minute default
+  // (or an old appointment's odd length) is always selectable.
+  const durationOptions = useMemo(
+    () => [...new Set([...DURATION_PRESETS, 120, duration])].sort((a, b) => a - b),
+    [duration],
+  );
+
+  const isClosedOut =
+    event?.status === "completed" ||
+    event?.status === "cancelled" ||
+    event?.status === "no_show";
+
+  const canSave = !saving && !!date && !!time && !!typeValue && (isClosedOut || !hoursError);
 
   const handleSubmit = async () => {
     if (!canSave) return;
@@ -153,40 +211,170 @@ export default function AddAppointmentDialog({
     const end   = new Date(start.getTime() + duration * 60_000);
     setSaving(true);
     try {
-      await onSave({ title, patientId, start: start.toISOString(), end: end.toISOString(), notes }, event?.id);
+      // A real type is sent by id (the server sets the title from it); a
+      // legacy appointment keeps its free-text title.
+      const typeFields = typeValue.startsWith(LEGACY_PREFIX)
+        ? { title: typeValue.slice(LEGACY_PREFIX.length) }
+        : { appointmentTypeId: typeValue };
+      await onSave({ ...typeFields, patientId, start: start.toISOString(), end: end.toISOString(), notes }, event?.id);
       onClose();
     } finally {
       setSaving(false);
     }
   };
 
+  const busy = markingComplete || markingNoShow || cancelling;
+  // Outcome actions only make sense once the session's start time has passed.
+  const hasStarted = !!event && new Date(event.start).getTime() <= Date.now();
+
   const handleDelete = () => {
     if (!event) return;
+    setConfirm(null);
     onDelete(event.id);
     onClose();
   };
 
+  const handleMarkCompleted = async () => {
+    if (!event || !onStatusChange) return;
+    setMarkingComplete(true);
+    try {
+      await onStatusChange(event.id, "completed");
+    } finally {
+      setMarkingComplete(false);
+    }
+  };
+
+  const handleMarkNoShow = async () => {
+    if (!event || !onStatusChange) return;
+    setMarkingNoShow(true);
+    try {
+      await onStatusChange(event.id, "no_show");
+    } finally {
+      setMarkingNoShow(false);
+    }
+  };
+
+  const handleCancelAppointment = async () => {
+    if (!event || !onStatusChange) return;
+    setCancelling(true);
+    try {
+      await onStatusChange(event.id, "cancelled");
+      setConfirm(null);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-      <div className="bg-bg-card w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-xl max-h-[92dvh] flex flex-col">
-        <div className="flex justify-center pt-3 sm:hidden shrink-0">
-          <div className="w-10 h-1 bg-border rounded-full" />
+    <>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={event ? "Edit Appointment" : "Schedule Appointment"}
+      footer={
+        <div className="flex flex-wrap items-center gap-2 w-full">
+          {/* Destructive actions: quiet, on the left, and always confirmed.
+              Not offered once a session is closed out — that's the record. */}
+          {event && !isClosedOut && (
+            <div className="flex items-center gap-1 -ml-2">
+              {onStatusChange && (
+                <button
+                  type="button"
+                  onClick={() => setConfirm("cancel")}
+                  disabled={busy}
+                  className="h-10 inline-flex items-center gap-1.5 px-2.5 rounded-md text-sm text-danger hover:bg-danger/5 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <XCircle size={15} aria-hidden /> Cancel appointment
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setConfirm("delete")}
+                disabled={busy}
+                className="h-10 inline-flex items-center gap-1.5 px-2.5 rounded-md text-sm text-text-secondary hover:text-danger hover:bg-danger/5 transition-colors cursor-pointer disabled:opacity-50"
+                aria-label="Delete appointment"
+              >
+                <Trash2 size={15} aria-hidden /> Delete
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!canSave}
+              className="h-10 flex items-center gap-2 px-5 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title={hoursError ?? undefined}
+            >
+              {saving && <Loader2 size={14} className="animate-spin" aria-hidden />}
+              {saving ? "Saving…" : event ? "Save changes" : "Schedule"}
+            </button>
+          </div>
         </div>
+      }
+    >
+          {/* Session status + the actions that make sense right now */}
+          {event && (
+            <div className="rounded-md border border-border bg-bg-page p-3.5 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Status</span>
+                <Badge tone={STATUS_BADGE[event.status ?? "scheduled"]?.tone ?? "neutral"}>
+                  {STATUS_BADGE[event.status ?? "scheduled"]?.label ?? event.status}
+                </Badge>
+              </div>
+              {!isClosedOut && onStatusChange && hasStarted && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-text-primary">How did the session go?</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleMarkNoShow}
+                      disabled={busy}
+                      className="h-10 inline-flex items-center gap-1.5 px-3 rounded-md border border-border bg-bg-card text-sm text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {markingNoShow ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <UserX size={14} aria-hidden />}
+                      No-show
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleMarkCompleted}
+                      disabled={busy}
+                      className="h-10 inline-flex items-center gap-1.5 px-3 rounded-md bg-success text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                    >
+                      {markingComplete ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <CheckCircle2 size={14} aria-hidden />}
+                      Mark completed
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!isClosedOut && !hasStarted && (
+                <p className="text-xs text-text-secondary">
+                  Completion and no-show can be recorded once the session has started.
+                </p>
+              )}
+              {/* Assessable from the session's start, unless cancelled / no-show. */}
+              {hasStarted && event.status !== "cancelled" && event.status !== "no_show" && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                  <p className="text-sm text-text-primary">Record your observations of this session.</p>
+                  <Link
+                    href={`/assessments?appointment=${event.id}`}
+                    className="h-10 inline-flex items-center gap-1.5 px-3 rounded-md border border-primary/30 bg-bg-card text-sm font-medium text-primary hover:bg-primary/5 transition-colors cursor-pointer"
+                  >
+                    <ClipboardList size={14} aria-hidden /> Session assessment
+                  </Link>
+                </div>
+              )}
+              {isClosedOut && (
+                <p className="text-xs text-text-secondary">Closed out — the time can&apos;t change, but you can still edit the notes.</p>
+              )}
+            </div>
+          )}
 
-        <div className="flex items-center justify-between px-5 py-4 shrink-0">
-          <h2 className="text-base font-semibold text-text-primary">
-            {event ? "Edit Appointment" : "Schedule Appointment"}
-          </h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-bg-hover text-text-secondary transition">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-5 pb-2 space-y-3">
           {/* Patient */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Patient</label>
+            <label htmlFor="appt-patient" className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Patient</label>
             <SearchableSelect
+              id="appt-patient"
               options={patientOptions}
               value={patientId}
               onChange={setPatientId}
@@ -199,13 +387,24 @@ export default function AddAppointmentDialog({
 
           {/* Type */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Appointment Type</label>
+            <label htmlFor="appt-type" className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Appointment Type</label>
             <SearchableSelect
+              id="appt-type"
               options={typeOptions}
-              value={title}
-              onChange={setTitle}
+              value={typeValue}
+              onChange={handleTypeChange}
               placeholder="Select type"
+              loading={typesLoading}
+              loadingText="Loading types…"
             />
+            {noActiveTypes && (
+              <p className="text-xs text-text-secondary">
+                No active appointment types.{" "}
+                <Link href="/settings" className="text-primary hover:underline">
+                  Add them in Settings → Appointment Types
+                </Link>
+              </p>
+            )}
           </div>
 
           {/* Date & Time */}
@@ -218,6 +417,7 @@ export default function AddAppointmentDialog({
                 type="date"
                 className={fieldCls}
                 value={date}
+                disabled={isClosedOut}
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
@@ -237,13 +437,20 @@ export default function AddAppointmentDialog({
                 value={time}
                 min={daySchedule?.isOpen ? daySchedule.openTime : undefined}
                 max={daySchedule?.isOpen ? daySchedule.closeTime : undefined}
+                disabled={isClosedOut}
                 onChange={(e) => setTime(e.target.value)}
               />
             </div>
           </div>
 
+          {isClosedOut && (
+            <p className="text-xs text-text-secondary -mt-2">
+              This appointment is {event?.status === "completed" ? "completed" : event?.status === "no_show" ? "marked as no-show" : "cancelled"} and can no longer be rescheduled.
+            </p>
+          )}
+
           {/* Practice hours error banner */}
-          {hoursError && (
+          {!isClosedOut && hoursError && (
             <div className="flex items-start gap-2 px-3 py-2.5 bg-danger/8 border border-danger/20 rounded-xl">
               <AlertCircle size={15} className="text-danger shrink-0 mt-0.5" />
               <p className="text-xs text-danger">{hoursError}</p>
@@ -252,18 +459,19 @@ export default function AddAppointmentDialog({
 
           {/* Duration */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Duration</label>
-            <select className={fieldCls} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-              <option value={30}>30 minutes</option>
-              <option value={45}>45 minutes</option>
-              <option value={60}>1 hour</option>
+            <label htmlFor="appt-duration" className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Duration</label>
+            <select id="appt-duration" className={fieldCls} value={duration} disabled={isClosedOut} onChange={(e) => setDuration(Number(e.target.value))}>
+              {durationOptions.map((m) => (
+                <option key={m} value={m}>{formatDuration(m)}</option>
+              ))}
             </select>
           </div>
 
           {/* Notes */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Notes</label>
+            <label htmlFor="appt-notes" className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Notes</label>
             <textarea
+              id="appt-notes"
               className={`${fieldCls} resize-none`}
               placeholder="Session notes…"
               rows={3}
@@ -271,31 +479,32 @@ export default function AddAppointmentDialog({
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
-        </div>
+    </Modal>
 
-        <div className="px-5 py-4 border-t border-border flex items-center gap-3 shrink-0">
-          {event && (
-            <button onClick={handleDelete} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-danger text-danger text-sm hover:bg-danger/5 transition">
-              <Trash2 size={14} />
-              Delete
-            </button>
-          )}
-          <div className="flex gap-2 ml-auto">
-            <button onClick={onClose} className="px-4 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:bg-bg-hover transition">
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={!canSave}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition disabled:opacity-40 disabled:cursor-not-allowed"
-              title={hoursError ?? undefined}
-            >
-              {saving && <Loader2 size={14} className="animate-spin" />}
-              {saving ? "Saving…" : event ? "Update" : "Schedule"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    {event && (
+      <>
+      <ConfirmationDialog
+        open={confirm === "cancel"}
+        onClose={() => !cancelling && setConfirm(null)}
+        onConfirm={() => void handleCancelAppointment()}
+        title="Cancel this appointment?"
+        description="It stays on the calendar and in the patient's history, marked as cancelled, and the time slot opens up again."
+        confirmLabel="Cancel appointment"
+        cancelLabel="Keep it"
+        danger
+        loading={cancelling}
+      />
+      <ConfirmationDialog
+        open={confirm === "delete"}
+        onClose={() => setConfirm(null)}
+        onConfirm={handleDelete}
+        title="Delete this appointment?"
+        description="It's removed completely, as if it was never booked. Use this for mistakes — to call off a real session, cancel it instead so it stays on record."
+        confirmLabel="Delete"
+        danger
+      />
+      </>
+    )}
+    </>
   );
 }

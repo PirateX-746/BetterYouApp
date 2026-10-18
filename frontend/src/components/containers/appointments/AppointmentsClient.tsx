@@ -1,5 +1,6 @@
 "use client";
 
+import { Page, PageHeader } from "@/components/common/PageLayout";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid/index.js";
@@ -8,13 +9,14 @@ import interactionPlugin from "@fullcalendar/interaction/index.js";
 import type {
   DateSpanApi,
   EventClickArg,
+  EventContentArg,
   EventDropArg,
 } from "@fullcalendar/core";
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
-import { Loader2, Settings2 } from "lucide-react";
+import { CheckCircle2, Loader2, Settings2 } from "lucide-react";
 import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
 import toast from "react-hot-toast";
-import { api } from "@/lib/api";
+import { api, appointmentTypesApi, type AppointmentType } from "@/lib/api";
 import { CalendarEvent } from "@/types/appointment";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import AddAppointmentDialog from "./AddAppointmentDialog";
@@ -116,6 +118,96 @@ function getStatusColor(status?: string): string {
   return STATUS_COLORS[status ?? ""] ?? STATUS_COLORS.pending;
 }
 
+/** Completed/cancelled/no-show appointments are closed out and can no longer be rescheduled. */
+function isClosedOutStatus(status?: string): boolean {
+  return status === "completed" || status === "cancelled" || status === "no_show";
+}
+
+/** Shallow value equality, treating dates/ISO strings for the same instant as equal. */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a === "string" && typeof b === "string") {
+    const ta = Date.parse(a), tb = Date.parse(b);
+    return !Number.isNaN(ta) && ta === tb && /\d{4}-\d{2}-\d{2}T/.test(a);
+  }
+  return (a ?? null) === (b ?? null);
+}
+
+/** Shown on the event card; "scheduled" is the default and needs no label. */
+const STATUS_LABEL: Record<string, string> = {
+  confirmed:   "Confirmed",
+  checked_in:  "Checked in",
+  in_progress: "In session",
+  completed:   "Completed",
+  cancelled:   "Cancelled",
+  no_show:     "No-show",
+};
+
+/**
+ * Calendar card. The appointment type is the primary signal (tint + left
+ * bar + name first); status is spelled out in words rather than encoded in
+ * color, so the two never compete and color is never the only cue.
+ */
+function AppointmentEventContent({ arg }: { arg: EventContentArg }) {
+  const { typeColor, patientName, status } = arg.event.extendedProps as {
+    typeColor?: string;
+    patientName?: string;
+    status?: string;
+  };
+  const start = arg.event.start;
+  const end = arg.event.end;
+  const minutes = start && end ? (end.getTime() - start.getTime()) / 60_000 : 30;
+  // Short slots and month cells get one line, so the type is never cut off.
+  const monthCell = arg.view.type.startsWith("dayGrid");
+  const compact = monthCell || minutes <= 30;
+  const closed = status === "cancelled" || status === "no_show";
+  const statusLabel = STATUS_LABEL[status ?? ""];
+  const tooltip = [arg.event.title, arg.timeText, patientName, statusLabel]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div
+      className={`appt-card${compact ? " appt-card--compact" : ""}${closed ? " appt-card--closed" : ""}`}
+      style={{ "--appt": typeColor ?? "var(--primary)" } as React.CSSProperties}
+      title={tooltip}
+    >
+      {compact ? (
+        <p className="appt-line">
+          {status === "completed" && <CheckCircle2 size={11} className="appt-icon" aria-hidden />}
+          <span className="appt-title">{arg.event.title}</span>
+          {/* Month cells are too narrow for both; the tooltip has the patient. */}
+          {patientName && !monthCell && <span className="appt-meta">· {patientName}</span>}
+        </p>
+      ) : (
+        <>
+          <p className="appt-title">{arg.event.title}</p>
+          <p className="appt-meta">
+            {arg.timeText}
+            {patientName && ` · ${patientName}`}
+          </p>
+          {statusLabel && (
+            <p className="appt-status">
+              {status === "completed" && <CheckCircle2 size={11} aria-hidden />}
+              {statusLabel}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+const STATUS_TOAST: Record<string, string> = {
+  scheduled:   "Appointment rescheduled",
+  confirmed:   "Appointment confirmed",
+  checked_in:  "Patient checked in",
+  in_progress: "Session started",
+  completed:   "Marked as completed",
+  no_show:     "Marked as no-show",
+  cancelled:   "Appointment cancelled",
+};
+
 type BlockedSlot = {
   _id: string;
   blockType: "day" | "slot";
@@ -141,6 +233,45 @@ export default function AppointmentsClient() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   /* ── Fetch ── */
+  // The practitioner's types: the dialog's picker, and each event's color
+  // stripe. Reloaded whenever the dialog opens so edits made in Settings
+  // show up without a page refresh.
+  const [appointmentTypes, setAppointmentTypes] = useState<AppointmentType[]>([]);
+  const [typesLoading, setTypesLoading] = useState(true);
+  const loadTypes = useCallback(() => {
+    appointmentTypesApi
+      .list()
+      .then(({ data }) => setAppointmentTypes(data))
+      .catch(() => {})
+      .finally(() => setTypesLoading(false));
+  }, []);
+  useEffect(() => { loadTypes(); }, [loadTypes]);
+  useEffect(() => { if (dialogOpen) loadTypes(); }, [dialogOpen, loadTypes]);
+
+  // Patient names for the event cards ("Ananya I.").
+  const [patientNames, setPatientNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    api
+      .get("/patients")
+      .then(({ data }) => {
+        if (!Array.isArray(data)) return;
+        const names: Record<string, string> = {};
+        for (const p of data as { _id: string; firstName: string; lastName?: string }[]) {
+          names[p._id] = `${p.firstName}${p.lastName ? ` ${p.lastName[0]}.` : ""}`;
+        }
+        setPatientNames(names);
+      })
+      .catch(() => {});
+  }, []);
+
+  /** Color for an event's type — by id, or by name for appointments booked before types existed. */
+  const typeColor = useCallback(
+    (e: CalendarEvent) =>
+      appointmentTypes.find((t) => t._id === e.appointmentTypeId)?.color ??
+      appointmentTypes.find((t) => t.name === e.title)?.color,
+    [appointmentTypes],
+  );
+
   const fetchAppointments = useCallback(async () => {
     if (!practitionerId) return;
     try {
@@ -153,6 +284,7 @@ export default function AppointmentsClient() {
         res.data.map((a: Record<string, unknown>) => ({
           id: (a._id ?? a.id) as string,
           title: a.title as string,
+          appointmentTypeId: (a.appointmentTypeId as string | null) ?? null,
           start: a.start as string,
           end: a.end as string,
           patientId: a.patientId as string,
@@ -209,8 +341,16 @@ export default function AppointmentsClient() {
       } else {
         setEvents((prev) => {
           const exists = prev.find((e) => e.id === incoming.id);
-          if (exists) return prev.map((e) => (e.id === incoming.id ? { ...e, ...incoming } : e));
-          return [...prev, incoming];
+          if (!exists) return [...prev, incoming];
+          // The echo of our own drag/save carries what we already have.
+          // Returning the same array skips a re-render, and with it a full
+          // re-parse of the calendar's events (a visible flash).
+          const merged = { ...exists, ...incoming };
+          const same = (Object.keys(merged) as (keyof CalendarEvent)[]).every(
+            (k) => sameValue(merged[k], exists[k]),
+          );
+          if (same) return prev;
+          return prev.map((e) => (e.id === incoming.id ? merged : e));
         });
       }
     };
@@ -265,6 +405,7 @@ export default function AppointmentsClient() {
     setSelectedEvent({
       id: info.event.id,
       title: info.event.title,
+      appointmentTypeId: info.event.extendedProps.appointmentTypeId as string | null,
       start: start.toISOString(),
       end: end.toISOString(),
       patientId: info.event.extendedProps.patientId as string,
@@ -296,11 +437,12 @@ export default function AppointmentsClient() {
     if (!practitionerId) return;
     try {
       if (id) {
-        await api.put(`/appointments/${id}`, { ...payload, practitionerId });
+        const { data: saved } = await api.put(`/appointments/${id}`, { ...payload, practitionerId });
+        // Take title/type from the server: picking a type sets the title there.
         setEvents((prev) =>
           prev.map((e) =>
             e.id === id
-              ? { ...e, title: payload.title as string, start: payload.start as string, end: payload.end as string, notes: payload.notes as string }
+              ? { ...e, title: saved.title, appointmentTypeId: saved.appointmentTypeId ?? null, start: payload.start as string, end: payload.end as string, notes: payload.notes as string }
               : e,
           ),
         );
@@ -328,6 +470,21 @@ export default function AppointmentsClient() {
     }
   };
 
+  const handleStatusChange = async (id: string, status: string) => {
+    try {
+      await api.patch(`/appointments/${id}/status`, { status });
+      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
+      // The dialog's `event` prop is a snapshot taken when it opened, so the
+      // "Session Assessment" button needs this nudge to appear without a
+      // close/reopen round trip.
+      setSelectedEvent((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
+      toast.success(STATUS_TOAST[status] ?? "Status updated");
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast.error(e?.response?.data?.message ?? "Failed to update status");
+    }
+  };
+
   /* ── Drag & resize ── */
   const updateEventByDrag = useCallback(
     async (info: EventDropArg | EventResizeDoneArg) => {
@@ -335,6 +492,12 @@ export default function AppointmentsClient() {
       const { event, revert } = info;
       const start = event.start ?? new Date();
       const end   = event.end   ?? new Date(start.getTime() + 30 * 60_000);
+
+      if (isClosedOutStatus(event.extendedProps.status as string | undefined)) {
+        revert();
+        toast.error("This appointment is closed out and can no longer be rescheduled");
+        return;
+      }
 
       if (start < new Date()) {
         revert();
@@ -380,6 +543,13 @@ export default function AppointmentsClient() {
           notes: event.extendedProps.notes,
           practitionerId,
         });
+        // FullCalendar already shows the new time; mirror it in state so the
+        // next re-parse (any later update) doesn't snap the event back.
+        setEvents((prev) =>
+          prev.map((e) =>
+            e.id === event.id ? { ...e, start: start.toISOString(), end: end.toISOString() } : e,
+          ),
+        );
         toast.success("Rescheduled");
       } catch (err: unknown) {
         revert();
@@ -391,6 +561,43 @@ export default function AppointmentsClient() {
     [practitionerId, blockedSlots, practiceHours, fetchAppointments],
   );
 
+  // Built once per data change, not per render: a new array (or new source
+  // objects) makes FullCalendar drop and re-add every event, which flashes.
+  const eventSources = useMemo(
+    () => [
+      {
+        events: events.map((e) => ({
+          id: e.id,
+          title: e.title,
+          start: e.start,
+          end: e.end,
+          backgroundColor: getStatusColor(e.status),
+          borderColor: getStatusColor(e.status),
+          startEditable: !isClosedOutStatus(e.status),
+          durationEditable: !isClosedOutStatus(e.status),
+          extendedProps: {
+            appointmentTypeId: e.appointmentTypeId ?? null,
+            typeColor: typeColor(e),
+            patientName: patientNames[e.patientId],
+            patientId: e.patientId,
+            notes: e.notes,
+            status: e.status,
+          },
+        })),
+      },
+      {
+        events: blockedSlots.map((b) => ({
+          id: `block-${b._id}`,
+          start: b.blockType === "day" ? `${b.date}T00:00:00` : `${b.date}T${b.startTime}`,
+          end:   b.blockType === "day" ? `${b.date}T23:59:59` : `${b.date}T${b.endTime}`,
+          display: "background",
+          backgroundColor: "#fee2e2",
+        })),
+      },
+    ],
+    [events, blockedSlots, typeColor, patientNames],
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -400,23 +607,39 @@ export default function AppointmentsClient() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-text-primary">Appointments</h1>
-          <p className="text-sm text-text-secondary mt-0.5">Manage your schedule</p>
-        </div>
-        <button
-          onClick={() => setAvailabilityOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover transition"
-        >
-          <Settings2 size={15} />
-          <span className="hidden sm:inline">Manage Availability</span>
-          <span className="sm:hidden">Availability</span>
-        </button>
-      </div>
+    // Fits one viewport: header, legend and toolbar stay put; only the time grid scrolls.
+    <Page fill>
+      <PageHeader
+        title="Appointments"
+        subtitle="Manage your schedule"
+        actions={
+          <button
+            onClick={() => setAvailabilityOpen(true)}
+            className="h-11 flex items-center gap-2 px-4 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer"
+          >
+            <Settings2 size={15} aria-hidden />
+            Manage Availability
+          </button>
+        }
+      />
 
-      <div className="bg-bg-card border border-border rounded-2xl p-3 md:p-5 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col bg-bg-card border border-border rounded-2xl p-3 md:p-4 overflow-hidden">
+        {appointmentTypes.some((t) => t.isActive) && (
+          <ul
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-3 mb-3 border-b border-border text-xs text-text-secondary shrink-0"
+            aria-label="Appointment type colors"
+          >
+            {appointmentTypes
+              .filter((t) => t.isActive)
+              .map((t) => (
+                <li key={t._id} className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} aria-hidden />
+                  {t.name}
+                </li>
+              ))}
+          </ul>
+        )}
+        <div className="flex-1 min-h-0">
         <FullCalendar
           ref={calendarRef}
           plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
@@ -424,8 +647,9 @@ export default function AppointmentsClient() {
           slotMinTime={slotMinTime}
           slotMaxTime={slotMaxTime}
           slotDuration="00:30:00"
-          height="auto"
-          contentHeight="auto"
+          height="100%"
+          expandRows
+          stickyHeaderDates
           nowIndicator
           selectable
           selectMirror
@@ -439,6 +663,7 @@ export default function AppointmentsClient() {
           allDaySlot={false}
           select={handleSlotSelect}
           eventClick={handleEventClick}
+          eventContent={(arg) => <AppointmentEventContent arg={arg} />}
           eventDrop={updateEventByDrag}
           eventResize={updateEventByDrag}
           headerToolbar={{
@@ -446,33 +671,9 @@ export default function AppointmentsClient() {
             center: "title",
             right: "dayGridMonth,timeGridWeek,timeGridDay",
           }}
-          eventSources={[
-            {
-              events: events.map((e) => ({
-                id: e.id,
-                title: e.title,
-                start: e.start,
-                end: e.end,
-                backgroundColor: getStatusColor(e.status),
-                borderColor: getStatusColor(e.status),
-                extendedProps: {
-                  patientId: e.patientId,
-                  notes: e.notes,
-                  status: e.status,
-                },
-              })),
-            },
-            {
-              events: blockedSlots.map((b) => ({
-                id: `block-${b._id}`,
-                start: b.blockType === "day" ? `${b.date}T00:00:00` : `${b.date}T${b.startTime}`,
-                end:   b.blockType === "day" ? `${b.date}T23:59:59` : `${b.date}T${b.endTime}`,
-                display: "background",
-                backgroundColor: "#fee2e2",
-              })),
-            },
-          ]}
+          eventSources={eventSources}
         />
+        </div>
       </div>
 
       <AddAppointmentDialog
@@ -480,9 +681,12 @@ export default function AppointmentsClient() {
         initialDate={selectedDate}
         event={selectedEvent}
         practiceHours={practiceHours}
+        appointmentTypes={appointmentTypes}
+        typesLoading={typesLoading}
         onClose={handleDialogClose}
         onSave={handleSave}
         onDelete={handleDelete}
+        onStatusChange={handleStatusChange}
       />
 
       <ManageAvailabilityDialog
@@ -491,6 +695,6 @@ export default function AppointmentsClient() {
         onClose={() => setAvailabilityOpen(false)}
         onRefresh={() => { fetchAppointments(); fetchBlockedSlots(); }}
       />
-    </div>
+    </Page>
   );
 }

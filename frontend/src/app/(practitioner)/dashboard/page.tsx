@@ -1,28 +1,25 @@
 "use client";
 
+import { Page, PageHeader } from "@/components/common/PageLayout";
+import { CardLink, EmptyBlock, SectionCard, StatCard } from "@/components/common/Dashboard";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { Badge } from "@/components/common/Badge";
 import {
   Users,
   Calendar,
   Clock,
-  CheckCircle2,
-  TrendingUp,
-  TrendingDown,
   AlertCircle,
   UserPlus,
   CalendarCheck,
   Pill,
   FileText,
-  ChevronRight,
-  Dot,
   Loader2,
   Activity,
-  Star,
+  CircleCheck,
 } from "lucide-react";
-import type { ReactNode } from "react";
 
 /* ─────────────────────────────────────────────
    Types
@@ -123,67 +120,11 @@ function timeAgo(iso: string): string {
    Sub-components
 ───────────────────────────────────────────── */
 
-type StatCardProps = {
-  label: string;
-  value: string | number;
-  icon: ReactNode;
-  iconBg: string;
-  trend?: { value: string; up: boolean };
-  sub?: string;
-};
-
-function StatCard({ label, value, icon, iconBg, trend, sub }: StatCardProps) {
-  return (
-    <div className="bg-bg-card border border-border rounded-2xl p-5 flex flex-col gap-3 hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between">
-        <div
-          className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}
-        >
-          {icon}
-        </div>
-        {trend && (
-          <span
-            className={`flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full ${
-              trend.up
-                ? "bg-success/10 text-success"
-                : "bg-danger/10 text-danger"
-            }`}
-          >
-            {trend.up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-            {trend.value}
-          </span>
-        )}
-      </div>
-      <div>
-        <div className="text-2xl font-bold text-text-primary leading-none">
-          {value}
-        </div>
-        <div className="text-sm text-text-secondary mt-1">{label}</div>
-        {sub && <div className="text-xs text-text-disabled mt-1">{sub}</div>}
-      </div>
-    </div>
-  );
-}
-
 function AppointmentStatusBadge({ status }: { status: string }) {
   const s = status.toLowerCase();
-  if (s === "confirmed")
-    return (
-      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
-        Confirmed
-      </span>
-    );
-  if (s === "cancelled")
-    return (
-      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-danger/10 text-danger">
-        Cancelled
-      </span>
-    );
-  return (
-    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
-      Scheduled
-    </span>
-  );
+  if (s === "confirmed") return <Badge tone="success">Confirmed</Badge>;
+  if (s === "cancelled") return <Badge tone="danger">Cancelled</Badge>;
+  return <Badge tone="warning">Scheduled</Badge>;
 }
 
 function initials(first: string, last: string) {
@@ -266,9 +207,11 @@ export default function DashboardPage() {
 
   const completedCount = useMemo(
     () =>
+      // Sessions actually marked completed — not merely "confirmed" (that
+      // counted every completed session as a miss and showed ~5%).
       appointments.filter(
         (a) =>
-          a.status.toLowerCase() === "confirmed" &&
+          a.status.toLowerCase() === "completed" &&
           new Date(a.start).getTime() < now.getTime(),
       ).length,
     [appointments, now],
@@ -276,8 +219,13 @@ export default function DashboardPage() {
 
   const pastTotal = useMemo(
     () =>
-      appointments.filter((a) => new Date(a.start).getTime() < now.getTime())
-        .length,
+      // Past sessions that were meant to happen: cancellations don't count
+      // against the rate, no-shows do.
+      appointments.filter(
+        (a) =>
+          new Date(a.start).getTime() < now.getTime() &&
+          a.status.toLowerCase() !== "cancelled",
+      ).length,
     [appointments, now],
   );
 
@@ -380,11 +328,11 @@ export default function DashboardPage() {
         });
       });
 
-    // Confirmed past appointments → "Session completed"
+    // Completed past appointments → "Session completed"
     appointments
       .filter(
         (a) =>
-          a.status.toLowerCase() === "confirmed" &&
+          a.status.toLowerCase() === "completed" &&
           new Date(a.start).getTime() < now.getTime(),
       )
       .slice(0, 2)
@@ -445,346 +393,209 @@ export default function DashboardPage() {
     );
   }
 
+  const activePatients = patients.filter((p) => p.isActive !== false).length;
+  const open = isPracticeOpen(practiceHours, now);
+
   return (
-    <div className="space-y-6">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-text-primary">
-            {greeting}, Dr. {doctorName} 👋
-          </h1>
-          <p className="text-sm text-text-secondary mt-0.5">{dateStr}</p>
-        </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-bg-card border border-border rounded-xl">
-          <Activity size={15} className={isPracticeOpen(practiceHours, now) ? "text-success" : "text-text-disabled"} />
-          <span className="text-sm font-medium text-text-primary">
-            {timeStr}
-          </span>
-          <Dot
-            className={isPracticeOpen(practiceHours, now) ? "text-success animate-pulse" : "text-danger"}
-            size={20}
-          />
-          <span className="text-xs text-text-secondary">
-            {isPracticeOpen(practiceHours, now) ? "Practice open" : "Practice closed"}
-          </span>
-        </div>
-      </div>
-
-      {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Patients"
-          value={patients.length}
-          iconBg="bg-primary/10 text-primary"
-          icon={<Users size={20} />}
-        />
-        <StatCard
-          label="Today's Appointments"
-          value={todayAppointments.length}
-          iconBg="bg-success/10 text-success"
-          icon={<Calendar size={20} />}
-          sub={`${todayConfirmed} confirmed`}
-        />
-        <StatCard
-          label="This Week"
-          value={weekAppointments.length}
-          iconBg="bg-warning/10 text-warning"
-          icon={<Clock size={20} />}
-          sub={`Avg. ${(weekAppointments.length / 5).toFixed(1)}/day`}
-        />
-        <StatCard
-          label="Completion Rate"
-          value={`${completionRate}%`}
-          iconBg="bg-purple-500/10 text-purple-500"
-          icon={<CheckCircle2 size={20} />}
-          trend={
-            completionRate >= 80
-              ? { value: "On track", up: true }
-              : { value: "Needs attention", up: false }
-          }
-          sub={`${completedCount} completed`}
-        />
-      </div>
-
-      {/* ── Secondary stats ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Active Patients"
-          value={patients.filter((p) => p.isActive !== false).length}
-          iconBg="bg-primary/10 text-primary"
-          icon={<Users size={20} />}
-          sub="Currently under care"
-        />
-        <StatCard
-          label="Avg. Session Rating"
-          value="—"
-          iconBg="bg-warning/10 text-warning"
-          icon={<Star size={20} />}
-          sub="No ratings yet"
-        />
-        <StatCard
-          label="Medications"
-          value={medicationsThisMonth}
-          iconBg="bg-success/10 text-success"
-          icon={<Pill size={20} />}
-          sub="This month"
-        />
-        <StatCard
-          label="Total Appointments"
-          value={appointments.length}
-          iconBg="bg-purple-500/10 text-purple-500"
-          icon={<CalendarCheck size={20} />}
-          sub="All time"
-        />
-      </div>
-
-      {/* ── Main grid: today's schedule + activity ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Today's schedule */}
-        <div className="lg:col-span-2 bg-bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <div>
-              <h2 className="text-sm font-semibold text-text-primary">
-                Today&apos;s Schedule
-              </h2>
-              <p className="text-xs text-text-secondary mt-0.5">
-                {todayAppointments.length} appointments · {todayConfirmed}{" "}
-                confirmed
-              </p>
-            </div>
-            <Link
-              href="/appointmentsPractitioner"
-              className="text-xs text-primary flex items-center gap-1 hover:underline"
-            >
-              View all <ChevronRight size={13} />
-            </Link>
+    <Page>
+      <PageHeader
+        title={`${greeting}, Dr. ${doctorName}`}
+        subtitle={dateStr}
+        actions={
+          <div className="flex items-center gap-2 h-10 px-3.5 bg-bg-card border border-border rounded-md text-sm">
+            <span className={`w-2 h-2 rounded-full ${open ? "bg-success" : "bg-danger"}`} aria-hidden />
+            <span className="font-medium text-text-primary tabular-nums">{timeStr}</span>
+            <span className="text-text-secondary">· {open ? "Practice open" : "Practice closed"}</span>
           </div>
+        }
+      />
 
+      {/* ── Headline metrics ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          label="Today's appointments"
+          value={todayAppointments.length}
+          icon={Calendar}
+          tone="primary"
+          sub={`${todayConfirmed} confirmed`}
+          href="/appointmentsPractitioner"
+        />
+        <StatCard
+          label="This week"
+          value={weekAppointments.length}
+          icon={Clock}
+          tone="teal"
+          sub={`Avg. ${(weekAppointments.length / 5).toFixed(1)} per weekday`}
+          href="/appointmentsPractitioner"
+        />
+        <StatCard
+          label="Active patients"
+          value={activePatients}
+          icon={Users}
+          tone="purple"
+          sub={`of ${patients.length} total`}
+          href="/patients"
+        />
+        <StatCard
+          label="Completion rate"
+          value={`${completionRate}%`}
+          icon={CircleCheck}
+          tone="success"
+          trend={completionRate >= 80 ? { value: "On track", up: true } : { value: "Needs attention", up: false }}
+          sub={`${completedCount} of ${pastTotal} past sessions`}
+        />
+      </div>
+
+      {/* ── Totals strip ── */}
+      <dl className="grid grid-cols-1 sm:grid-cols-3 bg-bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border">
+        {[
+          { label: "Total patients", value: patients.length, icon: Users },
+          { label: "Appointments, all time", value: appointments.length, icon: CalendarCheck },
+          { label: "Medications recorded this month", value: medicationsThisMonth, icon: Pill },
+        ].map(({ label, value, icon: Icon }) => (
+          <div key={label} className="flex items-center gap-3 px-5 py-3.5">
+            <Icon size={16} className="text-text-secondary shrink-0" aria-hidden />
+            <dt className="text-sm text-text-secondary flex-1 min-w-0 truncate">{label}</dt>
+            <dd className="text-base font-semibold text-text-primary tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {/* ── Today + activity ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <SectionCard
+          className="lg:col-span-2"
+          title="Today's schedule"
+          subtitle={`${todayAppointments.length} appointment${todayAppointments.length === 1 ? "" : "s"} · ${todayConfirmed} confirmed`}
+          action={<CardLink href="/appointmentsPractitioner">Open calendar</CardLink>}
+        >
           {todayAppointments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center px-5">
-              <Calendar size={28} className="text-text-disabled mb-3" />
-              <p className="text-sm font-medium text-text-primary">
-                No appointments today
-              </p>
-              <p className="text-xs text-text-secondary mt-1">
-                Your schedule is clear for today.
-              </p>
-            </div>
+            <EmptyBlock icon={Calendar} title="No appointments today" hint="Your schedule is clear for today." />
           ) : (
-            <div className="divide-y divide-border">
-              {todayAppointments
-                .sort(
-                  (a, b) =>
-                    new Date(a.start).getTime() - new Date(b.start).getTime(),
-                )
+            <ul className="divide-y divide-border">
+              {[...todayAppointments]
+                .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
                 .map((appt) => {
                   const p = patientMap.get(appt.patientId);
-                  const name = p
-                    ? `${p.firstName} ${p.lastName}`
-                    : "Unknown patient";
-                  const avatarText = p
-                    ? initials(p.firstName, p.lastName)
-                    : "??";
-
+                  const name = p ? `${p.firstName} ${p.lastName}` : "Unknown patient";
+                  const mins = Math.round((new Date(appt.end).getTime() - new Date(appt.start).getTime()) / 60000);
                   return (
-                    <div
-                      key={appt.id}
-                      className="flex items-center gap-4 px-5 py-3.5 hover:bg-bg-hover transition-colors"
-                    >
-                      <div className="w-12 shrink-0 text-center">
-                        <p className="text-sm font-semibold text-text-primary">
-                          {formatTime(appt.start)}
-                        </p>
-                        <p className="text-xs text-text-disabled">
-                          {Math.round(
-                            (new Date(appt.end).getTime() -
-                              new Date(appt.start).getTime()) /
-                              60000,
-                          )}
-                          m
-                        </p>
+                    <li key={appt.id} className="flex items-center gap-4 px-5 py-3.5">
+                      <div className="w-14 shrink-0">
+                        <p className="text-sm font-semibold text-text-primary tabular-nums">{formatTime(appt.start)}</p>
+                        <p className="text-xs text-text-secondary">{mins} min</p>
                       </div>
-                      <div className="w-px h-10 bg-border shrink-0" />
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-primary/10 text-primary">
-                        {avatarText}
+                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0" aria-hidden>
+                        {p ? initials(p.firstName, p.lastName) : "?"}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text-primary truncate">
-                          {name}
-                        </p>
-                        <p className="text-xs text-text-secondary">
-                          {appt.title}
-                        </p>
+                        <p className="text-sm font-medium text-text-primary truncate">{name}</p>
+                        <p className="text-xs text-text-secondary truncate">{appt.title}</p>
                       </div>
                       <AppointmentStatusBadge status={appt.status} />
-                    </div>
+                    </li>
                   );
                 })}
-            </div>
+            </ul>
           )}
-        </div>
+        </SectionCard>
 
-        {/* Activity feed */}
-        <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h2 className="text-sm font-semibold text-text-primary">
-              Recent Activity
-            </h2>
-          </div>
-          <div className="px-5 py-3 space-y-4">
-            {activityFeed.length === 0 ? (
-              <p className="text-sm text-text-secondary py-4 text-center">
-                No recent activity
-              </p>
-            ) : (
-              activityFeed.map((item) => {
+        <SectionCard title="Recent activity">
+          {activityFeed.length === 0 ? (
+            <EmptyBlock icon={Activity} title="No recent activity" hint="New patients, sessions and medications show up here." />
+          ) : (
+            <ul className="px-5 py-2">
+              {activityFeed.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.id} className="flex items-start gap-3">
-                    <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.color}`}
-                    >
-                      <Icon size={14} />
-                    </div>
+                  <li key={item.id} className="flex items-start gap-3 py-2.5">
+                    <span className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${item.color}`} aria-hidden>
+                      <Icon size={15} />
+                    </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-text-primary leading-snug">
-                        {item.text}
-                      </p>
-                      <p className="text-xs text-text-disabled mt-0.5">
-                        {item.time}
-                      </p>
+                      <p className="text-sm text-text-primary leading-snug">{item.text}</p>
+                      <p className="text-xs text-text-secondary mt-0.5">{item.time}</p>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Bottom grid: weekly chart + recent patients ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Weekly sessions bar chart */}
-        <div className="bg-bg-card border border-border rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-text-primary mb-1">
-            Weekly Sessions
-          </h2>
-          <p className="text-xs text-text-secondary mb-5">
-            Appointments this week
-          </p>
-          <div className="flex items-end justify-between gap-2 h-28">
-            {weeklyData.map((d) => (
-              <div
-                key={d.label}
-                className="flex-1 flex flex-col items-center gap-1.5"
-              >
-                <span className="text-xs text-text-disabled">
-                  {d.sessions || ""}
-                </span>
-                <div
-                  className="w-full flex flex-col justify-end"
-                  style={{ height: "80px" }}
-                >
-                  <div
-                    className={`w-full rounded-md transition-all ${
-                      d.label === todayDayLabel
-                        ? "bg-primary"
-                        : d.sessions === 0
-                          ? "bg-border"
-                          : "bg-primary/30"
-                    }`}
-                    style={{
-                      height: `${(d.sessions / maxSessions) * 80}px`,
-                      minHeight: d.sessions > 0 ? "6px" : "3px",
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-text-disabled">{d.label}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-            <p className="text-xs text-text-secondary">Total this week</p>
-            <p className="text-sm font-bold text-text-primary">
-              {weekAppointments.length} sessions
-            </p>
-          </div>
-        </div>
-
-        {/* Recent patients — spans 2 cols */}
-        <div className="lg:col-span-2 bg-bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h2 className="text-sm font-semibold text-text-primary">
-              Recent Patients
-            </h2>
-            <Link
-              href="/patients"
-              className="text-xs text-primary flex items-center gap-1 hover:underline"
-            >
-              All patients <ChevronRight size={13} />
-            </Link>
-          </div>
-
-          {recentPatients.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center px-5">
-              <Users size={28} className="text-text-disabled mb-3" />
-              <p className="text-sm font-medium text-text-primary">
-                No patients yet
-              </p>
-              <p className="text-xs text-text-secondary mt-1">
-                Patients will appear here after they register.
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {recentPatients.map((p) => {
-                const apptCount = appointments.filter(
-                  (a) => a.patientId === p._id,
-                ).length;
-                const lastAppt = appointments
-                  .filter((a) => a.patientId === p._id)
-                  .sort(
-                    (a, b) =>
-                      new Date(b.start).getTime() - new Date(a.start).getTime(),
-                  )[0];
-
-                return (
-                  <Link
-                    key={p._id}
-                    href={`/patients/${p._id}`}
-                    className="flex items-center gap-3 px-5 py-3 hover:bg-bg-hover transition-colors cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                      {initials(p.firstName, p.lastName)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-text-primary truncate">
-                        {p.firstName} {p.lastName}
-                      </p>
-                      <p className="text-xs text-text-disabled truncate">
-                        {p.healthCondition || "No condition recorded"}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs font-semibold text-text-primary">
-                        {apptCount} session{apptCount !== 1 ? "s" : ""}
-                      </p>
-                      <p className="text-xs text-text-disabled">
-                        {lastAppt
-                          ? new Date(lastAppt.start).toLocaleDateString([], {
-                              month: "short",
-                              day: "numeric",
-                            })
-                          : "No visits"}
-                      </p>
-                    </div>
-                  </Link>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
-        </div>
+        </SectionCard>
       </div>
-    </div>
+
+      {/* ── Week + new patients ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <SectionCard
+          title="This week"
+          subtitle={`${weekAppointments.length} session${weekAppointments.length === 1 ? "" : "s"} scheduled`}
+        >
+          <div className="p-5">
+            {/* Bars carry their count as text, so color/height is never the only cue. */}
+            <ol className="flex items-end justify-between gap-2 h-40" aria-label="Sessions per day this week">
+              {weeklyData.map((d) => {
+                const isToday = d.label === todayDayLabel;
+                return (
+                  <li key={d.label} className="flex-1 h-full flex flex-col items-center justify-end gap-1.5">
+                    <span className="text-xs font-medium text-text-primary tabular-nums">{d.sessions}</span>
+                    <div
+                      className={`w-full max-w-10 rounded-md ${isToday ? "bg-primary" : d.sessions === 0 ? "bg-border" : "bg-primary/35"}`}
+                      style={{ height: `${Math.max(4, (d.sessions / maxSessions) * 100)}px` }}
+                      aria-hidden
+                    />
+                    <span className={`text-xs ${isToday ? "font-semibold text-primary" : "text-text-secondary"}`}>
+                      {d.label}
+                      <span className="sr-only">: {d.sessions} sessions{isToday ? " (today)" : ""}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          className="lg:col-span-2"
+          title="New patients"
+          subtitle="Most recently added"
+          action={<CardLink href="/patients">All patients</CardLink>}
+        >
+          {recentPatients.length === 0 ? (
+            <EmptyBlock icon={Users} title="No patients yet" hint="Patients you add will appear here." />
+          ) : (
+            <ul className="divide-y divide-border">
+              {recentPatients.map((p) => {
+                const theirs = appointments.filter((a) => a.patientId === p._id);
+                const last = [...theirs].sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime())[0];
+                return (
+                  <li key={p._id}>
+                    <Link
+                      href={`/patients/${p._id}`}
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40"
+                    >
+                      <span className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0" aria-hidden>
+                        {initials(p.firstName, p.lastName)}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text-primary truncate">{p.firstName} {p.lastName}</p>
+                        <p className="text-xs text-text-secondary truncate">{p.healthCondition || "No condition recorded"}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-medium text-text-primary tabular-nums">
+                          {theirs.length} session{theirs.length === 1 ? "" : "s"}
+                        </p>
+                        <p className="text-xs text-text-secondary">
+                          {last ? `Last ${new Date(last.start).toLocaleDateString([], { month: "short", day: "numeric" })}` : "No visits yet"}
+                        </p>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </SectionCard>
+      </div>
+    </Page>
   );
 }

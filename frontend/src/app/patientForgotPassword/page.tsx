@@ -1,5 +1,8 @@
-import ForgotPasswordContainer from "@/components/containers/forgot-password/ForgotPasswordContainer";
+// Patient portal disabled for now — only Practitioner and SuperAdmin are active.
+// import ForgotPasswordContainer from "@/components/containers/forgot-password/ForgotPasswordContainer";
+import PatientPortalDisabled from "@/components/common/PatientPortalDisabled";
 
 export default function PatientForgotPasswordPage() {
-  return <ForgotPasswordContainer role="patient" />;
+  return <PatientPortalDisabled />;
+  // return <ForgotPasswordContainer role="patient" />;
 }

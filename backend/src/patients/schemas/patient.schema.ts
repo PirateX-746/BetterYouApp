@@ -57,6 +57,17 @@ export class Patient {
   @Prop()
   allergies?: string;
 
+  /** Who to contact in an emergency — optional, entered by the practitioner. */
+  @Prop({ trim: true, maxlength: 100 })
+  emergencyContactName?: string;
+
+  @Prop({ trim: true, maxlength: 20 })
+  emergencyContactPhone?: string;
+
+  /** e.g. "Spouse", "Parent". */
+  @Prop({ trim: true, maxlength: 40 })
+  emergencyContactRelation?: string;
+
   @Prop()
   avatarBase64?: string;
 

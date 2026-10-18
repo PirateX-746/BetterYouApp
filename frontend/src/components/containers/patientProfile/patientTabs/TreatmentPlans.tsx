@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
+import { LoadingState } from "@/components/ui/loading-state";
 import toast from "react-hot-toast";
 
 type GoalStatus = "pending" | "in-progress" | "achieved";
@@ -40,9 +42,9 @@ interface TreatmentPlan {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  active: "bg-emerald-50 text-emerald-700",
-  completed: "bg-blue-50 text-blue-700",
-  paused: "bg-amber-50 text-amber-700",
+  active: "bg-success-light text-success",
+  completed: "bg-primary-light text-primary",
+  paused: "bg-warning-light text-warning",
 };
 
 const GOAL_ICONS: Record<GoalStatus, React.ElementType> = {
@@ -53,8 +55,8 @@ const GOAL_ICONS: Record<GoalStatus, React.ElementType> = {
 
 const GOAL_COLORS: Record<GoalStatus, string> = {
   pending: "text-text-secondary",
-  "in-progress": "text-amber-500",
-  achieved: "text-emerald-500",
+  "in-progress": "text-warning",
+  achieved: "text-success",
 };
 
 export default function TreatmentPlansTab() {
@@ -68,6 +70,8 @@ export default function TreatmentPlansTab() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
   const [title, setTitle] = useState("");
@@ -159,22 +163,24 @@ export default function TreatmentPlansTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this treatment plan?")) return;
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
     try {
-      await api.delete(`/treatment-plans/${id}`);
-      setPlans((prev) => prev.filter((p) => p._id !== id));
+      await api.delete(`/treatment-plans/${deleteId}`);
+      setPlans((prev) => prev.filter((p) => p._id !== deleteId));
       toast.success("Deleted");
+      setDeleteId(null);
     } catch {
       toast.error("Failed to delete");
+    } finally {
+      setDeleting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="animate-spin text-primary" size={22} />
-      </div>
+      <LoadingState />
     );
   }
 
@@ -330,7 +336,7 @@ export default function TreatmentPlansTab() {
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(plan._id); }}
+                      onClick={(e) => { e.stopPropagation(); setDeleteId(plan._id); }}
                       className="p-1.5 rounded-lg hover:bg-red-50 text-text-secondary hover:text-danger transition-colors"
                     >
                       <Trash2 size={14} />
@@ -402,6 +408,17 @@ export default function TreatmentPlansTab() {
           })}
         </div>
       )}
+
+      <ConfirmationDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={confirmDelete}
+        title="Delete treatment plan"
+        description="This treatment plan will be permanently removed from the patient's history. This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        loading={deleting}
+      />
     </div>
   );
 }

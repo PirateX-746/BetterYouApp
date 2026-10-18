@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, ChevronLeft, ChevronRight, CalendarX } from "lucide-react";
+import { useEscapeToClose } from "@/hooks/useEscapeToClose";
 
 type Step = 1 | 2 | 3;
 
@@ -212,6 +213,11 @@ export default function PatientBookingFlow({
     (step === 1 && !!selectedPractitioner && !!selectedType) ||
     (step === 2 && !!selectedSlot) ||
     step === 3;
+
+  // This is a bespoke animated wizard (not the shared Modal — it needs
+  // AnimatePresence step transitions the shared shell doesn't support), so
+  // Esc-to-close has to be wired up explicitly like every other modal.
+  useEscapeToClose(true, onClose);
 
   return (
     <div

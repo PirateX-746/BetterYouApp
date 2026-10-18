@@ -1,5 +1,7 @@
 "use client";
 
+import { SectionCard, StatCard } from "@/components/common/Dashboard";
+import { PageHeader as SharedPageHeader } from "@/components/common/PageLayout";
 import type { ReactNode } from "react";
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -7,6 +9,7 @@ import type { LucideIcon } from "lucide-react";
 /* Small building blocks shared by the platform console pages, so the
    screens stay consistent and each page file holds only its own content. */
 
+/** The shared page header (components/common/PageLayout), spaced for the console. */
 export function PageHeader({
   title,
   subtitle,
@@ -16,17 +19,7 @@ export function PageHeader({
   subtitle?: string;
   actions?: ReactNode;
 }) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">{title}</h1>
-        {subtitle && (
-          <p className="text-sm text-text-secondary mt-0.5">{subtitle}</p>
-        )}
-      </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
-    </div>
-  );
+  return <SharedPageHeader title={title} subtitle={subtitle} actions={actions} className="mb-6" />;
 }
 
 /** Notice for a screen whose backend does not exist yet. */
@@ -105,11 +98,12 @@ export function EmptyState({
   );
 }
 
+/** The shared dashboard StatCard (components/common/Dashboard), console API kept. */
 export function StatTile({
   label,
   value,
   hint,
-  icon: Icon,
+  icon,
   tone = "default",
 }: {
   label: string;
@@ -118,27 +112,14 @@ export function StatTile({
   icon?: LucideIcon;
   tone?: "default" | "purple" | "success" | "warning" | "danger";
 }) {
-  const toneClass = {
-    default: "text-text-primary",
-    purple: "text-purple",
-    success: "text-success",
-    warning: "text-warning",
-    danger: "text-danger",
-  }[tone];
-
   return (
-    <div className="bg-bg-card border border-border rounded-2xl p-5">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium text-text-secondary uppercase tracking-wide">
-          {label}
-        </p>
-        {Icon && <Icon size={16} className="text-text-disabled shrink-0" />}
-      </div>
-      <p className={`text-2xl font-bold mt-2 tabular-nums ${toneClass}`}>
-        {value}
-      </p>
-      {hint && <p className="text-xs text-text-secondary mt-1">{hint}</p>}
-    </div>
+    <StatCard
+      label={label}
+      value={value}
+      sub={hint}
+      icon={icon}
+      tone={tone === "default" ? "neutral" : tone}
+    />
   );
 }
 
@@ -161,7 +142,7 @@ export function StatusPill({
 }) {
   return (
     <span
-      className={`inline-flex items-center text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md whitespace-nowrap ${PILL_CLASS[tone]}`}
+      className={`inline-flex items-center text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md whitespace-nowrap ${PILL_CLASS[tone]}`}
     >
       {label}
     </span>
@@ -207,26 +188,24 @@ export function toneForUserStatus(status: string): PillTone {
   }
 }
 
-/** Card wrapper matching the practitioner portal's panel treatment. */
+/** The shared dashboard SectionCard, console API kept. */
 export function Panel({
   title,
+  subtitle,
   action,
   children,
   padded = false,
 }: {
   title: string;
+  subtitle?: string;
   action?: ReactNode;
   children: ReactNode;
   padded?: boolean;
 }) {
   return (
-    <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border">
-        <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
-        {action}
-      </div>
-      <div className={padded ? "p-5" : ""}>{children}</div>
-    </div>
+    <SectionCard title={title} subtitle={subtitle} action={action} padded={padded}>
+      {children}
+    </SectionCard>
   );
 }
 

@@ -10,6 +10,7 @@ import {
   PractitionerSchema,
 } from '../practitioners/schemas/practitioner.schema';
 import { Patient, PatientSchema } from '../patients/schemas/patient.schema';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { Patient, PatientSchema } from '../patients/schemas/patient.schema';
       { name: Practitioner.name, schema: PractitionerSchema },
       { name: Patient.name, schema: PatientSchema },
     ]),
+    StorageModule,
   ],
   controllers: [DocumentsController],
   providers: [DocumentsService],

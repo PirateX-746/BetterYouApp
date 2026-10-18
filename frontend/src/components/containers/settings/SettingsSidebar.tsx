@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Lock, Bell, Palette, Clock } from "lucide-react";
+import { User, Lock, Bell, Palette, Clock, CalendarClock } from "lucide-react";
 import styles from "./Settings.module.css";
 
 type Props = {
@@ -14,6 +14,7 @@ const tabs = [
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "appearance",     label: "Appearance",     icon: Palette },
     { id: "practice-hours", label: "Practice Hours", icon: Clock },
+    { id: "appointment-types", label: "Appointment Types", icon: CalendarClock },
 ];
 
 export default function SettingsSidebar({ activeTab, setActiveTab }: Props) {

@@ -6,9 +6,11 @@ const PRACTITIONER_ROUTES = [
   "/waiting-room",
   "/appointmentsPractitioner",
   "/patients",
+  "/assessments",
   "/medications",
   "/messages",
   "/settings",
+  "/support",
 ];
 
 const AUTH_ROUTES = [
@@ -106,12 +108,16 @@ export const config = {
     "/appointmentsPractitioner",
     "/patients/:path*",
     "/patients",
+    "/assessments/:path*",
+    "/assessments",
     "/medications/:path*",
     "/medications",
     "/messages/:path*",
     "/messages",
     "/settings/:path*",
     "/settings",
+    "/support/:path*",
+    "/support",
     "/patient/:path*",
     "/patientLogin",
     "/patientSignup",

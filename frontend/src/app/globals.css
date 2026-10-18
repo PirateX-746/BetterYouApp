@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Native dropdowns: replace the browser's arrow, which hugs the right
+   border, with a chevron inset to match the custom pickers. Unlayered and
+   element-qualified so its padding-right outranks px-* utilities, leaving
+   room for the chevron under long option text. */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 0.875rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+
 /* ========================================
    DESIGN TOKENS – LIGHT THEME
    ======================================== */
@@ -87,6 +100,8 @@
   --text-secondary: #5f6368;
   --text-light: #9aa0a6;
   --text-disabled: #bfbfbf;
+  /* Native <select> chevron (see the select rule at the top), tinted to --text-secondary. */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%235f6368' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
 
   /* Border */
   --border: #e8eaed;
@@ -144,6 +159,15 @@
   --warning: #ffc53d;
   --danger: #ff4d4f;
 
+  /* Status badges (Badge component): light-mode uses solid pastel fills,
+     which read as washed-out near-white blocks on the dark cards — so
+     dark mode gets its own translucent tint instead, same convention as
+     the blue/teal/indigo/... set below. */
+  --success-light: #14532d4d;
+  --warning-light: #78350f4d;
+  --danger-light: #7f1d1d4d;
+  --purple-light: #581c874d;
+
   --blue-light: #1e3a8a33;
   --teal-light: #134e4a33;
   --indigo-light: #312e8133;
@@ -160,6 +184,8 @@
   --text-primary: #e8eaed;
   --text-secondary: #9aa0a6;
   --text-light: #5f6368;
+  /* Native <select> chevron (see the select rule at the top), tinted to --text-secondary. */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239aa0a6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
 
   --border: #2a2a2a;
   --border-light: #333333;
@@ -197,6 +223,25 @@ a:active,
   @page {
     size: A4;
     margin: 20mm 20mm 25mm 20mm;
+  }
+
+  /* Printed pages always use light theme colors, regardless of the
+     viewer's dark-mode preference — printing the dark palette wastes ink
+     and is illegible on paper. Overrides both the light :root defaults
+     (a no-op there) and .dark's values (the actual fix), since .dark stays
+     on <html> through printing and its variables would otherwise win. */
+  :root,
+  .dark {
+    --bg-page: #f8f9fa;
+    --bg-card: #ffffff;
+    --bg-light: #f5f7fa;
+    --bg-hover: #f0f2f5;
+    --text-primary: #1f1f1f;
+    --text-secondary: #5f6368;
+    --text-light: #9aa0a6;
+    --text-disabled: #bfbfbf;
+    --border: #e8eaed;
+    --border-light: #f0f0f0;
   }
 
   html,
@@ -508,10 +553,68 @@ body {
   height: 100%;
 }
 
+/* Root cause of most "text isn't visible in dark mode" reports: this app
+   pulls in shadcn/ui components (Button's outline/ghost variants, Dialog,
+   DropdownMenu, Alert, ...) that assume the standard shadcn boilerplate sets
+   a base text/background color on <body>. That base rule was never added
+   here, so any element that doesn't set its own text-color utility falls
+   back to the browser default (black) — invisible against this app's dark
+   backgrounds. --foreground/--background already track --text-primary/
+   --bg-page exactly in both themes, so this is a no-op visually anywhere
+   that was already themed correctly, and only fixes the places that weren't. */
+body {
+  color: var(--foreground);
+  background-color: var(--background);
+}
+
 .input-style {
   @apply w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-100;
 }
 
 .error {
   @apply text-red-500 text-sm mt-1;
+}
+
+/* ========================================
+   SUPER ADMIN CONSOLE — monochrome theme
+   Applied by (superadmin)/layout.tsx. Every accent and status token becomes
+   black/white/grey; only danger stays red, because it marks destructive
+   actions and errors. Status pills still read clearly: they carry labels.
+   ======================================== */
+.theme-mono {
+  --primary: #111111;
+  --primary-hover: #2e2e2e;
+  --primary-light: #f1f1f1;
+  --primary-foreground: #ffffff;
+  --ring: #111111;
+  --purple: #111111;
+  --purple-light: #f1f1f1;
+  --teal: #3d3d3d;
+  --teal-light: #f1f1f1;
+  --success: #1f1f1f;
+  --success-light: #ededed;
+  --warning: #4d4d4d;
+  --warning-light: #f5f5f5;
+}
+
+/* Dark: filled accents become a mid-grey so the white text on them keeps
+   strong contrast, and accent-colored text switches to near-white. */
+.dark .theme-mono {
+  --primary: #3d3d3d;
+  --primary-hover: #4d4d4d;
+  --primary-light: #262626;
+  --primary-foreground: #ffffff;
+  --ring: #e5e5e5;
+  --purple: #3d3d3d;
+  --purple-light: #262626;
+  --teal: #d4d4d4;
+  --teal-light: #262626;
+  --success: #e5e5e5;
+  --success-light: #2a2a2a;
+  --warning: #bdbdbd;
+  --warning-light: #222222;
+}
+.dark .theme-mono .text-primary,
+.dark .theme-mono .text-purple {
+  color: #f2f2f2;
 }

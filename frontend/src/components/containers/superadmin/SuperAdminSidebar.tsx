@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   ChevronUp,
   LogOut,
+  LifeBuoy,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ const NAV_ITEMS = [
   { label: "Practices",     href: "/admin/practices",     icon: Building2 },
   { label: "Practitioners", href: "/admin/practitioners", icon: Stethoscope },
   { label: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
+  { label: "Support",       href: "/admin/support",       icon: LifeBuoy },
   { label: "Audit Logs",    href: "/admin/audit-logs",    icon: ScrollText },
   { label: "Settings",      href: "/admin/settings",      icon: Settings },
 ];

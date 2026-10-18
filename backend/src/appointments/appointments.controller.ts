@@ -79,9 +79,19 @@ export class AppointmentsController {
     @Req() req: AuthedRequest,
   ) {
     await this.appointmentsService.assertParticipant(id, req.user.userId);
+
+    // Status is a clinical/scheduling determination (completed, no-show,
+    // etc.) — a patient participant may reschedule their own appointment
+    // through this route, but must not be able to set its status. That's
+    // what @Patch(':id/status') is for, and it's practitioner-only.
+    const data = { ...body } as Record<string, unknown>;
+    if (!isPractitioner(req.user)) {
+      delete data.status;
+    }
+
     return this.appointmentsService.updateById(
       id,
-      body as unknown as AppointmentData,
+      data as unknown as AppointmentData,
     );
   }
 

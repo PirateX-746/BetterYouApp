@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 interface BreadcrumbCtx {
   /** An optional trailing crumb a detail page can set, e.g. a patient's name. */
@@ -24,3 +24,16 @@ export function PractitionerBreadcrumbProvider({ children }: { children: ReactNo
 }
 
 export const usePractitionerBreadcrumb = () => useContext(BreadcrumbContext);
+
+/**
+ * Adds the trailing breadcrumb for a detail page ("Patients › Rhea Kulkarni",
+ * "Help & Support › SUP-1002") and clears it on leave. Pass null while the
+ * record is still loading. Every practitioner detail page should call this.
+ */
+export function useDetailCrumb(label: string | null | undefined) {
+  const { setExtraCrumb } = useContext(BreadcrumbContext);
+  useEffect(() => {
+    setExtraCrumb(label || null);
+    return () => setExtraCrumb(null);
+  }, [label, setExtraCrumb]);
+}

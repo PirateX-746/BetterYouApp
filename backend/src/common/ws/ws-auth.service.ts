@@ -5,8 +5,10 @@ import { Model } from 'mongoose';
 import type { Socket } from 'socket.io';
 import { Role } from '../role.enum';
 import { AUTH_COOKIE } from '../../auth/auth.cookies';
+import { isAllowedOrigin } from '../cors';
 import { Patient } from '../../patients/schemas/patient.schema';
 import { Practitioner } from '../../practitioners/schemas/practitioner.schema';
+import { PlatformAdmin } from '../../platform-admins/schemas/platform-admin.schema';
 
 export interface SocketUser {
   userId: string;
@@ -52,10 +54,28 @@ export class WsAuthService {
     @InjectModel(Patient.name)
     private readonly patientModel: Model<{ isActive?: boolean; role: Role }>,
     @InjectModel(Practitioner.name)
-    private readonly practitionerModel: Model<{ isActive?: boolean; role: Role }>,
+    private readonly practitionerModel: Model<{
+      isActive?: boolean;
+      role: Role;
+    }>,
+    @InjectModel(PlatformAdmin.name)
+    private readonly platformAdminModel: Model<{
+      isActive?: boolean;
+      role: Role;
+    }>,
   ) {}
 
   async authenticate(client: Socket): Promise<SocketUser | null> {
+    // Cross-site WebSocket hijacking: Socket.io's `cors` option does not
+    // apply to the websocket transport, and the SameSite=None cookie rides
+    // along on a handshake from any page. A browser always sends Origin on
+    // a WebSocket upgrade, so a foreign one means a page we don't control.
+    const origin = client.handshake.headers.origin;
+    if (origin !== undefined && !isAllowedOrigin(origin)) {
+      this.logger.warn(`Rejected socket handshake from origin ${origin}`);
+      return null;
+    }
+
     const token =
       readCookie(client.handshake.headers.cookie, AUTH_COOKIE) ??
       // Non-browser clients (tests, a future mobile app) may pass it here.
@@ -78,8 +98,15 @@ export class WsAuthService {
 
     // Confirm the account still exists and is active, so a deactivated user
     // cannot keep a live socket until their token happens to expire.
+    // One collection per kind of account, as in JwtStrategy. Platform admins
+    // used to fall through to the practitioners lookup, so every console
+    // socket was rejected and the console never received live updates.
     const model =
-      role === Role.PATIENT ? this.patientModel : this.practitionerModel;
+      role === Role.SUPER_ADMIN
+        ? this.platformAdminModel
+        : role === Role.PATIENT
+          ? this.patientModel
+          : this.practitionerModel;
 
     const user = await model
       .findById(userId)

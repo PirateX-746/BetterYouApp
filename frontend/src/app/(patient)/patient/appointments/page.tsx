@@ -14,6 +14,7 @@ import {
   LogIn,
   Loader2,
 } from "lucide-react";
+import { Badge, type BadgeTone } from "@/components/common/Badge";
 
 export interface Practitioner {
   _id: string;
@@ -22,21 +23,21 @@ export interface Practitioner {
   email: string;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  confirmed:    { label: "Confirmed",    className: "bg-success/10 text-success" },
-  scheduled:    { label: "Scheduled",    className: "bg-primary/10 text-primary" },
-  checked_in:   { label: "Checked In",   className: "bg-teal/10 text-teal" },
-  in_progress:  { label: "In Progress",  className: "bg-warning/10 text-warning" },
-  completed:    { label: "Completed",    className: "bg-success/10 text-success" },
-  no_show:      { label: "No Show",      className: "bg-danger/10 text-danger" },
-  cancelled:    { label: "Cancelled",    className: "bg-danger/10 text-danger" },
+const STATUS_CONFIG: Record<string, { label: string; tone: BadgeTone }> = {
+  confirmed:    { label: "Confirmed",    tone: "success" },
+  scheduled:    { label: "Scheduled",    tone: "primary" },
+  checked_in:   { label: "Checked In",   tone: "teal" },
+  in_progress:  { label: "In Progress",  tone: "warning" },
+  completed:    { label: "Completed",    tone: "success" },
+  no_show:      { label: "No Show",      tone: "danger" },
+  cancelled:    { label: "Cancelled",    tone: "danger" },
 };
 
 function statusConfig(status: string) {
   return (
     STATUS_CONFIG[status.toLowerCase()] ?? {
       label: status,
-      className: "bg-bg-hover text-text-secondary",
+      tone: "neutral" as BadgeTone,
     }
   );
 }
@@ -213,12 +214,9 @@ export default function AppointmentsPage() {
                   </div>
 
                   {/* Status */}
-                  <div
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${cfg.className}`}
-                  >
-                    <StatusIcon status={appt.status} />
+                  <Badge tone={cfg.tone} icon={<StatusIcon status={appt.status} />} className="shrink-0">
                     {cfg.label}
-                  </div>
+                  </Badge>
                 </div>
 
                 {/* Check In button — only for today's eligible appointments */}
