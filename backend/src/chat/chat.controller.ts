@@ -11,7 +11,11 @@ import {
 import { ChatService } from './chat.service';
 import { SseService } from '../sse/sse.service';
 import { Role } from '../common/role.enum';
-import { assertSelf, type AuthedRequest, type AuthUser } from '../common/auth-user';
+import {
+  assertSelf,
+  type AuthedRequest,
+  type AuthUser,
+} from '../common/auth-user';
 
 @Controller('chat')
 export class ChatController {
@@ -35,7 +39,9 @@ export class ChatController {
       String(conversation.practitionerId),
     ];
     if (!participants.includes(user.userId)) {
-      throw new ForbiddenException('You are not a participant in this conversation');
+      throw new ForbiddenException(
+        'You are not a participant in this conversation',
+      );
     }
 
     return conversation;
@@ -88,7 +94,8 @@ export class ChatController {
 
     // Derive both the side and the user from the verified token rather than
     // trusting the body, so a caller cannot clear someone else's badge.
-    const role = req.user.role === Role.PRACTITIONER ? 'practitioner' : 'patient';
+    const role =
+      req.user.role === Role.PRACTITIONER ? 'practitioner' : 'patient';
     void body;
 
     await this.chatService.resetUnread(conversationId, role);

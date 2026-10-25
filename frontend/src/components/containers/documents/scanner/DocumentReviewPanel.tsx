@@ -160,10 +160,10 @@ function Field({ id, label, error, required, children }: { id: string; label: st
         <div>
             <label htmlFor={id} className="block text-sm font-medium text-text-primary mb-1.5">
                 {label}
-                {required && <span className="text-danger ml-0.5" aria-hidden>*</span>}
+                {required && <span className="text-danger-strong ml-0.5" aria-hidden>*</span>}
             </label>
             {children}
-            {error && <p id={`${id}-error`} className="text-xs text-danger mt-1">{error}</p>}
+            {error && <p id={`${id}-error`} className="text-xs text-danger-strong mt-1">{error}</p>}
         </div>
     );
 }
@@ -176,7 +176,7 @@ function IconButton({ label, onClick, disabled, danger, children }: { label: str
             title={label}
             onClick={onClick}
             disabled={disabled}
-            className={`w-8 h-8 flex items-center justify-center rounded-lg disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${danger ? "text-danger hover:bg-danger-light" : "text-text-secondary hover:bg-bg-hover"}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-lg disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${danger ? "text-danger-strong hover:bg-danger-light" : "text-text-secondary hover:bg-bg-hover"}`}
         >
             {children}
         </button>

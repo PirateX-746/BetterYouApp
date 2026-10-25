@@ -6,18 +6,22 @@ interface BreadcrumbCtx {
   /** An optional trailing crumb a detail page can set, e.g. a patient's name. */
   extraCrumb: string | null;
   setExtraCrumb: (label: string | null) => void;
+  /** True inside the practitioner shell, whose topbar shows the page title —
+      PageHeader then hides its own visible title to give content the space. */
+  inShell: boolean;
 }
 
 const BreadcrumbContext = createContext<BreadcrumbCtx>({
   extraCrumb: null,
   setExtraCrumb: () => {},
+  inShell: false,
 });
 
 export function PractitionerBreadcrumbProvider({ children }: { children: ReactNode }) {
   const [extraCrumb, setExtraCrumb] = useState<string | null>(null);
 
   return (
-    <BreadcrumbContext.Provider value={{ extraCrumb, setExtraCrumb }}>
+    <BreadcrumbContext.Provider value={{ extraCrumb, setExtraCrumb, inShell: true }}>
       {children}
     </BreadcrumbContext.Provider>
   );

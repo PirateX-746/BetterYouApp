@@ -1,10 +1,20 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { ProgressNotesService } from './progress-notes.service';
 import { CreateProgressNoteDto } from './dto/create-progress-note.dto';
 import { UpdateProgressNoteDto } from './dto/update-progress-note.dto';
 
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, CLINICAL_ROLES } from '../common/role.enum';
+import { CLINICAL_ROLES } from '../common/role.enum';
 import type { AuthedRequest } from '../common/auth-user';
 
 // Clinical data — practitioner-only. Authentication itself is enforced
@@ -16,7 +26,11 @@ export class ProgressNotesController {
 
   @Post()
   create(@Body() dto: CreateProgressNoteDto, @Req() req: AuthedRequest) {
-    return this.progressNotesService.create(dto, req.user.practiceId ?? null);
+    // The author is always the signed-in clinician, never a client-supplied id.
+    return this.progressNotesService.create(
+      { ...dto, practitionerId: req.user.userId },
+      req.user.practiceId ?? null,
+    );
   }
 
   @Get()
@@ -26,8 +40,13 @@ export class ProgressNotesController {
     @Req() req: AuthedRequest,
   ) {
     const practiceId = req.user.practiceId ?? null;
-    if (patientId) return this.progressNotesService.findByPatient(patientId, practiceId);
-    if (practitionerId) return this.progressNotesService.findByPractitioner(practitionerId, practiceId);
+    if (patientId)
+      return this.progressNotesService.findByPatient(patientId, practiceId);
+    if (practitionerId)
+      return this.progressNotesService.findByPractitioner(
+        practitionerId,
+        practiceId,
+      );
     return [];
   }
 
@@ -37,8 +56,16 @@ export class ProgressNotesController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateProgressNoteDto, @Req() req: AuthedRequest) {
-    return this.progressNotesService.update(id, dto, req.user.practiceId ?? null);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProgressNoteDto,
+    @Req() req: AuthedRequest,
+  ) {
+    return this.progressNotesService.update(
+      id,
+      dto,
+      req.user.practiceId ?? null,
+    );
   }
 
   @Delete(':id')

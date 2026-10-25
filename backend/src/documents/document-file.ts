@@ -25,6 +25,15 @@ export function isPdf(buf: Buffer): boolean {
 }
 
 /**
+ * Page objects in the file (`/Type /Page`, not `/Pages`). The same estimate
+ * the client makes (frontend lib/scanner/pdf.ts); the client's own count is
+ * never trusted. 0 when pages sit inside compressed object streams.
+ */
+export function countPdfPages(buf: Buffer): number {
+  return buf.toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g)?.length ?? 0;
+}
+
+/**
  * Rejects PDFs carrying active content. A scanned document never needs
  * JavaScript, launch actions or embedded files, and serving one inline to a
  * clinician's browser would be an attack surface.
@@ -63,7 +72,8 @@ export function storageKeyFor(
   documentId: string,
 ): string {
   for (const id of [practiceId, patientId, documentId]) {
-    if (!/^[a-f0-9]{24}$/i.test(id)) throw new Error('Invalid id in storage key');
+    if (!/^[a-f0-9]{24}$/i.test(id))
+      throw new Error('Invalid id in storage key');
   }
   return `documents/${practiceId}/patients/${patientId}/${documentId}/original.pdf`;
 }

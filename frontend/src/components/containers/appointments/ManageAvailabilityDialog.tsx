@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2, Loader2, CalendarOff } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import { blockSlotSchema, type BlockSlotValues } from "@/schemas/availability.schema";
 import { BlockedSlot } from "./types";
@@ -70,8 +70,8 @@ export default function ManageAvailabilityDialog({
       reset({ blockType: "slot" });
       await fetchBlockedSlots();
       onRefresh();
-    } catch {
-      toast.error("Failed to block slot");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Failed to block slot"));
     }
   });
 
@@ -111,7 +111,7 @@ export default function ManageAvailabilityDialog({
             {/* Date */}
             <div>
               <input type="date" className={fieldCls} {...register("date")} />
-              {errors.date && <p className="text-xs text-danger mt-1">{errors.date.message}</p>}
+              {errors.date && <p className="text-xs text-danger-strong mt-1">{errors.date.message}</p>}
             </div>
 
             {/* Start / End time — only for slot */}
@@ -120,12 +120,12 @@ export default function ManageAvailabilityDialog({
                 <div className="space-y-1">
                   <label className="text-xs text-text-secondary">Start time</label>
                   <input type="time" className={fieldCls} {...register("startTime")} />
-                  {errors.startTime && <p className="text-xs text-danger mt-1">{errors.startTime.message}</p>}
+                  {errors.startTime && <p className="text-xs text-danger-strong mt-1">{errors.startTime.message}</p>}
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-text-secondary">End time</label>
                   <input type="time" className={fieldCls} {...register("endTime")} />
-                  {errors.endTime && <p className="text-xs text-danger mt-1">{errors.endTime.message}</p>}
+                  {errors.endTime && <p className="text-xs text-danger-strong mt-1">{errors.endTime.message}</p>}
                 </div>
               </div>
             )}
@@ -179,14 +179,14 @@ export default function ManageAvailabilityDialog({
                       )}
                     </div>
 
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-danger/10 text-danger font-medium shrink-0">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-danger/10 text-danger-strong font-medium shrink-0">
                       Blocked
                     </span>
 
                     <button
                       onClick={() => removeBlock(slot._id)}
                       disabled={removing === slot._id}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-text-disabled hover:text-danger hover:bg-danger/10 transition shrink-0 disabled:opacity-40"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-text-disabled hover:text-danger-strong hover:bg-danger/10 transition shrink-0 disabled:opacity-40"
                       aria-label="Remove block"
                     >
                       {removing === slot._id ? (

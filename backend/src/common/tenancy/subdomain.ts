@@ -18,7 +18,11 @@ export function subdomainFrom(
   if (!host || !rootDomain) return null;
 
   // Strip the port, and an IPv6 bracket form if one shows up.
-  const hostname = host.trim().toLowerCase().split(':')[0].replace(/^\[|\]$/g, '');
+  const hostname = host
+    .trim()
+    .toLowerCase()
+    .split(':')[0]
+    .replace(/^\[|\]$/g, '');
   const root = rootDomain.trim().toLowerCase();
 
   if (!hostname || hostname === root) return null;

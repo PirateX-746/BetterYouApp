@@ -43,7 +43,11 @@ export class PractitionersService {
     return doc;
   }
 
-  async update(id: string, dto: UpdatePractitionerDto, practiceId: string | null) {
+  async update(
+    id: string,
+    dto: UpdatePractitionerDto,
+    practiceId: string | null,
+  ) {
     const updated = await this.practitionerModel
       .findOneAndUpdate(
         { _id: id, ...practiceScopeFilter(practiceId) },

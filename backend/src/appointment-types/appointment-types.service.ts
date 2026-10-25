@@ -51,7 +51,10 @@ export class AppointmentTypesService {
 
     await this.ensureSeeded(practitionerId);
     return this.typeModel
-      .find({ practitionerId: new Types.ObjectId(practitionerId), isActive: true })
+      .find({
+        practitionerId: new Types.ObjectId(practitionerId),
+        isActive: true,
+      })
       .sort({ sortOrder: 1, createdAt: 1 })
       .lean();
   }
@@ -138,11 +141,14 @@ export class AppointmentTypesService {
   }
 
   private async findOwned(id: string, requesterId: string) {
-    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid id');
+    if (!Types.ObjectId.isValid(id))
+      throw new BadRequestException('Invalid id');
     const type = await this.typeModel.findById(id).lean();
     if (!type) throw new NotFoundException('Appointment type not found');
     if (String(type.practitionerId) !== requesterId) {
-      throw new ForbiddenException('This appointment type does not belong to you');
+      throw new ForbiddenException(
+        'This appointment type does not belong to you',
+      );
     }
     return type;
   }

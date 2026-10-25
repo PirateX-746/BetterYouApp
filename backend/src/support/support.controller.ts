@@ -29,7 +29,11 @@ import type { AuthedRequest } from '../common/auth-user';
 export const attachmentsInterceptor = () =>
   FilesInterceptor('files', ATTACHMENT_LIMITS.maxFiles, {
     storage: memoryStorage(),
-    limits: { fileSize: ATTACHMENT_LIMITS.maxBytes, files: ATTACHMENT_LIMITS.maxFiles, fields: 10 },
+    limits: {
+      fileSize: ATTACHMENT_LIMITS.maxBytes,
+      files: ATTACHMENT_LIMITS.maxFiles,
+      fields: 10,
+    },
   });
 
 /** Help & Support for practice staff: FAQs and their own tickets only. */
@@ -91,7 +95,11 @@ export class SupportController {
     @Req() req: AuthedRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const file = await this.support.openAttachment(messageId, attachmentId, req.user);
+    const file = await this.support.openAttachment(
+      messageId,
+      attachmentId,
+      req.user,
+    );
     res.set({
       'Content-Type': file.contentType,
       'Content-Length': String(file.size),

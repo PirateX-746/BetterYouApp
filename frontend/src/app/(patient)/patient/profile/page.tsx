@@ -19,8 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 /* ─── Tabs ─── */
-const TABS = ["profile", "security", "notifications", "appearance"] as const;
-type Tab = typeof TABS[number];
+type Tab = "profile" | "security" | "notifications" | "appearance";
 
 const TAB_META: { id: Tab; label: string; icon: typeof User }[] = [
   { id: "profile",       label: "Profile",       icon: User    },
@@ -297,7 +296,7 @@ function SecurityPanel({ userId }: { userId: string | null }) {
               {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
-          {errors.currentPassword && <p className="text-xs text-danger">{errors.currentPassword.message}</p>}
+          {errors.currentPassword && <p className="text-xs text-danger-strong">{errors.currentPassword.message}</p>}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -311,7 +310,7 @@ function SecurityPanel({ userId }: { userId: string | null }) {
                 {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-            {errors.newPassword && <p className="text-xs text-danger">{errors.newPassword.message}</p>}
+            {errors.newPassword && <p className="text-xs text-danger-strong">{errors.newPassword.message}</p>}
             <p className="text-xs text-text-disabled">Min 8 characters</p>
           </div>
 
@@ -325,7 +324,7 @@ function SecurityPanel({ userId }: { userId: string | null }) {
                 {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-            {errors.confirmPassword && <p className="text-xs text-danger">{errors.confirmPassword.message}</p>}
+            {errors.confirmPassword && <p className="text-xs text-danger-strong">{errors.confirmPassword.message}</p>}
           </div>
         </div>
 

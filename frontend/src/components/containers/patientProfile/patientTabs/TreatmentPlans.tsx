@@ -42,9 +42,9 @@ interface TreatmentPlan {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  active: "bg-success-light text-success",
+  active: "bg-success-light text-success-strong",
   completed: "bg-primary-light text-primary",
-  paused: "bg-warning-light text-warning",
+  paused: "bg-warning-light text-warning-strong",
 };
 
 const GOAL_ICONS: Record<GoalStatus, React.ElementType> = {
@@ -55,8 +55,8 @@ const GOAL_ICONS: Record<GoalStatus, React.ElementType> = {
 
 const GOAL_COLORS: Record<GoalStatus, string> = {
   pending: "text-text-secondary",
-  "in-progress": "text-warning",
-  achieved: "text-success",
+  "in-progress": "text-warning-strong",
+  achieved: "text-success-strong",
 };
 
 export default function TreatmentPlansTab() {
@@ -337,7 +337,7 @@ export default function TreatmentPlansTab() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={(e) => { e.stopPropagation(); setDeleteId(plan._id); }}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-text-secondary hover:text-danger transition-colors"
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-text-secondary hover:text-danger-strong transition-colors"
                     >
                       <Trash2 size={14} />
                     </button>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useClientValue } from "@/hooks/useClientValue";
 import { clearSessionStorage } from "@/lib/session";
 import {
   LayoutDashboard,
@@ -40,13 +41,13 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { label: "Dashboard",     href: "/admin/dashboard",     icon: LayoutDashboard },
-  { label: "Practices",     href: "/admin/practices",     icon: Building2 },
+  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+  { label: "Practices", href: "/admin/practices", icon: Building2 },
   { label: "Practitioners", href: "/admin/practitioners", icon: Stethoscope },
   { label: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
-  { label: "Support",       href: "/admin/support",       icon: LifeBuoy },
-  { label: "Audit Logs",    href: "/admin/audit-logs",    icon: ScrollText },
-  { label: "Settings",      href: "/admin/settings",      icon: Settings },
+  { label: "Support", href: "/admin/support", icon: LifeBuoy },
+  { label: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
+  { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
@@ -54,16 +55,10 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
   const router = useRouter();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [adminName, setAdminName] = useState("Platform Admin");
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("name");
-      if (stored) setAdminName(stored);
-    } catch {
-      /* storage unavailable */
-    }
-  }, []);
+  const hydrated = useClientValue(() => true, false);
+  const adminName =
+    useClientValue(() => localStorage.getItem("name"), null) ||
+    "Platform Admin";
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -83,6 +78,24 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
   useEffect(() => {
     setOpen(false);
   }, [pathname, setOpen]);
+
+  const accountButton = (
+    <button
+      type="button"
+      className="flex items-center gap-3 w-full px-3 py-2 rounded-xl hover:bg-bg-hover transition text-left focus:outline-none"
+    >
+      <div className="w-8 h-8 rounded-full bg-purple flex items-center justify-center text-white text-xs font-semibold shrink-0">
+        PA
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-text-primary truncate">
+          {adminName}
+        </p>
+        <p className="text-xs text-text-secondary">Super Admin</p>
+      </div>
+      <ChevronUp size={14} className="text-text-secondary shrink-0" />
+    </button>
+  );
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
@@ -128,9 +141,10 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
                 href={href}
                 className={`
                   flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all
-                  ${active
-                    ? "bg-purple text-white font-medium shadow-sm"
-                    : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                  ${
+                    active
+                      ? "bg-purple text-white font-medium shadow-sm"
+                      : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                   }
                 `}
               >
@@ -142,36 +156,33 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
         </nav>
 
         <div className="border-t border-border p-3 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 w-full px-3 py-2 rounded-xl hover:bg-bg-hover transition text-left focus:outline-none">
-                <div className="w-8 h-8 rounded-full bg-purple flex items-center justify-center text-white text-xs font-semibold shrink-0">
-                  PA
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">
-                    {adminName}
-                  </p>
-                  <p className="text-xs text-text-secondary">Super Admin</p>
-                </div>
-                <ChevronUp size={14} className="text-text-secondary shrink-0" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" align="start" className="w-52">
-              <DropdownMenuItem onClick={() => router.push("/admin/settings")}>
-                <Settings size={14} />
-                Platform Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setLogoutDialogOpen(true)}
-                className="text-danger focus:text-danger focus:bg-danger-light"
-              >
-                <LogOut size={14} />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Radix ids come from useId, and Next's dev runtime adds client-only
+              wrappers above this tree, so server and client ids differ and
+              hydration warns. Hydrate a plain twin of the trigger, then
+              swap in the menu once mounted. */}
+          {!hydrated ? (
+            accountButton
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>{accountButton}</DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start" className="w-52">
+                <DropdownMenuItem
+                  onClick={() => router.push("/admin/settings")}
+                >
+                  <Settings size={14} />
+                  Platform Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setLogoutDialogOpen(true)}
+                  className="text-danger-strong focus:text-danger-strong focus:bg-danger-light"
+                >
+                  <LogOut size={14} />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </aside>
 

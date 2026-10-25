@@ -3,7 +3,11 @@ import { Document, Types } from 'mongoose';
 
 const GoalSchema = {
   goal: { type: String, required: true },
-  status: { type: String, enum: ['pending', 'in-progress', 'achieved'], default: 'pending' },
+  status: {
+    type: String,
+    enum: ['pending', 'in-progress', 'achieved'],
+    default: 'pending',
+  },
 };
 
 @Schema({ timestamps: true })

@@ -8,7 +8,13 @@ export interface TemplateItem {
   label: string;
   type: 'scale' | 'text';
   help?: string;
-  scale?: { min: number; max: number; lowLabel: string; highLabel: string; direction: ScaleDirection };
+  scale?: {
+    min: number;
+    max: number;
+    lowLabel: string;
+    highLabel: string;
+    direction: ScaleDirection;
+  };
 }
 
 export interface TemplateSection {
@@ -43,5 +49,9 @@ export class AssessmentTemplate extends Document {
   isActive: boolean;
 }
 
-export const AssessmentTemplateSchema = SchemaFactory.createForClass(AssessmentTemplate);
-AssessmentTemplateSchema.index({ practiceId: 1, key: 1, version: 1 }, { unique: true });
+export const AssessmentTemplateSchema =
+  SchemaFactory.createForClass(AssessmentTemplate);
+AssessmentTemplateSchema.index(
+  { practiceId: 1, key: 1, version: 1 },
+  { unique: true },
+);

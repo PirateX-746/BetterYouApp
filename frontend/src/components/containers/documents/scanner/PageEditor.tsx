@@ -222,7 +222,7 @@ export default function PageEditor({ original, initial, onApply, onCancel }: Pro
                     <p className="text-xs text-text-secondary mt-2">
                         Drag the corners onto the edges of the paper — angled photos are straightened automatically.
                     </p>
-                    {!validCrop && <p className="text-xs text-danger mt-1" role="alert">The corners overlap. Move them back into a box shape.</p>}
+                    {!validCrop && <p className="text-xs text-danger-strong mt-1" role="alert">The corners overlap. Move them back into a box shape.</p>}
                 </div>
 
                 <fieldset>
@@ -256,7 +256,7 @@ export default function PageEditor({ original, initial, onApply, onCancel }: Pro
                     </div>
                 ))}
 
-                {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+                {error && <p className="text-sm text-danger-strong" role="alert">{error}</p>}
 
                 <div className="flex gap-3 mt-auto">
                     <button type="button" onClick={onCancel} disabled={applying} className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm hover:bg-bg-hover disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

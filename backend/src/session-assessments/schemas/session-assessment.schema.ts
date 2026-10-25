@@ -33,7 +33,11 @@ export enum AssessmentStatus {
 }
 
 /** How an item was answered. Missing or unobserved is never treated as 0. */
-export type ResponseState = 'scored' | 'not_observed' | 'not_applicable' | 'blank';
+export type ResponseState =
+  | 'scored'
+  | 'not_observed'
+  | 'not_applicable'
+  | 'blank';
 
 export class AssessmentResponse {
   itemId: string;
@@ -62,7 +66,11 @@ export class AssessmentAmendment {
   by: Types.ObjectId;
   reason: string;
   /** What the record held before this amendment. */
-  previous: { responses: AssessmentResponse[]; notes?: string; summary?: AssessmentSummary | null };
+  previous: {
+    responses: AssessmentResponse[];
+    notes?: string;
+    summary?: AssessmentSummary | null;
+  };
 }
 
 /**
@@ -81,14 +89,24 @@ export class SessionAssessment extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Practice', index: true })
   practiceId?: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Appointment', required: true, unique: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Appointment',
+    required: true,
+    unique: true,
+  })
   appointmentId: Types.ObjectId;
 
   // Derived server-side from the appointment — never trusted from the client.
   @Prop({ type: Types.ObjectId, ref: 'Patient', required: true })
   patientId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Practitioner', required: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Practitioner',
+    required: true,
+    index: true,
+  })
   practitionerId: Types.ObjectId;
 
   /* ───── v2 (workspace) ───── */
@@ -102,7 +120,12 @@ export class SessionAssessment extends Document {
   @Prop()
   templateVersion?: number;
 
-  @Prop({ type: String, enum: AssessmentStatus, default: AssessmentStatus.DRAFT, index: true })
+  @Prop({
+    type: String,
+    enum: AssessmentStatus,
+    default: AssessmentStatus.DRAFT,
+    index: true,
+  })
   status: AssessmentStatus;
 
   /** Optimistic-lock counter: every accepted write must quote the current value. */
@@ -114,7 +137,11 @@ export class SessionAssessment extends Document {
       {
         _id: false,
         itemId: { type: String, required: true },
-        state: { type: String, enum: ['scored', 'not_observed', 'not_applicable', 'blank'], required: true },
+        state: {
+          type: String,
+          enum: ['scored', 'not_observed', 'not_applicable', 'blank'],
+          required: true,
+        },
         score: { type: Number, min: 0, max: 10, default: null },
         text: { type: String, maxlength: 2000 },
         note: { type: String, maxlength: 500 },
@@ -160,6 +187,7 @@ export class SessionAssessment extends Document {
   @Prop({ maxlength: 300 }) followUpReason?: string;
 }
 
-export const SessionAssessmentSchema = SchemaFactory.createForClass(SessionAssessment);
+export const SessionAssessmentSchema =
+  SchemaFactory.createForClass(SessionAssessment);
 SessionAssessmentSchema.index({ appointmentId: 1 }, { unique: true });
 SessionAssessmentSchema.index({ patientId: 1, createdAt: -1 });

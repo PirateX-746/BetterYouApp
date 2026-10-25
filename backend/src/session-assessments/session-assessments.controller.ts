@@ -1,7 +1,13 @@
 import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import { IsInt, Min } from 'class-validator';
 import { SessionAssessmentsService } from './session-assessments.service';
-import { AmendAssessmentDto, OpenAssessmentDto, PreviewSummaryDto, SaveDraftDto, SubmitAssessmentDto } from './dto/assessment.dto';
+import {
+  AmendAssessmentDto,
+  OpenAssessmentDto,
+  PreviewSummaryDto,
+  SaveDraftDto,
+  SubmitAssessmentDto,
+} from './dto/assessment.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CLINICAL_ROLES } from '../common/role.enum';
 import type { AuthedRequest } from '../common/auth-user';
@@ -40,12 +46,18 @@ export class SessionAssessmentsController {
   }
 
   @Get('appointment/:appointmentId')
-  findByAppointment(@Param('appointmentId') appointmentId: string, @Req() req: AuthedRequest) {
+  findByAppointment(
+    @Param('appointmentId') appointmentId: string,
+    @Req() req: AuthedRequest,
+  ) {
     return this.service.findByAppointment(appointmentId, req.user);
   }
 
   @Get('patient/:patientId')
-  findByPatient(@Param('patientId') patientId: string, @Req() req: AuthedRequest) {
+  findByPatient(
+    @Param('patientId') patientId: string,
+    @Req() req: AuthedRequest,
+  ) {
     return this.service.findByPatient(patientId, req.user);
   }
 
@@ -62,27 +74,47 @@ export class SessionAssessmentsController {
 
   /** Autosave / save draft. 409 if `revision` is stale. */
   @Patch(':id')
-  save(@Param('id') id: string, @Body() dto: SaveDraftDto, @Req() req: AuthedRequest) {
+  save(
+    @Param('id') id: string,
+    @Body() dto: SaveDraftDto,
+    @Req() req: AuthedRequest,
+  ) {
     return this.service.saveDraft(id, dto, req.user);
   }
 
   @Post(':id/summary')
-  summary(@Param('id') id: string, @Body() dto: RevisionDto, @Req() req: AuthedRequest) {
+  summary(
+    @Param('id') id: string,
+    @Body() dto: RevisionDto,
+    @Req() req: AuthedRequest,
+  ) {
     return this.service.generateSummary(id, dto.revision, req.user);
   }
 
   @Post(':id/summary/preview')
-  previewSummary(@Param('id') id: string, @Body() dto: PreviewSummaryDto, @Req() req: AuthedRequest) {
+  previewSummary(
+    @Param('id') id: string,
+    @Body() dto: PreviewSummaryDto,
+    @Req() req: AuthedRequest,
+  ) {
     return this.service.previewSummary(id, dto, req.user);
   }
 
   @Post(':id/submit')
-  submit(@Param('id') id: string, @Body() dto: SubmitAssessmentDto, @Req() req: AuthedRequest) {
+  submit(
+    @Param('id') id: string,
+    @Body() dto: SubmitAssessmentDto,
+    @Req() req: AuthedRequest,
+  ) {
     return this.service.submit(id, dto, req.user);
   }
 
   @Post(':id/amend')
-  amend(@Param('id') id: string, @Body() dto: AmendAssessmentDto, @Req() req: AuthedRequest) {
+  amend(
+    @Param('id') id: string,
+    @Body() dto: AmendAssessmentDto,
+    @Req() req: AuthedRequest,
+  ) {
     return this.service.amend(id, dto, req.user);
   }
 }

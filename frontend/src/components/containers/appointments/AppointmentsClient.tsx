@@ -13,13 +13,14 @@ import type {
   EventDropArg,
 } from "@fullcalendar/core";
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
-import { CheckCircle2, Loader2, Settings2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
 import toast from "react-hot-toast";
 import { api, appointmentTypesApi, type AppointmentType } from "@/lib/api";
 import { CalendarEvent } from "@/types/appointment";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import AddAppointmentDialog from "./AddAppointmentDialog";
+import { OPEN_APPOINTMENT_EVENT, clearPendingAppointment, pendingAppointment } from "@/lib/deepLinks";
 import ManageAvailabilityDialog from "./ManageAvailabilityDialog";
 
 /* ─── Types ─── */
@@ -218,6 +219,53 @@ type BlockedSlot = {
 
 /* ─── Component ─── */
 
+/* ── Loaders ── */
+// Plain fetches that resolve to data (never reject); the component decides
+// where it goes.
+
+async function loadAppointments(practitionerId: string): Promise<CalendarEvent[]> {
+  try {
+    const res = await api.get(
+      `/appointments/practitioner/${practitionerId}`,
+      { params: { _t: Date.now() } },
+    );
+    if (!Array.isArray(res.data)) return [];
+    return res.data.map((a: Record<string, unknown>) => ({
+      id: (a._id ?? a.id) as string,
+      title: a.title as string,
+      appointmentTypeId: (a.appointmentTypeId as string | null) ?? null,
+      start: a.start as string,
+      end: a.end as string,
+      patientId: a.patientId as string,
+      notes: a.notes as string,
+      status: a.status as string,
+    }));
+  } catch {
+    toast.error("Failed to load appointments");
+    return [];
+  }
+}
+
+async function loadBlockedSlots(practitionerId: string): Promise<BlockedSlot[]> {
+  try {
+    const res = await api.get(`/availability/${practitionerId}`);
+    return Array.isArray(res.data) ? res.data : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Null means "keep the defaults". */
+async function loadPracticeHours(practitionerId: string): Promise<PracticeHours | null> {
+  try {
+    const res = await api.get(`/practitioners/${practitionerId}`);
+    const ph = res.data?.practiceHours;
+    return ph && typeof ph === "object" ? { ...DEFAULT_HOURS, ...ph } : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function AppointmentsClient() {
   const practitionerId = useLocalStorage("userId");
   const calendarRef = useRef<FullCalendar | null>(null);
@@ -225,12 +273,21 @@ export default function AppointmentsClient() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [practiceHours, setPracticeHours] = useState<PracticeHours>(DEFAULT_HOURS);
-  const [loading, setLoading] = useState(true);
+  // Which practitioner the calendar data belongs to; loading until it matches.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const loading = !!practitionerId && loadedFor !== practitionerId;
 
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  // Deep link from a notification: ?appointment=<id> on arrival, or an
+  // in-page event when the calendar is already open.
+  const [openRequest, setOpenRequest] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : (pendingAppointment() ?? new URLSearchParams(window.location.search).get("appointment")),
+  );
 
   /* ── Fetch ── */
   // The practitioner's types: the dialog's picker, and each event's color
@@ -274,62 +331,22 @@ export default function AppointmentsClient() {
 
   const fetchAppointments = useCallback(async () => {
     if (!practitionerId) return;
-    try {
-      const res = await api.get(
-        `/appointments/practitioner/${practitionerId}`,
-        { params: { _t: Date.now() } },
-      );
-      if (!Array.isArray(res.data)) { setEvents([]); return; }
-      setEvents(
-        res.data.map((a: Record<string, unknown>) => ({
-          id: (a._id ?? a.id) as string,
-          title: a.title as string,
-          appointmentTypeId: (a.appointmentTypeId as string | null) ?? null,
-          start: a.start as string,
-          end: a.end as string,
-          patientId: a.patientId as string,
-          notes: a.notes as string,
-          status: a.status as string,
-        })),
-      );
-    } catch {
-      toast.error("Failed to load appointments");
-      setEvents([]);
-    }
+    await loadAppointments(practitionerId).then(setEvents);
   }, [practitionerId]);
 
   const fetchBlockedSlots = useCallback(async () => {
     if (!practitionerId) return;
-    try {
-      const res = await api.get(`/availability/${practitionerId}`);
-      setBlockedSlots(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      setBlockedSlots([]);
-    }
-  }, [practitionerId]);
-
-  const fetchPracticeHours = useCallback(async () => {
-    if (!practitionerId) return;
-    try {
-      const res = await api.get(`/practitioners/${practitionerId}`);
-      const ph = res.data?.practiceHours;
-      if (ph && typeof ph === "object") {
-        setPracticeHours({ ...DEFAULT_HOURS, ...ph });
-      }
-    } catch {
-      // silently fall back to defaults
-    }
+    await loadBlockedSlots(practitionerId).then(setBlockedSlots);
   }, [practitionerId]);
 
   useEffect(() => {
-    if (!practitionerId) { setLoading(false); return; }
-    setLoading(true);
+    if (!practitionerId) return;
     Promise.all([
-      fetchAppointments(),
-      fetchBlockedSlots(),
-      fetchPracticeHours(),
-    ]).finally(() => setLoading(false));
-  }, [practitionerId, fetchAppointments, fetchBlockedSlots, fetchPracticeHours]);
+      loadAppointments(practitionerId).then(setEvents),
+      loadBlockedSlots(practitionerId).then(setBlockedSlots),
+      loadPracticeHours(practitionerId).then((ph) => ph && setPracticeHours(ph)),
+    ]).finally(() => setLoadedFor(practitionerId));
+  }, [practitionerId]);
 
   /* Real-time updates */
   useEffect(() => {
@@ -360,6 +377,30 @@ export default function AppointmentsClient() {
       releaseSocket({ practitionerId });
     };
   }, [practitionerId]);
+
+  useEffect(() => {
+    const onOpen = (e: Event) => setOpenRequest((e as CustomEvent<string>).detail);
+    window.addEventListener(OPEN_APPOINTMENT_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_APPOINTMENT_EVENT, onOpen);
+  }, []);
+
+  const linkedEvent = openRequest && !loading ? (events.find((e) => e.id === openRequest) ?? null) : null;
+  const linkedId = linkedEvent?.id;
+  const linkedStart = linkedEvent?.start;
+  const linkedDate = useMemo(() => (linkedStart ? new Date(linkedStart) : null), [linkedStart]);
+
+  // Bring the linked appointment's day into view and drop the param, so a
+  // reload doesn't reopen it.
+  // Once loaded, the hand-off has been read: found or not, don't reuse it.
+  useEffect(() => {
+    if (!loading) clearPendingAppointment();
+  }, [loading]);
+
+  useEffect(() => {
+    if (!linkedId || !linkedStart) return;
+    calendarRef.current?.getApi().gotoDate(linkedStart);
+    if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
+  }, [linkedId, linkedStart]);
 
   /* ── Derived FullCalendar values ── */
   const businessHours = useMemo(() => toBusinessHours(practiceHours), [practiceHours]);
@@ -400,6 +441,7 @@ export default function AppointmentsClient() {
   /* ── Event click ── */
   const handleEventClick = (info: EventClickArg) => {
     if (info.event.id.startsWith("block-")) return;
+    setOpenRequest(null);
     const start = info.event.start ?? new Date();
     const end   = info.event.end   ?? new Date(start.getTime() + 30 * 60_000);
     setSelectedEvent({
@@ -417,6 +459,7 @@ export default function AppointmentsClient() {
   };
 
   const handleSlotSelect = (info: { start: Date }) => {
+    setOpenRequest(null);
     setSelectedDate(info.start);
     setSelectedEvent(null);
     setDialogOpen(true);
@@ -424,6 +467,7 @@ export default function AppointmentsClient() {
 
   const handleDialogClose = () => {
     setDialogOpen(false);
+    setOpenRequest(null);
     setSelectedEvent(null);
     // The select interaction leaves the slot highlighted until this is
     // cleared explicitly — closing via Escape (or anything other than a
@@ -607,43 +651,23 @@ export default function AppointmentsClient() {
   }
 
   return (
-    // Fits one viewport: header, legend and toolbar stay put; only the time grid scrolls.
+    // Fits one viewport: header and toolbar stay put; only the time grid scrolls.
+    // No type-color legend: every event card already names its type.
     <Page fill>
-      <PageHeader
-        title="Appointments"
-        subtitle="Manage your schedule"
-        actions={
-          <button
-            onClick={() => setAvailabilityOpen(true)}
-            className="h-11 flex items-center gap-2 px-4 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer"
-          >
-            <Settings2 size={15} aria-hidden />
-            Manage Availability
-          </button>
-        }
-      />
+      {/* Title is in the topbar; "Manage availability" lives in the calendar
+          toolbar beside the view switcher, since it shapes what the calendar shows. */}
+      <PageHeader title="Appointments" />
 
       <div className="flex-1 min-h-0 flex flex-col bg-bg-card border border-border rounded-2xl p-3 md:p-4 overflow-hidden">
-        {appointmentTypes.some((t) => t.isActive) && (
-          <ul
-            className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-3 mb-3 border-b border-border text-xs text-text-secondary shrink-0"
-            aria-label="Appointment type colors"
-          >
-            {appointmentTypes
-              .filter((t) => t.isActive)
-              .map((t) => (
-                <li key={t._id} className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} aria-hidden />
-                  {t.name}
-                </li>
-              ))}
-          </ul>
-        )}
         <div className="flex-1 min-h-0">
         <FullCalendar
           ref={calendarRef}
           plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
+          // Arriving from a deep link: start on that appointment's week. The
+          // calendar mounts in the same render the link resolves, so this is
+          // what makes it land there (the effect above handles later links).
+          initialDate={linkedDate ?? undefined}
           slotMinTime={slotMinTime}
           slotMaxTime={slotMaxTime}
           slotDuration="00:30:00"
@@ -669,7 +693,14 @@ export default function AppointmentsClient() {
           headerToolbar={{
             left: "prev,next today",
             center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay",
+            right: "dayGridMonth,timeGridWeek,timeGridDay availability",
+          }}
+          customButtons={{
+            availability: {
+              text: "Manage availability",
+              hint: "Set your working hours and blocked times",
+              click: () => setAvailabilityOpen(true),
+            },
           }}
           eventSources={eventSources}
         />
@@ -677,9 +708,9 @@ export default function AppointmentsClient() {
       </div>
 
       <AddAppointmentDialog
-        open={dialogOpen}
-        initialDate={selectedDate}
-        event={selectedEvent}
+        open={dialogOpen || !!linkedEvent}
+        initialDate={linkedEvent ? linkedDate : selectedDate}
+        event={linkedEvent ?? selectedEvent}
         practiceHours={practiceHours}
         appointmentTypes={appointmentTypes}
         typesLoading={typesLoading}

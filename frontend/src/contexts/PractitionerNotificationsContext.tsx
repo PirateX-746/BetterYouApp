@@ -11,7 +11,9 @@ import {
 } from "react";
 import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
 import { api } from "@/lib/api";
-import { useRouter } from "next/navigation";
+import { useClientValue } from "@/hooks/useClientValue";
+import { usePathname, useRouter } from "next/navigation";
+import { APPOINTMENTS_PATH, announceOpenAppointment, openAppointmentFromElsewhere } from "@/lib/deepLinks";
 
 /* ─── Types ─── */
 
@@ -69,16 +71,10 @@ export function PractitionerNotificationsProvider({
   children: ReactNode;
 }) {
   const router = useRouter();
-  const [practitionerId, setPractitionerId] = useState<string | null>(null);
+  const pathname = usePathname();
+  const practitionerId = useClientValue(() => localStorage.getItem("userId"), null);
   const [notifications, setNotifications] = useState<CheckInNotification[]>([]);
   const socketRef = useRef<ReturnType<typeof acquireSocket> | null>(null);
-
-  // Read practitionerId client-side once
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setPractitionerId(localStorage.getItem("userId"));
-    }
-  }, []);
 
   // Request desktop notification permission
   useEffect(() => {
@@ -111,7 +107,7 @@ export function PractitionerNotificationsProvider({
     socketRef.current = socket;
 
     const handlePatientCheckedIn = (payload: Omit<CheckInNotification, "id" | "read" | "kind">) => {
-      const apptTime = new Date(payload.appointmentStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const apptTime = new Date(payload.appointmentStart).toLocaleTimeString([], { hour: "numeric", hour12: true, minute: "2-digit" });
       pushNotification(
         { ...payload, kind: "check_in" },
         "BetterYou — Patient Arrived",
@@ -130,7 +126,7 @@ export function PractitionerNotificationsProvider({
     }) => {
       const status = payload.status?.toLowerCase();
       const name = payload.patientName ?? "A patient";
-      const apptTime = new Date(payload.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const apptTime = new Date(payload.start).toLocaleTimeString([], { hour: "numeric", hour12: true, minute: "2-digit" });
 
       if (status === "cancelled") {
         pushNotification(
@@ -166,6 +162,9 @@ export function PractitionerNotificationsProvider({
     if (!practitionerId) return;
 
     const firedKeys = new Set<string>();
+    // A run still in flight when this effect is torn down (remount, logout)
+    // must not push — the next instance fires the same reminders itself.
+    let cancelled = false;
     let patientNames: Record<string, string> = {};
 
     const loadPatientNames = async () => {
@@ -187,7 +186,7 @@ export function PractitionerNotificationsProvider({
     const checkReminders = async () => {
       try {
         const res = await api.get(`/appointments/practitioner/${practitionerId}`);
-        if (!Array.isArray(res.data)) return;
+        if (cancelled || !Array.isArray(res.data)) return;
         const now = Date.now();
 
         for (const appt of res.data as {
@@ -209,7 +208,7 @@ export function PractitionerNotificationsProvider({
             if (!inWindow || firedKeys.has(dedupeKey)) continue;
 
             firedKeys.add(dedupeKey);
-            const apptTime = new Date(appt.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            const apptTime = new Date(appt.start).toLocaleTimeString([], { hour: "numeric", hour12: true, minute: "2-digit" });
             const name = patientNames[appt.patientId] ?? "your patient";
             pushNotification(
               {
@@ -232,7 +231,10 @@ export function PractitionerNotificationsProvider({
 
     loadPatientNames().then(checkReminders);
     const interval = setInterval(checkReminders, REMINDER_POLL_MS);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [practitionerId, pushNotification]);
 
   const markAllRead = useCallback(() => {
@@ -250,11 +252,15 @@ export function PractitionerNotificationsProvider({
       setNotifications((prev) =>
         prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
       );
-      router.push(
-        n.kind === "check_in" ? "/waiting-room" : "/appointmentsPractitioner",
-      );
+      if (n.kind === "check_in") {
+        router.push("/waiting-room");
+      } else if (pathname === APPOINTMENTS_PATH) {
+        announceOpenAppointment(n.appointmentId);
+      } else {
+        openAppointmentFromElsewhere(n.appointmentId, router.push);
+      }
     },
-    [router],
+    [router, pathname],
   );
 
   const unreadCount = notifications.filter((n) => !n.read).length;

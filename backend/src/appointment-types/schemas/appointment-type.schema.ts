@@ -43,5 +43,8 @@ export class AppointmentType extends Document {
 export const AppointmentTypeSchema =
   SchemaFactory.createForClass(AppointmentType);
 
-AppointmentTypeSchema.index({ practitionerId: 1, nameKey: 1 }, { unique: true });
+AppointmentTypeSchema.index(
+  { practitionerId: 1, nameKey: 1 },
+  { unique: true },
+);
 AppointmentTypeSchema.index({ practitionerId: 1, sortOrder: 1 });

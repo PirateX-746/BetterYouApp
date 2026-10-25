@@ -30,6 +30,10 @@ export class PractitionersController {
     @Req() req: AuthedRequest,
   ) {
     assertSelf(req.user, id);
-    return this.practitionersService.update(id, dto, req.user.practiceId ?? null);
+    return this.practitionersService.update(
+      id,
+      dto,
+      req.user.practiceId ?? null,
+    );
   }
 }

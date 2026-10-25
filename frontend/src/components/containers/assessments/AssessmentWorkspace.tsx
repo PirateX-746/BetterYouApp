@@ -2,14 +2,27 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ClipboardList, Loader2, Plus, X } from "lucide-react";
+import { ClipboardList, Loader2, Plus, Search, X } from "lucide-react";
+import { inputClass } from "@/components/common/Field";
 import { Page, PageHeader } from "@/components/common/PageLayout";
 import { Badge } from "@/components/common/Badge";
+import { Segmented } from "@/components/common/Tabs";
+import { DataTable, type DataTableColumn } from "@/components/common/DataTable";
+import { Button } from "@/components/ui/button";
 import { apiErrorMessage } from "@/lib/api";
 import { mySessions, STATUS_META, tabsStore, type SessionRow } from "@/lib/assessments";
 import { AssessmentEditor, type TabMeta } from "./AssessmentEditor";
 
 const MAX_TABS = 8;
+
+/* Tab status dots mirror the Badge tones in STATUS_META (and carry an sr-only label). */
+const STATUS_DOT: Record<string, string> = {
+  none: "bg-text-light",
+  draft: "bg-text-light",
+  ready_for_review: "bg-warning",
+  submitted: "bg-success",
+  amended: "bg-primary",
+};
 const NEW = "__new__";
 
 const fmtWhen = (iso: string) => {
@@ -17,7 +30,7 @@ const fmtWhen = (iso: string) => {
   const today = new Date();
   const sameDay = d.toDateString() === today.toDateString();
   const yesterday = new Date(today.getTime() - 86400000).toDateString() === d.toDateString();
-  const time = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+  const time = d.toLocaleTimeString("en-IN", { hour: "numeric", hour12: true, minute: "2-digit" });
   if (sameDay) return `Today, ${time}`;
   if (yesterday) return `Yesterday, ${time}`;
   return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }) + `, ${time}`;
@@ -83,20 +96,31 @@ export function AssessmentWorkspace() {
     });
   };
 
+  // No sessions open: the session list IS the page — no lone tab strip over an
+  // empty workspace. Opening a session switches to the tabbed workspace.
+  if (ready && tabs.length === 0) {
+    return (
+      <Page fill>
+        <PageHeader title="Session assessments" />
+        <Launcher openIds={tabs} onOpen={open} />
+      </Page>
+    );
+  }
+
   return (
     <Page fill>
-      <PageHeader title="Session assessments" subtitle="Record observations for sessions you've held. Drafts save automatically." />
+      <PageHeader title="Session assessments" />
 
-      <div className="flex-1 min-h-0 flex flex-col rounded-md border border-border bg-bg-card overflow-clip">
-        {/* Tab strip */}
-        <div role="tablist" aria-label="Open assessments" className="flex items-end gap-1 px-2 pt-2 bg-bg-page border-b border-border overflow-x-auto">
+      <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-border/70 bg-bg-card shadow-xs overflow-clip">
+        {/* Tab strip — one tab per open session, like documents in a window */}
+        <div role="tablist" aria-label="Open assessments" className="flex items-end gap-1 px-2 pt-2 bg-bg-subtle border-b border-border overflow-x-auto overflow-y-hidden scrollbar-hide">
           {tabs.map((id) => {
             const m = meta[id];
             const on = active === id;
             return (
               <div
                 key={id}
-                className={`group relative flex items-center shrink-0 max-w-[15rem] rounded-t-md border border-b-0 transition-colors ${
+                className={`group relative flex items-center shrink-0 max-w-[16rem] rounded-t-lg border border-b-0 transition-colors ${
                   on ? "bg-bg-card border-border -mb-px" : "border-transparent hover:bg-bg-hover"
                 }`}
               >
@@ -106,10 +130,22 @@ export function AssessmentWorkspace() {
                   aria-selected={on}
                   aria-controls={`panel-${id}`}
                   onClick={() => setActive(id)}
-                  className="h-10 flex items-center gap-2 pl-3 pr-1 min-w-0 text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 rounded-t-md"
+                  className="h-10 flex items-center gap-2 pl-3 pr-1 min-w-0 text-body cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 rounded-t-lg"
                 >
-                  <span className={`truncate ${on ? "font-medium text-text-primary" : "text-text-secondary"}`}>{m?.title ?? "Loading…"}</span>
-                  {m?.unsaved && <span className="size-1.5 rounded-full bg-warning shrink-0" aria-label="Unsaved changes" />}
+                  {m?.status !== undefined && (
+                    <span
+                      className={`size-2 rounded-full shrink-0 ${STATUS_DOT[m.status ?? "none"]}`}
+                      title={m.status ? STATUS_META[m.status].label : "Not started"}
+                      aria-hidden
+                    />
+                  )}
+                  <span className={`truncate ${on ? "font-semibold text-text-primary" : "font-medium text-text-secondary"}`}>{m?.title ?? "Loading…"}</span>
+                  {m?.status && <span className="sr-only">, {STATUS_META[m.status].label}</span>}
+                  {m?.unsaved && (
+                    <span className="text-caption text-warning-strong shrink-0" aria-label="Unsaved changes">
+                      ●
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => close(id)}
@@ -125,11 +161,13 @@ export function AssessmentWorkspace() {
             role="tab"
             aria-selected={active === NEW}
             onClick={() => setActive(NEW)}
-            className={`h-10 shrink-0 flex items-center gap-1.5 px-3 rounded-t-md border border-b-0 text-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 ${
-              active === NEW ? "bg-bg-card border-border -mb-px text-text-primary font-medium" : "border-transparent text-text-secondary hover:bg-bg-hover"
+            aria-label="Open another session"
+            title="Open another session"
+            className={`h-10 shrink-0 flex items-center gap-1.5 px-3 rounded-t-lg border border-b-0 text-body font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 ${
+              active === NEW ? "bg-bg-card border-border -mb-px text-primary-strong" : "border-transparent text-primary-strong hover:bg-primary/10"
             }`}
           >
-            <Plus size={15} aria-hidden /> {tabs.length ? "Open session" : "Sessions"}
+            <Plus size={15} aria-hidden /> Open session
           </button>
         </div>
 
@@ -141,7 +179,7 @@ export function AssessmentWorkspace() {
             </div>
           ))}
           {active === NEW && (
-            <div className="absolute inset-0 overflow-y-auto">
+            <div className="absolute inset-0 flex flex-col bg-bg-page p-4 md:p-6">
               <Launcher openIds={tabs} onOpen={open} />
             </div>
           )}
@@ -151,10 +189,25 @@ export function AssessmentWorkspace() {
   );
 }
 
+type Filter = "todo" | "not_started" | "draft" | "ready_for_review" | "all";
+
+const isTodo = (r: SessionRow) => !r.assessmentStatus || r.assessmentStatus === "draft" || r.assessmentStatus === "ready_for_review";
+
+/* Workflow order, so sorting by status reads "not started → … → submitted". */
+const STATUS_RANK: Record<string, number> = { none: 0, draft: 1, ready_for_review: 2, amended: 3, submitted: 4 };
+
+const patientName = (r: SessionRow) => (r.patient ? `${r.patient.firstName} ${r.patient.lastName}` : "Patient");
+
+/**
+ * The session list: sessions from the last 14 days that have started, with
+ * their assessment status. Counts double as filters; newest first, so "what's
+ * left from today" is the first thing you see. Every column but the action sorts.
+ */
 function Launcher({ openIds, onOpen }: { openIds: string[]; onOpen: (id: string) => void }) {
   const [rows, setRows] = useState<SessionRow[] | null>(null);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState<"todo" | "all">("todo");
+  const [filter, setFilter] = useState<Filter>("todo");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     mySessions()
@@ -162,78 +215,179 @@ function Launcher({ openIds, onOpen }: { openIds: string[]; onOpen: (id: string)
       .catch((e) => setError(apiErrorMessage(e, "Couldn't load your sessions.")));
   }, []);
 
-  const visible = (rows ?? []).filter((r) => filter === "all" || r.assessmentStatus === null || r.assessmentStatus === "draft" || r.assessmentStatus === "ready_for_review");
-  const todoCount = (rows ?? []).filter((r) => !r.assessmentStatus || r.assessmentStatus === "draft" || r.assessmentStatus === "ready_for_review").length;
+  const q = query.trim().toLowerCase();
+  // Counts follow the search, so each number is what that filter would show.
+  const all = (rows ?? []).filter((r) => !q || patientName(r).toLowerCase().includes(q) || r.title.toLowerCase().includes(q));
+  const counts = {
+    not_started: all.filter((r) => !r.assessmentStatus).length,
+    draft: all.filter((r) => r.assessmentStatus === "draft").length,
+    ready_for_review: all.filter((r) => r.assessmentStatus === "ready_for_review").length,
+  };
+  const todoCount = all.filter(isTodo).length;
+
+  const visible = all.filter((r) =>
+    filter === "all" ? true
+    : filter === "todo" ? isTodo(r)
+    : filter === "not_started" ? !r.assessmentStatus
+    : r.assessmentStatus === filter,
+  );
+
+  const columns: DataTableColumn<SessionRow>[] = [
+    {
+      key: "patient",
+      header: "Patient",
+      width: "30%",
+      sortValue: patientName,
+      render: (r) => {
+        const name = patientName(r);
+        return (
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="size-9 rounded-full bg-primary/10 text-primary-strong grid place-items-center text-caption font-semibold shrink-0" aria-hidden>
+              {name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
+            </span>
+            <span className="text-body font-medium text-text-primary truncate group-hover:text-primary-strong">{name}</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "session",
+      header: "Session",
+      width: "24%",
+      className: "text-body text-text-secondary",
+      sortValue: (r) => r.title,
+      render: (r) => <span className="block truncate">{r.title}</span>,
+    },
+    {
+      key: "date",
+      header: "Date",
+      width: "18%",
+      className: "text-body text-text-secondary tabular-nums whitespace-nowrap",
+      sortValue: (r) => new Date(r.start),
+      firstSortDirection: "desc",
+      render: (r) => fmtWhen(r.start),
+    },
+    {
+      key: "status",
+      header: "Status",
+      width: "16%",
+      sortValue: (r) => STATUS_RANK[r.assessmentStatus ?? "none"],
+      render: (r) => {
+        const st = r.assessmentStatus ? STATUS_META[r.assessmentStatus] : null;
+        return st ? <Badge tone={st.tone} dot>{st.label}</Badge> : <Badge tone="neutral" dot>Not started</Badge>;
+      },
+    },
+    {
+      key: "action",
+      header: <span className="sr-only">Action</span>,
+      width: "8.5rem",
+      align: "right",
+      render: (r) => {
+        const isOpen = openIds.includes(r.appointmentId);
+        const cta = !r.assessmentStatus ? "Start" : isTodo(r) ? "Resume" : "View";
+        return (
+          <Button
+            size="sm"
+            variant={cta === "View" && !isOpen ? "secondary" : "tertiary"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen(r.appointmentId);
+            }}
+            aria-label={`${isOpen ? "Go to tab for" : cta} ${patientName(r)}, ${r.title}`}
+          >
+            {isOpen ? "Go to tab" : cta}
+          </Button>
+        );
+      },
+    },
+  ];
+
+  const count = (label: string, n: number | null) => (
+    <span className="inline-flex items-center gap-1.5">
+      {label}
+      {n !== null && <span className="tabular-nums text-text-secondary">{n}</span>}
+    </span>
+  );
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl">
-      <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
-        <div>
-          <h2 className="text-base font-semibold text-text-primary">Recent sessions</h2>
-          <p className="text-sm text-text-secondary mt-0.5">Sessions from the last 14 days that have started. Pick one to open it in a tab.</p>
-        </div>
-        <div role="radiogroup" aria-label="Show" className="inline-flex p-[3px] rounded-md border border-border bg-bg-page">
-          {([["todo", `To do${rows ? ` (${todoCount})` : ""}`], ["all", "All"]] as const).map(([v, label]) => (
+    <div className="flex-1 min-h-0 flex flex-col gap-4">
+      {/* Search left, then one filter control whose counts are the filters. */}
+      <div className="flex flex-wrap items-center gap-3 shrink-0">
+        <div className="relative w-full sm:w-72">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-light pointer-events-none" aria-hidden />
+          <input
+            type="search"
+            aria-label="Search sessions"
+            placeholder="Search patient or session…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className={`${inputClass} pl-9 pr-9`}
+          />
+          {query && (
             <button
-              key={v}
-              role="radio"
-              aria-checked={filter === v}
-              onClick={() => setFilter(v)}
-              className={`h-8 px-3 rounded text-sm cursor-pointer transition-colors ${
-                filter === v ? "bg-bg-card border border-border text-primary font-semibold shadow-sm" : "text-text-secondary hover:text-text-primary"
-              }`}
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded text-text-light hover:text-text-primary transition-colors cursor-pointer"
             >
-              {label}
+              <X size={13} aria-hidden />
             </button>
-          ))}
+          )}
+        </div>
+        <div className="max-w-full overflow-x-auto scrollbar-hide">
+        <Segmented<Filter>
+          label="Filter sessions"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "todo", label: count("To do", rows ? todoCount : null) },
+            { value: "not_started", label: count("Not started", rows ? counts.not_started : null) },
+            { value: "draft", label: count("Drafts", rows ? counts.draft : null) },
+            { value: "ready_for_review", label: count("Ready for review", rows ? counts.ready_for_review : null) },
+            { value: "all", label: count("All", rows ? all.length : null) },
+          ]}
+        />
         </div>
       </div>
 
       {error ? (
-        <p role="alert" className="text-sm text-danger">{error}</p>
+        <p role="alert" className="text-body text-danger-strong">{error}</p>
       ) : !rows ? (
-        <div className="py-12 grid place-items-center text-text-secondary">
+        <div className="py-16 grid place-items-center text-text-secondary">
           <Loader2 className="animate-spin" size={20} aria-label="Loading sessions" />
         </div>
-      ) : visible.length === 0 ? (
-        <div className="py-12 text-center">
-          <ClipboardList className="mx-auto text-text-disabled" size={28} aria-hidden />
-          <p className="mt-3 text-sm font-medium text-text-primary">{filter === "todo" ? "You're all caught up" : "No recent sessions"}</p>
-          <p className="text-sm text-text-secondary mt-1">
-            {filter === "todo" ? "Every recent session has a submitted assessment." : "Sessions appear here once their start time has passed."}
-          </p>
-        </div>
       ) : (
-        <ul className="rounded-md border border-border divide-y divide-border overflow-hidden">
-          {visible.map((r) => {
-            const name = r.patient ? `${r.patient.firstName} ${r.patient.lastName}` : "Patient";
-            const st = r.assessmentStatus ? STATUS_META[r.assessmentStatus] : null;
-            const isOpen = openIds.includes(r.appointmentId);
-            const cta = !r.assessmentStatus ? "Start" : r.assessmentStatus === "draft" || r.assessmentStatus === "ready_for_review" ? "Resume" : "View";
-            return (
-              <li key={r.appointmentId}>
-                <button
-                  onClick={() => onOpen(r.appointmentId)}
-                  className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-bg-hover transition-colors cursor-pointer focus-visible:outline-none focus-visible:bg-bg-hover"
-                >
-                  <span className="size-9 rounded-full bg-primary-light text-primary grid place-items-center text-xs font-semibold shrink-0" aria-hidden>
-                    {name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-text-primary truncate">{name}</span>
-                    <span className="block text-xs text-text-secondary truncate">
-                      {r.title} · {fmtWhen(r.start)}
-                    </span>
-                  </span>
-                  {st ? <Badge tone={st.tone}>{st.label}</Badge> : <Badge tone="neutral">Not started</Badge>}
-                  <span className="hidden sm:inline-flex h-9 items-center px-3 rounded-md border border-border text-sm font-medium text-text-primary bg-bg-card">
-                    {isOpen ? "Go to tab" : cta}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <DataTable
+          fill
+          columns={columns}
+          data={visible}
+          getRowId={(r) => r.appointmentId}
+          onRowClick={(r) => onOpen(r.appointmentId)}
+          defaultSort={{ key: "date", direction: "desc" }}
+          className="min-w-0 [&_table]:min-w-[44rem]"
+          footer={
+            <p className="text-footnote text-text-secondary tabular-nums">
+              {visible.length} session{visible.length === 1 ? "" : "s"} · from the last 14 days that have started
+            </p>
+          }
+          emptyState={
+            <div className="py-4">
+              <span className="mx-auto size-12 rounded-2xl bg-success-light text-success-strong grid place-items-center">
+                <ClipboardList size={22} aria-hidden />
+              </span>
+              <p className="mt-4 text-body font-semibold text-text-primary">
+                {q ? `No sessions match “${query.trim()}”` : filter === "all" ? "No recent sessions" : "You're all caught up"}
+              </p>
+              <p className="text-footnote text-text-secondary mt-1">
+                {q
+                  ? "Try a patient's name or a session type."
+                  : filter === "all"
+                    ? "Sessions appear here once their start time has passed."
+                    : "Every recent session in this view has a submitted assessment."}
+              </p>
+            </div>
+          }
+        />
       )}
     </div>
   );

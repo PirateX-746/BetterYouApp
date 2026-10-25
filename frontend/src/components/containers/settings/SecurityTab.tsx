@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useClientValue } from "@/hooks/useClientValue";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, KeyRound, Loader2, Save } from "lucide-react";
-import { api } from "@/lib/api";
+import { changePassword } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -26,16 +27,14 @@ export default function SecurityTab() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [hasPortalPin, setHasPortalPin] = useState(false);
+  const storedPin = useClientValue(() => localStorage.getItem("portalPin") !== null, false);
+  const [pinCleared, setPinCleared] = useState(false);
+  const hasPortalPin = storedPin && !pinCleared;
   const [resetPinOpen, setResetPinOpen] = useState(false);
-
-  useEffect(() => {
-    setHasPortalPin(!!localStorage.getItem("portalPin"));
-  }, []);
 
   const handleResetPin = () => {
     localStorage.removeItem("portalPin");
-    setHasPortalPin(false);
+    setPinCleared(true);
     setResetPinOpen(false);
     toast.success("Portal PIN reset — you'll be asked to set a new one next time you lock the portal");
   };
@@ -47,13 +46,9 @@ export default function SecurityTab() {
     formState: { errors, isSubmitting },
   } = useForm<ChangePasswordValues>({ resolver: zodResolver(changePasswordSchema) });
 
-  const userId =
-    typeof window !== "undefined" ? localStorage.getItem("userId") : null;
-
   const onSubmit = async (data: ChangePasswordValues) => {
-    if (!userId) return;
     try {
-      await api.patch(`/practitioners/${userId}`, {
+      await changePassword({
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       });
@@ -91,7 +86,7 @@ export default function SecurityTab() {
             </button>
           </div>
           {errors.currentPassword && (
-            <p className="text-xs text-danger">{errors.currentPassword.message}</p>
+            <p className="text-xs text-danger-strong">{errors.currentPassword.message}</p>
           )}
         </div>
 
@@ -112,9 +107,9 @@ export default function SecurityTab() {
               </button>
             </div>
             {errors.newPassword && (
-              <p className="text-xs text-danger">{errors.newPassword.message}</p>
+              <p className="text-xs text-danger-strong">{errors.newPassword.message}</p>
             )}
-            <p className="text-xs text-text-disabled">Min 8 chars, 1 uppercase, 1 number</p>
+            <p className="text-xs text-text-disabled">Min 8 chars, 1 uppercase, 1 number, 1 special (!@#$%^&amp;*)</p>
           </div>
 
           <div className="space-y-1.5">
@@ -132,7 +127,7 @@ export default function SecurityTab() {
               </button>
             </div>
             {errors.confirmPassword && (
-              <p className="text-xs text-danger">{errors.confirmPassword.message}</p>
+              <p className="text-xs text-danger-strong">{errors.confirmPassword.message}</p>
             )}
           </div>
         </div>

@@ -1,5 +1,6 @@
 import {
   hasActivePdfContent,
+  countPdfPages,
   isPdf,
   safeFileName,
   storageKeyFor,
@@ -14,13 +15,30 @@ const pdf = (body = '') =>
   );
 
 describe('document-file', () => {
+  describe('countPdfPages', () => {
+    it('counts page objects but not the page tree', () => {
+      const body =
+        '<< /Type /Pages /Count 2 >> << /Type /Page >> << /Type/Page /Parent 2 0 R >>';
+      expect(countPdfPages(Buffer.from(body, 'latin1'))).toBe(2);
+    });
+
+    it('returns 0 when no page objects are visible', () => {
+      expect(
+        countPdfPages(Buffer.from('%PDF-1.7 /Type /ObjStm', 'latin1')),
+      ).toBe(0);
+    });
+  });
+
   describe('isPdf', () => {
     it('accepts a structurally valid PDF', () => {
       expect(isPdf(pdf())).toBe(true);
     });
 
     it('rejects a JPEG renamed to .pdf', () => {
-      const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(200)]);
+      const jpeg = Buffer.concat([
+        Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+        Buffer.alloc(200),
+      ]);
       expect(isPdf(jpeg)).toBe(false);
     });
 
@@ -36,13 +54,18 @@ describe('document-file', () => {
 
   describe('hasActivePdfContent', () => {
     it('flags JavaScript and auto-actions', () => {
-      expect(hasActivePdfContent(pdf('2 0 obj << /S /JavaScript /JS (app.alert(1)) >> endobj'))).toBe(true);
+      expect(
+        hasActivePdfContent(
+          pdf('2 0 obj << /S /JavaScript /JS (app.alert(1)) >> endobj'),
+        ),
+      ).toBe(true);
       expect(hasActivePdfContent(pdf('<< /OpenAction 3 0 R >>'))).toBe(true);
       expect(hasActivePdfContent(pdf('<< /Type /EmbeddedFile >>'))).toBe(true);
     });
 
     it('ignores marker-like bytes inside binary image streams', () => {
-      const body = '3 0 obj << /Length 20 /Filter /DCTDecode >>\nstream\n/JavaScript /JS junk\nendstream\nendobj';
+      const body =
+        '3 0 obj << /Length 20 /Filter /DCTDecode >>\nstream\n/JavaScript /JS junk\nendstream\nendobj';
       expect(hasActivePdfContent(pdf(body))).toBe(false);
     });
 
@@ -63,7 +86,9 @@ describe('document-file', () => {
     });
 
     it('keeps a readable name', () => {
-      expect(safeFileName('Lab Results 2026-10-12')).toBe('Lab_Results_2026-10-12.pdf');
+      expect(safeFileName('Lab Results 2026-10-12')).toBe(
+        'Lab_Results_2026-10-12.pdf',
+      );
     });
   });
 

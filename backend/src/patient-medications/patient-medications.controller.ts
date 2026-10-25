@@ -14,7 +14,7 @@ import { CreatePatientMedicationDto } from './dto/create-patient-medication.dto'
 import { UpdatePatientMedicationDto } from './dto/update-patient-medication.dto';
 
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, CLINICAL_ROLES } from '../common/role.enum';
+import { CLINICAL_ROLES } from '../common/role.enum';
 import type { AuthedRequest } from '../common/auth-user';
 
 // Clinical data — practitioner-only. Authentication itself is enforced
@@ -28,7 +28,11 @@ export class PatientMedicationsController {
 
   @Post()
   create(@Body() dto: CreatePatientMedicationDto, @Req() req: AuthedRequest) {
-    return this.patientMedicationsService.create(dto, req.user.practiceId ?? null);
+    // The prescriber is always the signed-in clinician.
+    return this.patientMedicationsService.create(
+      { ...dto, practitionerId: req.user.userId },
+      req.user.practiceId ?? null,
+    );
   }
 
   @Get()
@@ -39,24 +43,44 @@ export class PatientMedicationsController {
   ) {
     const practiceId = req.user.practiceId ?? null;
     if (patientId)
-      return this.patientMedicationsService.findByPatient(patientId, practiceId);
+      return this.patientMedicationsService.findByPatient(
+        patientId,
+        practiceId,
+      );
     if (practitionerId)
-      return this.patientMedicationsService.findByPractitioner(practitionerId, practiceId);
+      return this.patientMedicationsService.findByPractitioner(
+        practitionerId,
+        practiceId,
+      );
     return [];
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: AuthedRequest) {
-    return this.patientMedicationsService.findById(id, req.user.practiceId ?? null);
+    return this.patientMedicationsService.findById(
+      id,
+      req.user.practiceId ?? null,
+    );
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdatePatientMedicationDto, @Req() req: AuthedRequest) {
-    return this.patientMedicationsService.update(id, dto, req.user.practiceId ?? null);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdatePatientMedicationDto,
+    @Req() req: AuthedRequest,
+  ) {
+    return this.patientMedicationsService.update(
+      id,
+      dto,
+      req.user.practiceId ?? null,
+    );
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthedRequest) {
-    return this.patientMedicationsService.remove(id, req.user.practiceId ?? null);
+    return this.patientMedicationsService.remove(
+      id,
+      req.user.practiceId ?? null,
+    );
   }
 }

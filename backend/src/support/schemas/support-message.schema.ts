@@ -13,7 +13,12 @@ export class SupportAttachment {
 /** One entry in a ticket's thread, from either side. */
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class SupportMessage extends Document {
-  @Prop({ type: Types.ObjectId, ref: 'SupportTicket', required: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'SupportTicket',
+    required: true,
+    index: true,
+  })
   ticketId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, required: true })
@@ -46,5 +51,6 @@ export class SupportMessage extends Document {
   createdAt: Date;
 }
 
-export const SupportMessageSchema = SchemaFactory.createForClass(SupportMessage);
+export const SupportMessageSchema =
+  SchemaFactory.createForClass(SupportMessage);
 SupportMessageSchema.index({ ticketId: 1, createdAt: 1 });

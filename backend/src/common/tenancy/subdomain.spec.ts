@@ -53,7 +53,9 @@ describe('subdomainFrom', () => {
     });
 
     it('tolerates surrounding whitespace', () => {
-      expect(subdomainFrom('  abc.betteryou.app  ', 'betteryou.app')).toBe('abc');
+      expect(subdomainFrom('  abc.betteryou.app  ', 'betteryou.app')).toBe(
+        'abc',
+      );
     });
 
     it('returns null for missing input', () => {

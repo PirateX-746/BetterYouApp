@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Camera, Loader2, Save } from "lucide-react";
 import { api } from "@/lib/api";
+import { setDisplayCookie } from "@/lib/session";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ export default function ProfileTab() {
           firstName:       d.firstName       ?? "",
           lastName:        d.lastName        ?? "",
           specialization:  d.specialization  ?? "",
-          experienceYears: d.experienceYears ?? "",
+          experienceYears: d.experienceYears == null ? "" : String(d.experienceYears),
         });
         setEmail(d.email ?? "");
         if (d.avatarBase64) {
@@ -66,13 +67,22 @@ export default function ProfileTab() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) { toast.error("Image must be under 2 MB"); return; }
+    if (!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) { toast.error("Use a JPG, PNG, GIF or WebP image"); return; }
     const reader = new FileReader();
     reader.onload = () => {
       const b64 = reader.result as string;
-      setAvatarPreview(b64);
-      setAvatarBase64(b64);
+      // The type comes from the file name; only decoding proves it's an image.
+      const img = new Image();
+      img.onload = () => {
+        setAvatarPreview(b64);
+        setAvatarBase64(b64);
+      };
+      img.onerror = () => toast.error("This image could not be read. Try a JPG or PNG file.");
+      img.src = b64;
     };
     reader.readAsDataURL(file);
+    // Let the same file be picked again after a rejection.
+    e.target.value = "";
   };
 
   const onSubmit = async (data: PractitionerProfileValues) => {
@@ -95,13 +105,13 @@ export default function ProfileTab() {
         firstName:       d.firstName       ?? "",
         lastName:        d.lastName        ?? "",
         specialization:  d.specialization  ?? "",
-        experienceYears: d.experienceYears ?? "",
+        experienceYears: d.experienceYears == null ? "" : String(d.experienceYears),
       });
       if (d.avatarBase64) {
         setSavedAvatarBase64(d.avatarBase64);
         setAvatarBase64(d.avatarBase64);
       }
-      document.cookie = `name=${encodeURIComponent(d.firstName ?? "")}; path=/; SameSite=Lax`;
+      setDisplayCookie("name", d.firstName ?? "");
       localStorage.setItem("name", d.firstName ?? "");
       toast.success("Profile saved");
     } catch (err: unknown) {
@@ -145,7 +155,7 @@ export default function ProfileTab() {
         </button>
         <div>
           <p className="text-sm font-medium text-text-primary">Profile Photo</p>
-          <p className="text-xs text-text-secondary">JPG, PNG or GIF · Max 2 MB</p>
+          <p className="text-xs text-text-secondary">JPG, PNG, GIF or WebP · Max 2 MB</p>
           <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs text-primary hover:underline mt-1">
             Change photo
           </button>
@@ -157,12 +167,12 @@ export default function ProfileTab() {
           <div className="space-y-1.5">
             <Label>First Name</Label>
             <Input {...register("firstName")} placeholder="First name" />
-            {errors.firstName && <p className="text-xs text-danger">{errors.firstName.message}</p>}
+            {errors.firstName && <p className="text-xs text-danger-strong">{errors.firstName.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Last Name</Label>
             <Input {...register("lastName")} placeholder="Last name" />
-            {errors.lastName && <p className="text-xs text-danger">{errors.lastName.message}</p>}
+            {errors.lastName && <p className="text-xs text-danger-strong">{errors.lastName.message}</p>}
           </div>
         </div>
 
@@ -177,13 +187,13 @@ export default function ProfileTab() {
         <div className="space-y-1.5">
           <Label>Specialization</Label>
           <Input {...register("specialization")} placeholder="e.g. Clinical Psychology" />
-          {errors.specialization && <p className="text-xs text-danger">{errors.specialization.message}</p>}
+          {errors.specialization && <p className="text-xs text-danger-strong">{errors.specialization.message}</p>}
         </div>
 
         <div className="space-y-1.5">
           <Label>Years of Experience</Label>
           <Input type="number" min={0} max={60} {...register("experienceYears")} placeholder="e.g. 5" />
-          {errors.experienceYears && <p className="text-xs text-danger">{String(errors.experienceYears.message)}</p>}
+          {errors.experienceYears && <p className="text-xs text-danger-strong">{String(errors.experienceYears.message)}</p>}
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

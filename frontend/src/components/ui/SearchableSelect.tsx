@@ -142,14 +142,14 @@ export default function SearchableSelect({
           }
         }}
         disabled={disabled || loading}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 text-sm bg-bg-page border border-border rounded-xl text-left transition cursor-pointer
-          focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30
-          disabled:opacity-50 disabled:cursor-not-allowed
-          hover:border-primary/60 ${showClear ? "pr-16" : ""}`}
+        className={`w-full h-10 flex items-center justify-between px-3 text-body bg-bg-card border border-border rounded-md shadow-xs text-left transition-[border-color,box-shadow] duration-150 cursor-pointer
+          focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/20
+          disabled:bg-bg-subtle disabled:text-text-secondary disabled:cursor-not-allowed
+          hover:border-text-light/60 ${showClear ? "pr-16" : ""}`}
       >
         <span
           className={
-            selected ? "text-text-primary truncate" : "text-text-disabled"
+            selected ? "text-text-primary truncate" : "text-text-light"
           }
         >
           {loading ? loadingText : selected ? selected.label : placeholder}

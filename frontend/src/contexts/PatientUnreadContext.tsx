@@ -9,8 +9,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useClientValue } from "@/hooks/useClientValue";
+import { fetchUnreadTotal } from "@/lib/chatUnread";
 import toast from "react-hot-toast";
-import { api } from "@/lib/api";
 import { useSSE, type SseEvent } from "@/hooks/useSSE";
 import { usePatientChat } from "./PatientChatContext";
 
@@ -26,7 +27,7 @@ const PatientUnreadContext = createContext<PatientUnreadCtx>({
 
 export function PatientUnreadProvider({ children }: { children: ReactNode }) {
   const { activeConversationId } = usePatientChat();
-  const [patientId, setPatientId] = useState<string | null>(null);
+  const patientId = useClientValue(() => localStorage.getItem("userId"), null);
   const [totalUnread, setTotalUnread] = useState(0);
 
   const activeConvRef = useRef<string | null>(activeConversationId);
@@ -34,24 +35,10 @@ export function PatientUnreadProvider({ children }: { children: ReactNode }) {
     activeConvRef.current = activeConversationId;
   }, [activeConversationId]);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setPatientId(localStorage.getItem("userId"));
-    }
-  }, []);
-
-  const fetchUnread = useCallback(async (id: string) => {
-    try {
-      const res = await api.get(`/chat/conversations/${id}`);
-      if (Array.isArray(res.data)) {
-        const total = res.data.reduce(
-          (acc: number, c: Record<string, unknown>) =>
-            acc + ((c.unreadForPatient as number) || 0),
-          0,
-        );
-        setTotalUnread(total);
-      }
-    } catch { /* silent */ }
+  const fetchUnread = useCallback((id: string) => {
+    fetchUnreadTotal(id, "unreadForPatient").then((total) => {
+      if (total !== null) setTotalUnread(total);
+    });
   }, []);
 
   const syncUnread = useCallback(() => {

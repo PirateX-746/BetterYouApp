@@ -9,10 +9,11 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { BlockSlotDto } from './dto/block-slot.dto';
 import { AvailabilityService } from './availability.service';
 
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, CLINICAL_ROLES } from '../common/role.enum';
+import { CLINICAL_ROLES } from '../common/role.enum';
 import { assertSelf, type AuthedRequest } from '../common/auth-user';
 
 // Clinical data — practitioner-only. Authentication itself is enforced
@@ -36,9 +37,9 @@ export class AvailabilityController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  blockSlot(@Body() body: any, @Req() req: AuthedRequest) {
+  blockSlot(@Body() dto: BlockSlotDto, @Req() req: AuthedRequest) {
     // The block always belongs to the caller — never a client-supplied id.
-    return this.availabilityService.blockSlot({ ...body, practitionerId: req.user.userId });
+    return this.availabilityService.blockSlot(req.user.userId, dto);
   }
 
   @Delete(':blockId')

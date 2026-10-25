@@ -1,12 +1,27 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { SupportTicket, SupportTicketSchema } from './schemas/support-ticket.schema';
-import { SupportMessage, SupportMessageSchema } from './schemas/support-message.schema';
+import {
+  SupportTicket,
+  SupportTicketSchema,
+} from './schemas/support-ticket.schema';
+import {
+  SupportMessage,
+  SupportMessageSchema,
+} from './schemas/support-message.schema';
 import { Faq, FaqSchema } from './schemas/faq.schema';
-import { SupportCounter, SupportCounterSchema } from './schemas/support-counter.schema';
-import { Practitioner, PractitionerSchema } from '../practitioners/schemas/practitioner.schema';
+import {
+  SupportCounter,
+  SupportCounterSchema,
+} from './schemas/support-counter.schema';
+import {
+  Practitioner,
+  PractitionerSchema,
+} from '../practitioners/schemas/practitioner.schema';
 import { Practice, PracticeSchema } from '../practices/schemas/practice.schema';
-import { PlatformAdmin, PlatformAdminSchema } from '../platform-admins/schemas/platform-admin.schema';
+import {
+  PlatformAdmin,
+  PlatformAdminSchema,
+} from '../platform-admins/schemas/platform-admin.schema';
 import { StorageModule } from '../storage/storage.module';
 import { AuditModule } from '../audit/audit.module';
 import { SupportService } from './support.service';

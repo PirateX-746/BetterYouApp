@@ -34,8 +34,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      const mongoErr = exception as Error & { code?: number; kind?: string };
-      if (mongoErr.code === 11000) {
+      const mongoErr = exception as Error & {
+        code?: number;
+        kind?: string;
+        status?: number;
+        type?: string;
+      };
+      if (mongoErr.type === 'entity.too.large') {
+        // body-parser's own error: keep its 413 rather than reporting a crash.
+        status = HttpStatus.PAYLOAD_TOO_LARGE;
+        message = 'Request is too large';
+      } else if (mongoErr.code === 11000) {
         status = HttpStatus.CONFLICT;
         message = 'A record with this information already exists';
       } else if (mongoErr.name === 'CastError') {

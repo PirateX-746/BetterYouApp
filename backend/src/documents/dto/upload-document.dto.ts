@@ -11,10 +11,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import {
-  DocumentCategory,
-  DocumentSource,
-} from '../schemas/document.schema';
+import { DocumentCategory, DocumentSource } from '../schemas/document.schema';
 import { UPLOAD_LIMITS } from '../document-file';
 
 /**

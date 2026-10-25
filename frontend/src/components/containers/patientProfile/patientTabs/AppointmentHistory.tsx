@@ -34,7 +34,7 @@ const STATUS_CONFIG: Record<
   scheduled:   { label: "Scheduled",  color: "text-text-secondary", dot: "bg-text-disabled", Icon: Clock3 },
   confirmed:   { label: "Confirmed",  color: "text-emerald-600",    dot: "bg-emerald-500",    Icon: CheckCircle2 },
   checked_in:  { label: "Checked In", color: "text-teal",           dot: "bg-teal",           Icon: CheckCircle2 },
-  in_progress: { label: "Ongoing",    color: "text-warning",        dot: "bg-warning",        Icon: Clock3 },
+  in_progress: { label: "Ongoing",    color: "text-warning-strong",        dot: "bg-warning",        Icon: Clock3 },
   completed:   { label: "Completed",  color: "text-blue-600",       dot: "bg-blue-500",       Icon: CheckCircle2 },
   no_show:     { label: "No Show",    color: "text-purple",         dot: "bg-purple",         Icon: XCircle },
   cancelled:   { label: "Cancelled",  color: "text-red-500",        dot: "bg-red-400",        Icon: XCircle },
@@ -182,12 +182,12 @@ export default function AppointmentHistory() {
                             <span className="flex items-center gap-1 text-xs text-text-secondary">
                               <Clock size={11} className="opacity-60" />
                               {start.toLocaleTimeString([], {
-                                hour: "2-digit",
+                                hour: "numeric", hour12: true,
                                 minute: "2-digit",
                               })}
                               {" – "}
                               {end.toLocaleTimeString([], {
-                                hour: "2-digit",
+                                hour: "numeric", hour12: true,
                                 minute: "2-digit",
                               })}
                             </span>

@@ -42,6 +42,8 @@ const FILTERS: Array<{ label: string; value: PracticeStatus | "ALL" }> = [
 ];
 
 const RESERVED = ["www", "api", "admin", "app", "mail", "static", "assets"];
+/** Same rule as the backend CreatePracticeDto. */
+const SUBDOMAIN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/;
 
 export default function PracticesPage() {
   const router = useRouter();
@@ -93,9 +95,15 @@ export default function PracticesPage() {
     }
   }
 
+  const subdomainError =
+    !form.subdomain ? null
+    : RESERVED.includes(form.subdomain) ? `"${form.subdomain}" is reserved`
+    : !SUBDOMAIN.test(form.subdomain) ? "3–30 lowercase letters, digits or hyphens, not starting or ending with a hyphen"
+    : null;
+
   const canSubmit =
     form.name.trim().length > 1 &&
-    form.subdomain.trim().length > 2 &&
+    !!form.subdomain && !subdomainError &&
     form.ownerName.trim().length > 1 &&
     /\S+@\S+\.\S+/.test(form.ownerEmail);
 
@@ -258,10 +266,14 @@ export default function PracticesPage() {
                   })
                 }
               />
-              <p className="text-xs text-text-disabled">
-                Lowercase letters, digits and hyphens. Permanent once created.
-                Reserved: {RESERVED.join(", ")}.
-              </p>
+              {subdomainError ? (
+                <p className="text-xs text-danger-strong">{subdomainError}</p>
+              ) : (
+                <p className="text-xs text-text-disabled">
+                  Lowercase letters, digits and hyphens. Permanent once created.
+                  Reserved: {RESERVED.join(", ")}.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">

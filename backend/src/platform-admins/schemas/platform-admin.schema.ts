@@ -40,5 +40,4 @@ export class PlatformAdmin {
 }
 
 export type PlatformAdminDocument = HydratedDocument<PlatformAdmin>;
-export const PlatformAdminSchema =
-  SchemaFactory.createForClass(PlatformAdmin);
+export const PlatformAdminSchema = SchemaFactory.createForClass(PlatformAdmin);

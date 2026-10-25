@@ -37,6 +37,9 @@ async function bootstrap() {
 
   // The JWT session arrives as an HttpOnly cookie, so it has to be parsed
   // before the passport strategy can read it.
+  // Profile photos travel as base64 JSON (a 2 MB image is ~2.7 MB encoded);
+  // Express's 100 KB default turned every real photo into an error.
+  app.useBodyParser('json', { limit: '4mb' });
   app.use(cookieParser());
 
   app.useGlobalFilters(new AllExceptionsFilter());

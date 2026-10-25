@@ -10,13 +10,30 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { SupportTicket, TicketPriority, TicketStatus } from './schemas/support-ticket.schema';
-import { SupportAttachment, SupportMessage } from './schemas/support-message.schema';
+import {
+  SupportTicket,
+  TicketPriority,
+  TicketStatus,
+} from './schemas/support-ticket.schema';
+import {
+  SupportAttachment,
+  SupportMessage,
+} from './schemas/support-message.schema';
 import { Faq } from './schemas/faq.schema';
 import { SupportCounter } from './schemas/support-counter.schema';
-import { AdminUpdateTicketDto, CreateTicketDto, ListTicketsQuery, ReplyDto } from './dto/ticket.dto';
+import {
+  AdminUpdateTicketDto,
+  CreateTicketDto,
+  ListTicketsQuery,
+  ReplyDto,
+} from './dto/ticket.dto';
 import { CreateFaqDto, UpdateFaqDto } from './dto/faq.dto';
-import { ATTACHMENT_LIMITS, attachmentKey, safeAttachmentName, sniffAttachment } from './support-attachment';
+import {
+  ATTACHMENT_LIMITS,
+  attachmentKey,
+  safeAttachmentName,
+  sniffAttachment,
+} from './support-attachment';
 import { DEFAULT_FAQS } from './support.defaults';
 import { StorageService } from '../storage/storage.service';
 import { Practitioner } from '../practitioners/schemas/practitioner.schema';
@@ -34,11 +51,15 @@ export class SupportService implements OnModuleInit {
   private readonly logger = new Logger(SupportService.name);
 
   constructor(
-    @InjectModel(SupportTicket.name) private readonly ticketModel: Model<SupportTicket>,
-    @InjectModel(SupportMessage.name) private readonly messageModel: Model<SupportMessage>,
+    @InjectModel(SupportTicket.name)
+    private readonly ticketModel: Model<SupportTicket>,
+    @InjectModel(SupportMessage.name)
+    private readonly messageModel: Model<SupportMessage>,
     @InjectModel(Faq.name) private readonly faqModel: Model<Faq>,
-    @InjectModel(SupportCounter.name) private readonly counterModel: Model<SupportCounter>,
-    @InjectModel(Practitioner.name) private readonly practitionerModel: Model<Practitioner>,
+    @InjectModel(SupportCounter.name)
+    private readonly counterModel: Model<SupportCounter>,
+    @InjectModel(Practitioner.name)
+    private readonly practitionerModel: Model<Practitioner>,
     @InjectModel(Practice.name) private readonly practiceModel: Model<Practice>,
     private readonly storage: StorageService,
     private readonly gateway: SupportGateway,
@@ -48,7 +69,13 @@ export class SupportService implements OnModuleInit {
   async onModuleInit() {
     try {
       if ((await this.faqModel.estimatedDocumentCount()) === 0) {
-        await this.faqModel.insertMany(DEFAULT_FAQS.map((f, i) => ({ ...f, sortOrder: i, isPublished: true })));
+        await this.faqModel.insertMany(
+          DEFAULT_FAQS.map((f, i) => ({
+            ...f,
+            sortOrder: i,
+            isPublished: true,
+          })),
+        );
         this.logger.log(`Seeded ${DEFAULT_FAQS.length} default FAQs`);
       }
     } catch (err) {
@@ -58,15 +85,25 @@ export class SupportService implements OnModuleInit {
 
   /* ═════════════ Practice side ═════════════ */
 
-  async createTicket(dto: CreateTicketDto, files: Express.Multer.File[], user: AuthUser) {
+  async createTicket(
+    dto: CreateTicketDto,
+    files: Express.Multer.File[],
+    user: AuthUser,
+  ) {
     const attachments = this.validateFiles(files);
     const requester = await this.practitionerModel
       .findById(user.userId)
       .select('firstName lastName email practiceId')
       .lean();
-    if (!requester) throw new ForbiddenException('Only practice staff can raise support tickets');
+    if (!requester)
+      throw new ForbiddenException(
+        'Only practice staff can raise support tickets',
+      );
     const practice = requester.practiceId
-      ? await this.practiceModel.findById(requester.practiceId).select('name').lean()
+      ? await this.practiceModel
+          .findById(requester.practiceId)
+          .select('name')
+          .lean()
       : null;
 
     const now = new Date();
@@ -87,8 +124,19 @@ export class SupportService implements OnModuleInit {
       messageCount: 0,
     });
 
-    await this.addMessage(ticket, 'requester', user.userId, ticket.requesterName, dto.body, attachments);
-    this.notify(ticket, { kind: 'created', by: 'requester', status: ticket.status });
+    await this.addMessage(
+      ticket,
+      'requester',
+      user.userId,
+      ticket.requesterName,
+      dto.body,
+      attachments,
+    );
+    this.notify(ticket, {
+      kind: 'created',
+      by: 'requester',
+      status: ticket.status,
+    });
     return this.toTicket(await this.ticketModel.findById(ticket._id).lean());
   }
 
@@ -103,35 +151,67 @@ export class SupportService implements OnModuleInit {
   async getOwn(id: string, user: AuthUser) {
     const ticket = await this.findOwned(id, user);
     if (ticket.unreadForRequester) {
-      await this.ticketModel.updateOne({ _id: ticket._id }, { $set: { unreadForRequester: false } });
+      await this.ticketModel.updateOne(
+        { _id: ticket._id },
+        { $set: { unreadForRequester: false } },
+      );
       ticket.unreadForRequester = false;
     }
     return this.withThread(ticket);
   }
 
-  async replyOwn(id: string, dto: ReplyDto, files: Express.Multer.File[], user: AuthUser) {
+  async replyOwn(
+    id: string,
+    dto: ReplyDto,
+    files: Express.Multer.File[],
+    user: AuthUser,
+  ) {
     const attachments = this.validateFiles(files);
     const ticket = await this.findOwned(id, user);
     // Writing back on a resolved/closed ticket reopens it — the issue isn't over.
-    const reopen = ticket.status === TicketStatus.RESOLVED || ticket.status === TicketStatus.CLOSED;
+    const reopen =
+      ticket.status === TicketStatus.RESOLVED ||
+      ticket.status === TicketStatus.CLOSED;
     const doc = await this.ticketModel.findById(ticket._id);
-    await this.addMessage(doc!, 'requester', user.userId, ticket.requesterName, dto.body, attachments, {
-      ...(reopen ? { status: TicketStatus.OPEN } : {}),
+    await this.addMessage(
+      doc!,
+      'requester',
+      user.userId,
+      ticket.requesterName,
+      dto.body,
+      attachments,
+      {
+        ...(reopen ? { status: TicketStatus.OPEN } : {}),
+      },
+    );
+    this.notify(ticket, {
+      kind: 'reply',
+      by: 'requester',
+      status: reopen ? TicketStatus.OPEN : ticket.status,
     });
-    this.notify(ticket, { kind: 'reply', by: 'requester', status: reopen ? TicketStatus.OPEN : ticket.status });
     return this.getOwn(id, user);
   }
 
   /** The requester may close their own ticket ("this is sorted"). */
   async closeOwn(id: string, user: AuthUser) {
     const ticket = await this.findOwned(id, user);
-    await this.ticketModel.updateOne({ _id: ticket._id }, { $set: { status: TicketStatus.CLOSED } });
-    this.notify(ticket, { kind: 'status', by: 'requester', status: TicketStatus.CLOSED });
+    await this.ticketModel.updateOne(
+      { _id: ticket._id },
+      { $set: { status: TicketStatus.CLOSED } },
+    );
+    this.notify(ticket, {
+      kind: 'status',
+      by: 'requester',
+      status: TicketStatus.CLOSED,
+    });
     return this.getOwn(id, user);
   }
 
   async publishedFaqs() {
-    return this.faqModel.find({ isPublished: true }).sort({ category: 1, sortOrder: 1, createdAt: 1 }).lean();
+    return this.faqModel
+      .find({ isPublished: true })
+      .sort({ category: 1, sortOrder: 1, createdAt: 1 })
+      .lean();
   }
 
   /* ═════════════ Platform (Super Admin) side ═════════════ */
@@ -151,10 +231,15 @@ export class SupportService implements OnModuleInit {
         { practiceName: rx },
       ];
     }
-    const tickets = await this.ticketModel.find(filter).sort({ lastMessageAt: -1 }).limit(500).lean();
-    const counts = await this.ticketModel.aggregate<{ _id: TicketStatus; n: number }>([
-      { $group: { _id: '$status', n: { $sum: 1 } } },
-    ]);
+    const tickets = await this.ticketModel
+      .find(filter)
+      .sort({ lastMessageAt: -1 })
+      .limit(500)
+      .lean();
+    const counts = await this.ticketModel.aggregate<{
+      _id: TicketStatus;
+      n: number;
+    }>([{ $group: { _id: '$status', n: { $sum: 1 } } }]);
     return {
       tickets: tickets.map((t) => this.toTicket(t)),
       counts: Object.fromEntries(counts.map((c) => [c._id, c.n])),
@@ -164,20 +249,44 @@ export class SupportService implements OnModuleInit {
   async getAny(id: string) {
     const ticket = await this.findById(id);
     if (ticket.unreadForAdmin) {
-      await this.ticketModel.updateOne({ _id: ticket._id }, { $set: { unreadForAdmin: false } });
+      await this.ticketModel.updateOne(
+        { _id: ticket._id },
+        { $set: { unreadForAdmin: false } },
+      );
       ticket.unreadForAdmin = false;
     }
     return this.withThread(ticket);
   }
 
-  async replyAny(id: string, dto: ReplyDto, files: Express.Multer.File[], user: AuthUser, adminName: string) {
+  async replyAny(
+    id: string,
+    dto: ReplyDto,
+    files: Express.Multer.File[],
+    user: AuthUser,
+    adminName: string,
+  ) {
     const attachments = this.validateFiles(files);
     const doc = await this.ticketModel.findById(this.oid(id));
     if (!doc) throw new NotFoundException('Ticket not found');
     // First support reply moves a fresh ticket along.
-    const advance = doc.status === TicketStatus.OPEN ? { status: TicketStatus.IN_PROGRESS } : {};
-    await this.addMessage(doc, 'support', user.userId, adminName, dto.body, attachments, advance);
-    this.notify(doc, { kind: 'reply', by: 'support', status: advance.status ?? doc.status });
+    const advance =
+      doc.status === TicketStatus.OPEN
+        ? { status: TicketStatus.IN_PROGRESS }
+        : {};
+    await this.addMessage(
+      doc,
+      'support',
+      user.userId,
+      adminName,
+      dto.body,
+      attachments,
+      advance,
+    );
+    this.notify(doc, {
+      kind: 'reply',
+      by: 'support',
+      status: advance.status ?? doc.status,
+    });
     return this.getAny(id);
   }
 
@@ -186,24 +295,40 @@ export class SupportService implements OnModuleInit {
     const set: Record<string, unknown> = {};
     if (dto.status) set.status = dto.status;
     if (dto.priority) set.priority = dto.priority;
-    if (!Object.keys(set).length) throw new BadRequestException('Nothing to update');
+    if (!Object.keys(set).length)
+      throw new BadRequestException('Nothing to update');
     await this.ticketModel.updateOne({ _id: before._id }, { $set: set });
-    this.notify(before, { kind: 'status', by: 'support', status: dto.status ?? before.status });
+    this.notify(before, {
+      kind: 'status',
+      by: 'support',
+      status: dto.status ?? before.status,
+    });
     return { before, after: await this.getAny(id) };
   }
 
   async allFaqs() {
-    return this.faqModel.find().sort({ category: 1, sortOrder: 1, createdAt: 1 }).lean();
+    return this.faqModel
+      .find()
+      .sort({ category: 1, sortOrder: 1, createdAt: 1 })
+      .lean();
   }
 
   async createFaq(dto: CreateFaqDto) {
-    const last = await this.faqModel.findOne({ category: dto.category }).sort({ sortOrder: -1 }).lean();
-    const created = await this.faqModel.create({ ...dto, sortOrder: dto.sortOrder ?? (last ? last.sortOrder + 1 : 0) });
+    const last = await this.faqModel
+      .findOne({ category: dto.category })
+      .sort({ sortOrder: -1 })
+      .lean();
+    const created = await this.faqModel.create({
+      ...dto,
+      sortOrder: dto.sortOrder ?? (last ? last.sortOrder + 1 : 0),
+    });
     return created.toObject();
   }
 
   async updateFaq(id: string, dto: UpdateFaqDto) {
-    const faq = await this.faqModel.findByIdAndUpdate(this.oid(id), { $set: dto }, { new: true }).lean();
+    const faq = await this.faqModel
+      .findByIdAndUpdate(this.oid(id), { $set: dto }, { new: true })
+      .lean();
     if (!faq) throw new NotFoundException('FAQ not found');
     return faq;
   }
@@ -220,9 +345,17 @@ export class SupportService implements OnModuleInit {
    * Streams an attachment after checking the caller may see its ticket:
    * the requester themselves, or a platform admin.
    */
-  async openAttachment(messageId: string, attachmentId: string, user: AuthUser) {
-    const message = await this.messageModel.findById(this.oid(messageId)).lean();
-    const att = message?.attachments.find((a) => String(a._id) === attachmentId);
+  async openAttachment(
+    messageId: string,
+    attachmentId: string,
+    user: AuthUser,
+  ) {
+    const message = await this.messageModel
+      .findById(this.oid(messageId))
+      .lean();
+    const att = message?.attachments.find(
+      (a) => String(a._id) === attachmentId,
+    );
     if (!message || !att) throw new NotFoundException('Attachment not found');
     if (user.role !== Role.SUPER_ADMIN) {
       await this.findOwned(String(message.ticketId), user);
@@ -240,7 +373,11 @@ export class SupportService implements OnModuleInit {
     ticket: Pick<SupportTicket, '_id' | 'ticketNo' | 'requesterId'>,
     e: Omit<SupportTicketEvent, 'ticketId' | 'ticketNo'>,
   ) {
-    const event: SupportTicketEvent = { ticketId: String(ticket._id), ticketNo: ticket.ticketNo, ...e };
+    const event: SupportTicketEvent = {
+      ticketId: String(ticket._id),
+      ticketNo: ticket.ticketNo,
+      ...e,
+    };
     try {
       this.gateway.toRequester(String(ticket.requesterId), event);
       this.gateway.toAdmins(event);
@@ -251,11 +388,15 @@ export class SupportService implements OnModuleInit {
 
   private validateFiles(files: Express.Multer.File[] = []) {
     if (files.length > ATTACHMENT_LIMITS.maxFiles) {
-      throw new BadRequestException(`Attach at most ${ATTACHMENT_LIMITS.maxFiles} files`);
+      throw new BadRequestException(
+        `Attach at most ${ATTACHMENT_LIMITS.maxFiles} files`,
+      );
     }
     return files.map((f) => {
       if (f.size > ATTACHMENT_LIMITS.maxBytes) {
-        throw new PayloadTooLargeException(`${f.originalname} is larger than 10 MB`);
+        throw new PayloadTooLargeException(
+          `${f.originalname} is larger than 10 MB`,
+        );
       }
       const kind = sniffAttachment(f.buffer);
       if (!kind) {
@@ -263,7 +404,11 @@ export class SupportService implements OnModuleInit {
           `${f.originalname}: only PNG, JPEG, WebP images and PDFs can be attached`,
         );
       }
-      return { buffer: f.buffer, kind, fileName: safeAttachmentName(f.originalname, kind) };
+      return {
+        buffer: f.buffer,
+        kind,
+        fileName: safeAttachmentName(f.originalname, kind),
+      };
     });
   }
 
@@ -285,9 +430,19 @@ export class SupportService implements OnModuleInit {
     try {
       for (const f of files) {
         const _id = new Types.ObjectId();
-        const storageKey = attachmentKey(String(ticket._id), String(messageId), String(_id));
+        const storageKey = attachmentKey(
+          String(ticket._id),
+          String(messageId),
+          String(_id),
+        );
         await this.storage.put(storageKey, f.buffer, f.kind);
-        stored.push({ _id, fileName: f.fileName, contentType: f.kind, size: f.buffer.length, storageKey });
+        stored.push({
+          _id,
+          fileName: f.fileName,
+          contentType: f.kind,
+          size: f.buffer.length,
+          storageKey,
+        });
       }
       await this.messageModel.create({
         _id: messageId,
@@ -299,7 +454,9 @@ export class SupportService implements OnModuleInit {
         attachments: stored,
       });
     } catch (err) {
-      await Promise.all(stored.map((a) => this.storage.deleteQuietly(a.storageKey)));
+      await Promise.all(
+        stored.map((a) => this.storage.deleteQuietly(a.storageKey)),
+      );
       throw err;
     }
     await this.ticketModel.updateOne(
@@ -307,7 +464,9 @@ export class SupportService implements OnModuleInit {
       {
         $set: {
           lastMessageAt: new Date(),
-          ...(side === 'requester' ? { unreadForAdmin: true } : { unreadForRequester: true }),
+          ...(side === 'requester'
+            ? { unreadForAdmin: true }
+            : { unreadForRequester: true }),
           ...extraSet,
         },
         $inc: { messageCount: 1 },
@@ -325,7 +484,8 @@ export class SupportService implements OnModuleInit {
   }
 
   private oid(id: string) {
-    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid id');
+    if (!Types.ObjectId.isValid(id))
+      throw new BadRequestException('Invalid id');
     return new Types.ObjectId(id);
   }
 
@@ -338,13 +498,20 @@ export class SupportService implements OnModuleInit {
   /** 404 (not 403) for someone else's ticket, so ids can't be probed. */
   private async findOwned(id: string, user: AuthUser) {
     const ticket = await this.findById(id);
-    if (String(ticket.requesterId) !== user.userId) throw new NotFoundException('Ticket not found');
+    if (String(ticket.requesterId) !== user.userId)
+      throw new NotFoundException('Ticket not found');
     return ticket;
   }
 
   private async withThread(ticket: SupportTicket) {
-    const messages = await this.messageModel.find({ ticketId: ticket._id }).sort({ createdAt: 1 }).lean();
-    return { ...this.toTicket(ticket), messages: messages.map((m) => this.toMessage(m)) };
+    const messages = await this.messageModel
+      .find({ ticketId: ticket._id })
+      .sort({ createdAt: 1 })
+      .lean();
+    return {
+      ...this.toTicket(ticket),
+      messages: messages.map((m) => this.toMessage(m)),
+    };
   }
 
   private toTicket(t: SupportTicket | null) {

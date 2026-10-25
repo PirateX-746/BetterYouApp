@@ -1,10 +1,15 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
   AvailabilityDocument,
   Availability,
 } from './schemas/availability.schema';
+import { BlockSlotDto } from './dto/block-slot.dto';
 
 @Injectable()
 export class AvailabilityService {
@@ -22,15 +27,8 @@ export class AvailabilityService {
       .exec();
   }
 
-  async blockSlot(data: any) {
-    const { practitionerId, blockType, date, startTime, endTime, reason } =
-      data;
-
-    if (!practitionerId || !blockType || !date) {
-      throw new BadRequestException(
-        'PractitionerId, blockType, and date are required.',
-      );
-    }
+  async blockSlot(practitionerId: string, dto: BlockSlotDto) {
+    const { blockType, date, startTime, endTime, reason } = dto;
 
     // Validate practitioner ID is a valid ObjectId
     if (!Types.ObjectId.isValid(practitionerId)) {
@@ -42,22 +40,24 @@ export class AvailabilityService {
         'Start and end times are required for slot blocks.',
       );
     }
-
-    // Check for duplicate blocks
-    const query: any = {
-      practitionerId: new Types.ObjectId(practitionerId),
-      date,
-      blockType,
-    };
-
-    if (blockType === 'slot') {
-      // Very basic collision detection for exact matching slots.
-      // Evolving overlap overlap detection logic might be needed depending on the strictness of block entries.
-      query.startTime = startTime;
-      query.endTime = endTime;
+    // "HH:mm" strings compare in time order.
+    if (blockType === 'slot' && endTime! <= startTime!) {
+      throw new BadRequestException('End time must be after start time.');
     }
 
-    const existingBlock = await this.availabilityModel.findOne(query);
+    const owner = new Types.ObjectId(practitionerId);
+    // Only "slot" blocks carry times; a "day" block's null times are dropped.
+    const times =
+      blockType === 'slot'
+        ? { startTime: startTime ?? undefined, endTime: endTime ?? undefined }
+        : {};
+    // Very basic collision detection: an exact duplicate of an existing block.
+    const existingBlock = await this.availabilityModel.findOne({
+      practitionerId: owner,
+      date,
+      blockType,
+      ...times,
+    });
 
     if (existingBlock) {
       throw new BadRequestException(
@@ -66,11 +66,10 @@ export class AvailabilityService {
     }
 
     return this.availabilityModel.create({
-      practitionerId: new Types.ObjectId(practitionerId),
+      practitionerId: owner,
       blockType,
       date,
-      startTime: blockType === 'slot' ? startTime : undefined,
-      endTime: blockType === 'slot' ? endTime : undefined,
+      ...times,
       reason,
     });
   }

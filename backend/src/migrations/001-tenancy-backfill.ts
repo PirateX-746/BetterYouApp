@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Migration 001 — tenancy backfill (steps 1–5 of the plan).
  *
@@ -79,11 +78,15 @@ async function main() {
   /* ---- Step 2: create the first practice --------------------------- */
   let practiceId: mongoose.Types.ObjectId;
   const practices = db.collection('practices');
-  const found = await practices.findOne({ subdomain: FIRST_PRACTICE.subdomain });
+  const found = await practices.findOne({
+    subdomain: FIRST_PRACTICE.subdomain,
+  });
 
   if (found) {
     practiceId = found._id;
-    console.log(`✓ Practice "${FIRST_PRACTICE.subdomain}" already exists (${practiceId})`);
+    console.log(
+      `✓ Practice "${FIRST_PRACTICE.subdomain}" already exists (${String(practiceId)})`,
+    );
   } else if (DRY_RUN) {
     practiceId = new mongoose.Types.ObjectId();
     console.log(`  would create practice "${FIRST_PRACTICE.subdomain}"`);
@@ -94,7 +97,9 @@ async function main() {
       updatedAt: new Date(),
     });
     practiceId = res.insertedId;
-    console.log(`✓ Created practice "${FIRST_PRACTICE.subdomain}" (${practiceId})`);
+    console.log(
+      `✓ Created practice "${FIRST_PRACTICE.subdomain}" (${String(practiceId)})`,
+    );
   }
 
   await practices.createIndex({ subdomain: 1 }, { unique: true });
@@ -119,7 +124,9 @@ async function main() {
     }
 
     if (DRY_RUN) {
-      console.log(`  ${name.padEnd(20)} would set practiceId on ${missing}/${total}`);
+      console.log(
+        `  ${name.padEnd(20)} would set practiceId on ${missing}/${total}`,
+      );
       continue;
     }
 
@@ -150,8 +157,10 @@ async function main() {
 
     const dupes = await db
       .collection(name)
-      .aggregate([
-        { $group: { _id: { p: '$practiceId', v: `$${field}` }, n: { $sum: 1 } } },
+      .aggregate<{ _id: { p: unknown; v: unknown }; n: number }>([
+        {
+          $group: { _id: { p: '$practiceId', v: `$${field}` }, n: { $sum: 1 } },
+        },
         { $match: { n: { $gt: 1 }, '_id.v': { $ne: null } } },
       ])
       .toArray();

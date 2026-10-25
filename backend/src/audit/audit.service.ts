@@ -63,10 +63,6 @@ export class AuditService {
   }
 
   async listPlatform(limit = 100) {
-    return this.auditModel
-      .find()
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .exec();
+    return this.auditModel.find().sort({ createdAt: -1 }).limit(limit).exec();
   }
 }

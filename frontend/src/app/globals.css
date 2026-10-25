@@ -19,14 +19,36 @@ select:not([multiple]):not([size]) {
    DESIGN TOKENS – LIGHT THEME
    ======================================== */
 :root {
-  /* Primary */
-  --primary: #5b8def;
-  --primary-light: #e8f1ff;
-  --primary-hover: #4a7dd9;
+  /* Primary — BetterYou blue. Deepened from #5b8def, which gave white button
+     labels only 3.2:1 contrast; #2563eb gives 5.2:1 (WCAG AA). */
+  --primary: #2563eb;
+  /* Tint derived from the accent so a custom accent gets a matching tint in
+     each theme (ThemeProvider only sets --primary/--primary-hover). */
+  --primary-light: color-mix(in srgb, var(--primary) 13%, #ffffff);
+  --primary-hover: #1d55d6;
+  /* Accent darkened for text on tinted fills. Derived, so it follows the
+     runtime accent the ThemeProvider sets. */
+  --primary-strong: color-mix(in srgb, var(--primary) 72%, #0b1a33);
+  /* Pressed (:active) fill and the faintest tint, for featured-but-quiet areas. */
+  --primary-pressed: color-mix(in srgb, var(--primary) 82%, #0b1a33);
+  --primary-subtle: color-mix(in srgb, var(--primary) 5%, #ffffff);
+
+  /* Featured surfaces — use sparingly (one hero card per view, a header band).
+     brand: deep blue for cards with white text; brand-soft: a tint wash. */
+  --gradient-brand: linear-gradient(135deg, color-mix(in srgb, var(--primary) 88%, #ffffff) 0%, var(--primary) 45%, color-mix(in srgb, var(--primary) 70%, #0b1f5c) 100%);
+  --gradient-brand-soft: linear-gradient(180deg, color-mix(in srgb, var(--primary) 9%, #ffffff) 0%, color-mix(in srgb, var(--primary) 2%, #ffffff) 100%);
+  /* Colored lift under primary buttons and featured cards. */
+  --shadow-brand: 0 1px 2px rgba(16, 24, 40, 0.08), 0 4px 12px -2px color-mix(in srgb, var(--primary) 35%, transparent);
+
+  /* Info — sky blue, distinct from the brand blue so "information" never
+     reads as "primary action". */
+  --info: #0ea5e9;
+  --info-light: #e0f2fe;
+  --info-strong: #075985;
 
   /* Shadcn-compatible tokens */
-  --background: #f8f9fa;
-  --foreground: #1f1f1f;
+  --background: #f3f5f9;
+  --foreground: #1d1d1f;
   --card: #ffffff;
   --card-foreground: #1f1f1f;
   --popover: #ffffff;
@@ -49,6 +71,12 @@ select:not([multiple]):not([size]) {
   --warning: #faad14;
   --danger: #ef4444;
   --purple: #9333ea;
+  /* Text-safe shades (≥4.5:1 on their -light fill and on white). */
+  --success-strong: #187a3a;
+  --warning-strong: #8f5300;
+  --danger-strong: #c42b2b;
+  --purple-strong: #7a2fc4;
+  --teal-strong: #0f766e;
 
   /* ========================================
    EXTENDED BRAND COLORS
@@ -89,33 +117,37 @@ select:not([multiple]):not([size]) {
   --slate-light: #f1f5f9;
   --slate-dark: #1e293b;
 
-  /* Background */
-  --bg-page: #f8f9fa;
+  /* Background — the canvas sits a step below white so cards read as
+     surfaces by contrast alone, without needing a border to separate. */
+  --bg-page: #f3f5f9;
   --bg-card: #ffffff;
+  --bg-subtle: #f7f8fa;
   --bg-light: #f5f7fa;
-  --bg-hover: #f0f2f5;
+  --bg-hover: #eff1f4;
 
   /* Text */
-  --text-primary: #1f1f1f;
+  --text-primary: #1d1d1f;
   --text-secondary: #5f6368;
-  --text-light: #9aa0a6;
+  --text-light: #868c95;
   --text-disabled: #bfbfbf;
   /* Native <select> chevron (see the select rule at the top), tinted to --text-secondary. */
   --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%235f6368' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
 
   /* Border */
-  --border: #e8eaed;
-  --border-light: #f0f0f0;
+  --border: #e3e6ea;
+  --border-light: #eef0f3;
 
-  /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  /* Shadows — elevation only: xs/sm for resting cards and controls,
+     md for raised (hover, sticky), lg for floating (menus, dialogs). */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 2px 4px rgba(16, 24, 40, 0.04), 0 8px 16px -4px rgba(16, 24, 40, 0.08);
+  --shadow-lg: 0 4px 8px rgba(16, 24, 40, 0.04), 0 20px 40px -8px rgba(16, 24, 40, 0.18);
 
-  /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  /* Radius — controls 8px, surfaces 12px, small chips/kbd 6px */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 
   /* Status light backgrounds */
   --success-light: #dcfce7;
@@ -132,9 +164,19 @@ select:not([multiple]):not([size]) {
    DARK THEME
    ======================================== */
 .dark {
-  --primary: #6b9df7;
-  --primary-light: #1e2a3a;
-  --primary-hover: #5a8df0;
+  /* Dark keeps white-on-primary ≥ 4.5:1, so the fill can't get lighter. */
+  --primary: #2f6fe4;
+  --primary-light: color-mix(in srgb, var(--primary) 20%, #1a1a1a);
+  --primary-hover: #3a7af0;
+  --primary-strong: color-mix(in srgb, var(--primary) 55%, #ffffff);
+  --primary-pressed: color-mix(in srgb, var(--primary) 85%, #000000);
+  --primary-subtle: color-mix(in srgb, var(--primary) 8%, #1a1a1a);
+  --gradient-brand: linear-gradient(135deg, color-mix(in srgb, var(--primary) 90%, #ffffff) 0%, var(--primary) 45%, color-mix(in srgb, var(--primary) 60%, #000000) 100%);
+  --gradient-brand-soft: linear-gradient(180deg, color-mix(in srgb, var(--primary) 16%, #1a1a1a) 0%, #1a1a1a 100%);
+  --shadow-brand: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px -2px color-mix(in srgb, var(--primary) 45%, transparent);
+  --info: #38bdf8;
+  --info-light: #0c4a6e4d;
+  --info-strong: #7dd3fc;
 
   /* Shadcn-compatible dark tokens */
   --background: #0f0f0f;
@@ -159,6 +201,12 @@ select:not([multiple]):not([size]) {
   --warning: #ffc53d;
   --danger: #ff4d4f;
 
+  --success-strong: #6fdc8c;
+  --warning-strong: #f5c451;
+  --danger-strong: #ff8a8a;
+  --purple-strong: #c99bf5;
+  --teal-strong: #5eead4;
+
   /* Status badges (Badge component): light-mode uses solid pastel fills,
      which read as washed-out near-white blocks on the dark cards — so
      dark mode gets its own translucent tint instead, same convention as
@@ -178,6 +226,7 @@ select:not([multiple]):not([size]) {
 
   --bg-page: #0f0f0f;
   --bg-card: #1a1a1a;
+  --bg-subtle: #151515;
   --bg-light: #262626;
   --bg-hover: #2a2a2a;
 
@@ -189,7 +238,27 @@ select:not([multiple]):not([size]) {
 
   --border: #2a2a2a;
   --border-light: #333333;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.3), 0 20px 40px -8px rgba(0, 0, 0, 0.6);
 }
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+/* Chrome (topbar, sidebar, bottom nav) is solid bg-card by design — no
+   translucent/blurred materials. Higher contrast when the user asks for it. */
+@media (prefers-contrast: more) {
+  :root:not(.dark) {
+    --border: #b8bec7;
+    --text-secondary: #474c53;
+  }
+}
+
+
 
 .scrollbar-hide {
   -ms-overflow-style: none;
@@ -199,20 +268,34 @@ select:not([multiple]):not([size]) {
   display: none;
 }
 
+/* Press feedback (apple-design skill): a uniform scale that lands
+   instantly on pointer-down and eases back on release — no squash, no
+   overshoot, since a tap carries no momentum. Disabled controls don't
+   respond, and reduced motion drops the scale entirely. */
 button,
 a,
 [role="button"],
 .clickable {
   transition:
-    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.18s ease;
+    transform 0.15s ease-out,
+    box-shadow 0.15s ease-out;
 }
 
-button:active,
+button:not(:disabled):active,
 a:active,
-[role="button"]:active,
+[role="button"]:not([aria-disabled="true"]):active,
 .clickable:active {
-  transform: scaleX(0.97) scaleY(0.9);
+  transform: scale(0.97);
+  transition-duration: 0.075s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active,
+  a:active,
+  [role="button"]:active,
+  .clickable:active {
+    transform: none;
+  }
 }
 
 /* ===============================
@@ -521,7 +604,7 @@ a:active,
 }
 
 .btn {
-  @apply inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 outline-none shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  @apply inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 outline-none shadow-sm active:scale-[0.97] motion-reduce:active:scale-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
 }
 
 .btn-primary {
@@ -565,6 +648,10 @@ body {
 body {
   color: var(--foreground);
   background-color: var(--background);
+  /* Grayscale antialiasing keeps light-on-dark text from looking heavy,
+     matching how the system font renders natively. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .input-style {
@@ -595,6 +682,20 @@ body {
   --success-light: #ededed;
   --warning: #4d4d4d;
   --warning-light: #f5f5f5;
+  --primary-strong: #111111;
+  /* Derived tokens resolve on :root, so restate them here or they'd stay blue. */
+  --primary-pressed: #000000;
+  --primary-subtle: #f7f7f7;
+  --gradient-brand: linear-gradient(135deg, #2e2e2e 0%, #111111 100%);
+  --gradient-brand-soft: linear-gradient(180deg, #f4f4f4 0%, #ffffff 100%);
+  --shadow-brand: 0 1px 2px rgba(0, 0, 0, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.18);
+  --info: #3d3d3d;
+  --info-light: #f1f1f1;
+  --info-strong: #111111;
+  --success-strong: #1f1f1f;
+  --warning-strong: #3d3d3d;
+  --purple-strong: #111111;
+  --teal-strong: #3d3d3d;
 }
 
 /* Dark: filled accents become a mid-grey so the white text on them keeps
@@ -613,6 +714,19 @@ body {
   --success-light: #2a2a2a;
   --warning: #bdbdbd;
   --warning-light: #222222;
+  --primary-strong: #f2f2f2;
+  --primary-pressed: #2e2e2e;
+  --primary-subtle: #1f1f1f;
+  --gradient-brand: linear-gradient(135deg, #4d4d4d 0%, #2e2e2e 100%);
+  --gradient-brand-soft: linear-gradient(180deg, #232323 0%, #1a1a1a 100%);
+  --shadow-brand: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px -2px rgba(0, 0, 0, 0.5);
+  --info: #bdbdbd;
+  --info-light: #262626;
+  --info-strong: #e5e5e5;
+  --success-strong: #e5e5e5;
+  --warning-strong: #d4d4d4;
+  --purple-strong: #f2f2f2;
+  --teal-strong: #d4d4d4;
 }
 .dark .theme-mono .text-primary,
 .dark .theme-mono .text-purple {

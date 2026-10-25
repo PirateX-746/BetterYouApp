@@ -66,9 +66,14 @@ function LockOverlay() {
   const [loggingOut, setLoggingOut] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
 
-  useEffect(() => {
+  // Every step starts with empty boxes; `message` explains why we got here.
+  const changeMode = (next: PinMode, message = "") => {
+    setMode(next);
     setDigits(["", "", "", ""]);
-    setError("");
+    setError(message);
+  };
+
+  useEffect(() => {
     const t = setTimeout(() => inputRefs.current[0]?.focus(), 60);
     return () => clearTimeout(t);
   }, [mode]);
@@ -97,15 +102,14 @@ function LockOverlay() {
       }
     } else if (mode === "set") {
       setPendingPin(pin);
-      setMode("confirm");
+      changeMode("confirm");
     } else {
       if (pin === pendingPin) {
         localStorage.setItem("portalPin", pin);
         unlock();
       } else {
-        setError("PINs don't match. Try again.");
         setPendingPin("");
-        setMode("set");
+        changeMode("set", "PINs don't match. Try again.");
       }
     }
   };
@@ -164,7 +168,7 @@ function LockOverlay() {
               autoFocus
             />
           </fieldset>
-          {error && <p className="text-sm text-danger text-center">{error}</p>}
+          {error && <p className="text-sm text-danger-strong text-center">{error}</p>}
         </div>
 
         {mode === "enter" && (
@@ -196,7 +200,7 @@ function PractitionerLayoutInner({ children }: { children: ReactNode }) {
       <PractitionerSidebar open={open} setOpen={setOpen} />
 
       <div className="lg:ml-64 h-screen bg-bg-page flex flex-col overflow-hidden">
-        <PractitionerTopbar open={open} onToggle={() => setOpen((o) => !o)} />
+        <PractitionerTopbar onToggle={() => setOpen((o) => !o)} />
 
         <main className={mainClass}>
           {isMessages ? (

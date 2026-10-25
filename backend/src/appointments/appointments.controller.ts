@@ -15,7 +15,7 @@ import {
 import { AppointmentsService, AppointmentData } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, CLINICAL_ROLES } from '../common/role.enum';
+import { CLINICAL_ROLES } from '../common/role.enum';
 import {
   assertSelf,
   assertSelfOrPractitioner,
@@ -37,7 +37,10 @@ export class AppointmentsController {
   @Get('patient/:id')
   getByPatient(@Param('id') id: string, @Req() req: AuthedRequest) {
     assertSelfOrPractitioner(req.user, id);
-    return this.appointmentsService.findByPatient(id, req.user.practiceId ?? null);
+    return this.appointmentsService.findByPatient(
+      id,
+      req.user.practiceId ?? null,
+    );
   }
 
   @Roles(...CLINICAL_ROLES)

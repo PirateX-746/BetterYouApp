@@ -1,35 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
 import { Page } from "@/components/common/PageLayout";
+import { Badge } from "@/components/common/Badge";
+import { Card } from "@/components/common/Card";
+import { Field, FieldGroup, inputClass, textareaClass } from "@/components/common/Field";
+import { Segmented, TabBar, tabPanelProps, type TabItem } from "@/components/common/Tabs";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
+import { Button } from "@/components/ui/button";
 import { TemporaryPasswordDialog, type IssuedPassword } from "@/components/containers/patients/TemporaryPasswordDialog";
 import toast from "react-hot-toast";
 import { useDetailCrumb } from "@/contexts/PractitionerBreadcrumbContext";
 import {
   User,
-  Calendar,
-  Phone,
-  Mail,
-  HeartPulse,
-  Droplet,
   AlertTriangle,
-  ShieldPlus,
   Printer,
   Pencil,
-  ClipboardList,
-  Pill,
   ArrowLeft,
-  TrendingUp,
   CalendarClock,
-  Target,
-  History,
-  Loader2,
+  HeartPulse,
+  Droplet,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -37,52 +33,57 @@ import { calculateAge, formatDate, capitalizeWords } from "@/lib/patientUtils";
 import MedicationsTab from "./patientTabs/Medications";
 import MedicalDocument from "./patientTabs/MedicalDocuments";
 import AppointmentHistory from "./patientTabs/AppointmentHistory";
-import ProgressNotesTab from "./patientTabs/ProgressNotes";
-import FollowUpNotesTab from "./patientTabs/FollowUpNotes";
+import SessionNotesTab from "./patientTabs/SessionNotes";
+import EmrAllNotes, { type EmrItem } from "./patientTabs/EmrAllNotes";
 import TreatmentPlansTab from "./patientTabs/TreatmentPlans";
-import PatientTimelineTab from "./patientTabs/PatientTimeline";
-import ProgressScoreChart from "./ProgressScoreChart";
-import { SkeletonProfile } from "@/components/ui/skeleton";
+import PatientOverview from "./patientTabs/PatientOverview";
+import PatientDetails from "./patientTabs/PatientDetails";
+import PatientAssessments from "./patientTabs/PatientAssessments";
+import { emergencyName, emergencyPhone, type Patient } from "./types";
+import { Skeleton } from "@/components/ui/skeleton";
 
-type Tab = "documents" | "medications" | "appointments" | "progress" | "followup" | "plans" | "timeline";
+type Tab = "dashboard" | "patient" | "emr" | "care" | "appointments";
 
-type Patient = {
-  _id?: string;
-  avatar?: string;
-  firstName?: string;
-  lastName?: string;
-  dateOfBirth?: string;
-  gender?: string;
-  phoneNo?: string;
-  email?: string;
-  lastVisit?: string;
-  healthCondition?: string;
-  bloodGroup?: string;
-  allergies?: string;
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  emergencyContactRelation?: string;
-  /** Legacy field names some older records/types used. */
-  emergency_contact_name?: string;
-  emergency_contact_phone?: string;
-  isActive?: boolean;
-};
+/** EMR Notes groups the patient's clinical record: session notes (with their
+    follow-up plan), session assessments and documents. */
+type EmrView = "all" | "notes" | "assessments" | "documents";
 
-const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: "documents", label: "Documents", icon: ClipboardList },
-  { id: "medications", label: "Medications", icon: Pill },
-  { id: "appointments", label: "Appointments", icon: Calendar },
-  { id: "progress", label: "Progress Notes", icon: TrendingUp },
-  { id: "followup", label: "Follow-Ups", icon: CalendarClock },
-  { id: "plans", label: "Treatment Plans", icon: Target },
-  { id: "timeline", label: "Timeline", icon: History },
+/* Five questions, one tab each: what's going on (Dashboard), who they are
+   (Patient), what was recorded (EMR Notes), what the plan is (Care Plan),
+   when they're seen (Appointments). History lives on the Dashboard as
+   Recent activity, not in its own tab. */
+const TABS: TabItem<Tab>[] = [
+  { id: "dashboard", label: "Dashboard" },
+  { id: "patient", label: "Patient" },
+  { id: "emr", label: "EMR Notes" },
+  { id: "care", label: "Care Plan" },
+  { id: "appointments", label: "Appointments" },
 ];
 
 export default function PatientProfilePage() {
   const params = useParams();
   const id = params?.id as string;
+  const tabsId = useId();
 
-  const [activeTab, setActiveTab] = useState<Tab>("documents");
+  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const router = useRouter();
+  const [emrView, setEmrView] = useState<EmrView>("all");
+  /** A record picked in EMR → All, opened in its own view. */
+  const [focusNote, setFocusNote] = useState<string | undefined>();
+  const [focusDoc, setFocusDoc] = useState<string | undefined>();
+  const openEmrItem = (item: EmrItem) => {
+    if (item.kind === "assessment") {
+      if (item.appointmentId) router.push(`/assessments?appointment=${item.appointmentId}`);
+      else setEmrView("assessments");
+    } else if (item.kind === "note") {
+      setFocusNote(item.id);
+      setEmrView("notes");
+    } else {
+      setFocusDoc(item.id);
+      setEmrView("documents");
+    }
+  };
+  const [careView, setCareView] = useState<"plans" | "medications">("plans");
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
@@ -127,112 +128,72 @@ export default function PatientProfilePage() {
 
   useDetailCrumb(fullName);
 
-  const shortId = patient?._id?.slice(-6) ?? "—";
-
   if (loading) {
     return (
-      <div className="space-y-4 w-full">
-        <div className="h-4 w-28 bg-bg-light rounded-lg animate-pulse" />
-        <SkeletonProfile />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-bg-card border border-border rounded-2xl p-4 flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-bg-light animate-pulse shrink-0" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-3 w-16 bg-bg-light rounded animate-pulse" />
-                <div className="h-4 w-24 bg-bg-light rounded animate-pulse" />
-              </div>
+      <Page>
+        <Card className="p-5 space-y-4" aria-busy="true" aria-label="Loading patient">
+          <div className="flex items-center gap-4">
+            <Skeleton className="size-14 rounded-full shrink-0" />
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-6 w-56" />
+              <Skeleton className="h-4 w-80 max-w-full" />
             </div>
-          ))}
+          </div>
+          <div className="flex gap-2">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-7 w-28 rounded-full" />)}
+          </div>
+          <Skeleton className="h-10 w-full" />
+        </Card>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-64 rounded-2xl" />
         </div>
-        <div className="bg-bg-card border border-border rounded-2xl h-48 animate-pulse" />
-      </div>
+      </Page>
     );
   }
 
   if (!patient) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <User size={36} className="text-text-disabled" />
-        <p className="text-text-secondary text-sm">Patient not found</p>
-        <Link href="/patients" className="text-primary text-sm hover:underline">
-          Back to Patients
-        </Link>
+        <User size={36} className="text-text-light" aria-hidden />
+        <p className="text-text-secondary text-body">Patient not found</p>
+        <Button asChild variant="secondary" size="sm">
+          <Link href="/patients">Back to Patients</Link>
+        </Button>
       </div>
     );
   }
 
-  const medicalInfo = [
-    {
-      label: "Health Condition",
-      value: patient.healthCondition || "No condition recorded",
-      icon: HeartPulse,
-      colorClass: "bg-primary/10 text-primary",
-    },
-    {
-      label: "Blood Group",
-      value: patient.bloodGroup || "Not specified",
-      icon: Droplet,
-      colorClass: "bg-danger/10 text-danger",
-    },
-    {
-      label: "Allergies",
-      value: patient.allergies || "None reported",
-      icon: AlertTriangle,
-      colorClass: "bg-warning/10 text-warning",
-    },
-    {
-      label: "Emergency Contact",
-      value:
-        [patient.emergencyContactName ?? patient.emergency_contact_name, patient.emergencyContactRelation && `(${patient.emergencyContactRelation})`]
-          .filter(Boolean)
-          .join(" ") || "Not provided",
-      sub: patient.emergencyContactPhone ?? patient.emergency_contact_phone,
-      icon: ShieldPlus,
-      colorClass: "bg-purple/10 text-purple",
-    },
-  ];
-
-  const actionBtn =
-    "h-10 flex-1 inline-flex items-center justify-center gap-1.5 px-3 border border-border rounded-xl text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors cursor-pointer";
-
-  const details = [
-    { icon: User, label: "Gender", value: patient.gender ? capitalizeWords(patient.gender) : "—" },
-    { icon: Calendar, label: "Age", value: calculateAge(patient.dateOfBirth) },
-    { icon: Phone, label: "Phone", value: patient.phoneNo || "—" },
-    { icon: Mail, label: "Email", value: patient.email || "—" },
-    { icon: CalendarClock, label: "Last visit", value: formatDate(patient.lastVisit) },
+  const active = patient.isActive !== false;
+  const recordId = patient.mrn || `#${patient._id?.slice(-6) ?? "—"}`;
+  const facts: { label: string; value: string }[] = [
+    { label: "Sex", value: patient.gender ? capitalizeWords(patient.gender) : "—" },
+    { label: "Age", value: patient.dateOfBirth ? calculateAge(patient.dateOfBirth).replace(" yrs", "") : "—" },
+    { label: "DoB", value: patient.dateOfBirth ? formatDate(patient.dateOfBirth) : "—" },
+    { label: patient.mrn ? "MRN" : "ID", value: recordId },
   ];
 
   return (
-    <Page>
+    <Page className="gap-5">
+      {/* Mobile only — on desktop the topbar breadcrumb already leads back. */}
       <Link
         href="/patients"
-        className="inline-flex items-center gap-1.5 h-11 -my-2 text-sm text-text-secondary hover:text-text-primary rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors no-print"
+        className="lg:hidden self-start inline-flex items-center gap-1.5 h-9 -mb-2 text-footnote font-medium text-text-secondary hover:text-text-primary rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors no-print"
       >
         <ArrowLeft size={16} aria-hidden />
-        Back to Patients
+        Patients
       </Link>
 
-      {/* Two panes: who the patient is (left, stays in view), their record (right). */}
-      <div className="grid gap-5 lg:grid-cols-[20rem_minmax(0,1fr)] items-start">
-        {/*
-          Print scope: just this summary panel, not the tabs — those hold
-          interactive lists/charts that don't make sense on paper. See the
-          @media print block in globals.css, which hides everything but this id.
-        */}
-        <aside
-          id="printable-document"
-          aria-label="Patient details"
-          className="bg-bg-card border border-border rounded-2xl overflow-hidden lg:sticky lg:top-0"
-        >
-          {/* Identity */}
-          <div className="p-5 flex flex-col items-center text-center">
-            <div className="w-20 h-20 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold overflow-hidden">
+      {/* Identity strip + record tabs: one surface, like the chart header of a record. */}
+      {/* Tinted: the record header is the one place on this page with a brand wash. */}
+      <Card as="div" variant="tinted" className="overflow-hidden no-print">
+        <div className="px-4 sm:px-6 pt-5 pb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="flex items-start gap-4 min-w-0">
+            <div className="size-14 rounded-full bg-brand text-white shadow-brand grid place-items-center text-title-2 font-semibold overflow-hidden shrink-0" aria-hidden>
               {patient.avatar ? (
                 <img
                   src={patient.avatar}
-                  alt={fullName}
+                  alt=""
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
@@ -242,103 +203,135 @@ export default function PatientProfilePage() {
                 fullName.charAt(0).toUpperCase() || "P"
               )}
             </div>
-            <h1 className="mt-3 text-lg font-semibold text-text-primary break-words">
-              {fullName || "Unnamed Patient"}
-            </h1>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="text-xs text-text-secondary font-mono">#{shortId}</span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-xs font-medium ${patient.isActive !== false ? "bg-success/10 text-success" : "bg-border text-text-secondary"}`}
-              >
-                {patient.isActive !== false ? "Active" : "Inactive"}
-              </span>
-            </div>
-            <div className="mt-4 flex w-full gap-2 no-print">
-              <button type="button" onClick={() => setEditOpen(true)} className={actionBtn}>
-                <Pencil size={14} aria-hidden /> Edit
-              </button>
-              {/* Patient portal is off until the next phase, so patients can't sign in
-                  yet and there's nothing to reset. Re-enable with the portal (and re-import
-                  KeyRound from lucide-react).
-              <button type="button" onClick={() => setResetConfirm(true)} className={actionBtn} aria-label="Reset patient's password" title="Reset password">
-                <KeyRound size={14} aria-hidden /> Password
-              </button>
-              */}
-              <button type="button" onClick={() => window.print()} className={actionBtn} aria-label="Print summary" title="Print summary">
-                <Printer size={14} aria-hidden />
-              </button>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h1 className="text-title-1 font-semibold text-text-primary break-words">{fullName || "Unnamed Patient"}</h1>
+                <Badge tone={active ? "success" : "neutral"} dot>{active ? "Active" : "Inactive"}</Badge>
+              </div>
+              <dl className="mt-1.5 flex flex-wrap items-baseline gap-x-5 gap-y-1">
+                {facts.map((f) => (
+                  <div key={f.label} className="flex items-baseline gap-1.5">
+                    <dt className="text-caption text-text-secondary">{f.label}</dt>
+                    <dd className={`text-body font-medium text-text-primary tabular-nums ${f.label === "MRN" || f.label === "ID" ? "font-mono text-footnote" : ""}`}>
+                      {f.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
 
-          {/* Contact & demographics */}
-          <dl className="border-t border-border px-5 py-4 space-y-3">
-            {details.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="flex items-start gap-3 text-sm">
-                <Icon size={15} className="text-text-secondary mt-0.5 shrink-0" aria-hidden />
-                <dt className="text-text-secondary w-20 shrink-0">{label}</dt>
-                <dd className="text-text-primary min-w-0 truncate" title={String(value)}>{value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          {/* Clinical summary */}
-          <div className="border-t border-border px-5 py-4 space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Clinical summary</h2>
-            {medicalInfo.map(({ label, value, sub, icon: Icon, colorClass }) => (
-              <div key={label} className="flex items-start gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${colorClass}`}>
-                  <Icon size={15} aria-hidden />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-text-secondary">{label}</p>
-                  <p className="text-sm font-medium text-text-primary break-words">{value}</p>
-                  {sub && <p className="text-xs text-text-secondary">{sub}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
-
-        {/* Record */}
-        <div className="space-y-5 min-w-0">
-          {/* Progress score chart (only renders if patient has scored notes) */}
-          {id && <ProgressScoreChart patientId={id} />}
-
-          <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
-            <div role="tablist" aria-label="Patient record" className="flex overflow-x-auto border-b border-border scrollbar-hide">
-              {TABS.map(({ id: tabId, label, icon: Icon }) => {
-                const active = activeTab === tabId;
-                return (
-                  <button
-                    key={tabId}
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setActiveTab(tabId)}
-                    className={`flex-shrink-0 flex items-center gap-2 px-4 h-12 text-sm font-medium transition-colors border-b-2 whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 ${
-                      active
-                        ? "border-primary text-primary"
-                        : "border-transparent text-text-secondary hover:text-text-primary"
-                    }`}
-                  >
-                    <Icon size={14} className="shrink-0" aria-hidden />
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div role="tabpanel" className="p-4 md:p-5">
-              {activeTab === "documents" && <MedicalDocument patientId={id} />}
-              {activeTab === "medications" && <MedicationsTab />}
-              {activeTab === "appointments" && <AppointmentHistory />}
-              {activeTab === "progress" && <ProgressNotesTab />}
-              {activeTab === "followup" && <FollowUpNotesTab />}
-              {activeTab === "plans" && <TreatmentPlansTab />}
-              {activeTab === "timeline" && <PatientTimelineTab />}
-            </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil aria-hidden /> Edit patient
+            </Button>
+            {/* Patient portal is off until the next phase, so patients can't sign in
+                yet and there's nothing to reset. Re-enable with the portal (and import
+                KeyRound from lucide-react).
+            <Button variant="secondary" size="sm" onClick={() => setResetConfirm(true)}>
+              <KeyRound aria-hidden /> Reset password
+            </Button>
+            */}
+            <Button variant="ghost" size="icon-sm" onClick={() => window.print()} aria-label="Print summary" title="Print summary">
+              <Printer aria-hidden />
+            </Button>
           </div>
         </div>
+
+        {/* Clinical flags: the facts a clinician must not miss, always in view. */}
+        <ul aria-label="Clinical flags" className="px-4 sm:px-6 pb-4 flex flex-wrap gap-2">
+          <li>
+            {patient.allergies ? (
+              <Badge tone="warning" icon={<AlertTriangle size={13} aria-hidden />} className="max-w-[22rem]">
+                <span className="truncate">Allergies: {patient.allergies}</span>
+              </Badge>
+            ) : (
+              <Badge tone="neutral">Allergies not recorded</Badge>
+            )}
+          </li>
+          {patient.healthCondition && (
+            <li>
+              <Badge tone="primary" icon={<HeartPulse size={13} aria-hidden />} className="max-w-[22rem]">
+                <span className="truncate">{patient.healthCondition}</span>
+              </Badge>
+            </li>
+          )}
+          {patient.bloodGroup && (
+            <li>
+              <Badge tone="neutral" icon={<Droplet size={13} aria-hidden />}>Blood {patient.bloodGroup}</Badge>
+            </li>
+          )}
+          <li>
+            <Badge tone="neutral" icon={<CalendarClock size={13} aria-hidden />}>
+              {patient.lastVisit ? `Last visit ${formatDate(patient.lastVisit)}` : "No visits yet"}
+            </Badge>
+          </li>
+        </ul>
+
+        <TabBar
+          items={TABS}
+          value={activeTab}
+          onChange={setActiveTab}
+          label="Patient record"
+          idBase={tabsId}
+          className="px-2 sm:px-4 border-t border-primary/10 border-b-0 bg-bg-card"
+        />
+      </Card>
+
+      <div {...tabPanelProps(tabsId, activeTab)} className="focus-visible:outline-none no-print">
+        {activeTab === "dashboard" && <PatientOverview patient={patient} patientId={id} onOpenTab={setActiveTab} />}
+        {activeTab === "patient" && <PatientDetails patient={patient} onEdit={() => setEditOpen(true)} />}
+        {activeTab === "emr" && (
+          <Card className="p-4 md:p-5 space-y-5">
+            <Segmented
+              label="EMR notes"
+              value={emrView}
+              onChange={(v) => {
+                setFocusNote(undefined);
+                setFocusDoc(undefined);
+                setEmrView(v);
+              }}
+              options={[
+                { value: "all", label: "All" },
+                { value: "notes", label: "Session notes" },
+                { value: "assessments", label: "Assessments" },
+                { value: "documents", label: "Documents" },
+              ]}
+            />
+            {emrView === "all" && <EmrAllNotes patientId={id} onOpen={openEmrItem} />}
+            {emrView === "notes" && <SessionNotesTab focusId={focusNote} />}
+            {emrView === "assessments" && <PatientAssessments patientId={id} />}
+            {emrView === "documents" && <MedicalDocument patientId={id} openId={focusDoc} />}
+          </Card>
+        )}
+        {/* Care Plan: what the patient is on now — goals and medications. */}
+        {activeTab === "care" && (
+          <Card className="p-4 md:p-5 space-y-5">
+            <Segmented
+              label="Care plan"
+              value={careView}
+              onChange={setCareView}
+              options={[
+                { value: "plans", label: "Treatment plans" },
+                { value: "medications", label: "Medications" },
+              ]}
+            />
+            {careView === "plans" && <TreatmentPlansTab />}
+            {careView === "medications" && <MedicationsTab />}
+          </Card>
+        )}
+        {activeTab === "appointments" && (
+          <Card className="p-4 md:p-5">
+            <AppointmentHistory />
+          </Card>
+        )}
       </div>
+
+      {/*
+        Print scope: a plain summary of the record, not the interactive tabs.
+        The @media print block in globals.css hides everything but this id.
+      */}
+      <PrintSummary patient={patient} fullName={fullName} recordId={recordId} />
 
       {editOpen && patient && (
         <EditPatientDialog
@@ -362,6 +355,49 @@ export default function PatientProfilePage() {
   );
 }
 
+function PrintSummary({ patient, fullName, recordId }: { patient: Patient; fullName: string; recordId: string }) {
+  const rows: [string, string][] = [
+    ["Gender", patient.gender ? capitalizeWords(patient.gender) : "—"],
+    ["Date of birth", patient.dateOfBirth ? `${formatDate(patient.dateOfBirth)} (${calculateAge(patient.dateOfBirth)})` : "—"],
+    ["Phone", patient.phoneNo || "—"],
+    ["Email", patient.email || "—"],
+    ["Last visit", formatDate(patient.lastVisit)],
+    ["Health condition", patient.healthCondition || "No condition recorded"],
+    ["Blood group", patient.bloodGroup || "Not specified"],
+    ["Allergies", patient.allergies || "Not recorded"],
+    [
+      "Emergency contact",
+      [emergencyName(patient), patient.emergencyContactRelation && `(${patient.emergencyContactRelation})`, emergencyPhone(patient)]
+        .filter(Boolean)
+        .join(" ") || "Not provided",
+    ],
+  ];
+  return (
+    <div id="printable-document" className="hidden print:block">
+      <div className="document-meta">
+        <h1 className="clinic-name">{fullName || "Unnamed Patient"}</h1>
+        <p className="meta-sub">
+          {recordId} · {patient.isActive !== false ? "Active" : "Inactive"}
+        </p>
+      </div>
+      <div className="section-block">
+        <p className="section-title">
+          <FileText size={12} className="inline mr-1" aria-hidden />
+          Patient summary
+        </p>
+        <div className="section-grid">
+          {rows.map(([k, v]) => (
+            <div key={k}>
+              <p className="field-label">{k}</p>
+              <p className="field-value">{v}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════
    Edit Patient Dialog
 ══════════════════════════════════════════════ */
@@ -380,9 +416,6 @@ const editSchema = z.object({
   emergencyContactPhone:    z.string().regex(/^([0-9+()\-\s]{7,20})?$/, "Enter a valid phone number").optional(),
 });
 type EditValues = z.infer<typeof editSchema>;
-
-const fieldCls =
-  "w-full px-3 py-2.5 text-sm border border-border rounded-xl bg-bg-page text-text-primary placeholder:text-text-disabled focus:border-primary focus:ring-1 focus:ring-primary outline-none transition";
 
 function EditPatientDialog({
   patient,
@@ -433,115 +466,99 @@ function EditPatientDialog({
     }
   };
 
-  const fieldErr = (f: keyof EditValues) =>
-    errors[f]?.message ? <p className="text-xs text-danger mt-1">{errors[f]!.message}</p> : null;
+  const err = (f: keyof EditValues) => errors[f]?.message;
 
   return (
     <Modal
       open
       onClose={onClose}
-      title="Edit Patient"
-      subtitle="Update patient information"
+      title="Edit patient"
+      subtitle="Changes apply to the patient record immediately."
       footer={
-        <div className="flex justify-end gap-3 w-full">
-          <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:bg-bg-hover transition">
+        <div className="flex justify-end gap-2 w-full">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
-          </button>
-          <button type="submit" form="edit-patient-form" disabled={saving} className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition disabled:opacity-40 disabled:cursor-not-allowed">
-            {saving && <Loader2 size={14} className="animate-spin" />}
-            {saving ? "Saving…" : "Save Changes"}
-          </button>
+          </Button>
+          <Button type="submit" form="edit-patient-form" loading={saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
         </div>
       }
     >
-        <form id="edit-patient-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {serverError && (
-              <div className="flex items-start gap-2 text-sm text-danger bg-danger/5 border border-danger/20 px-3.5 py-2.5 rounded-xl">
-                <span className="mt-0.5 shrink-0">⚠</span>
-                {serverError}
-              </div>
-            )}
+      <form id="edit-patient-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+        {serverError && (
+          <div role="alert" className="flex items-start gap-2 text-body text-danger-strong bg-danger-light px-3.5 py-2.5 rounded-xl">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
+            {serverError}
+          </div>
+        )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">First Name <span className="text-danger">*</span></label>
-                <input {...register("firstName")} className={`${fieldCls} mt-1.5`} />
-                {fieldErr("firstName")}
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Last Name <span className="text-danger">*</span></label>
-                <input {...register("lastName")} className={`${fieldCls} mt-1.5`} />
-                {fieldErr("lastName")}
-              </div>
-            </div>
+        <FieldGroup legend="Identity">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="First name" htmlFor="ep-first" required error={err("firstName")}>
+              <input id="ep-first" {...register("firstName")} aria-invalid={!!errors.firstName} className={inputClass} />
+            </Field>
+            <Field label="Last name" htmlFor="ep-last" required error={err("lastName")}>
+              <input id="ep-last" {...register("lastName")} aria-invalid={!!errors.lastName} className={inputClass} />
+            </Field>
+            <Field label="Date of birth" htmlFor="ep-dob">
+              <input id="ep-dob" {...register("dateOfBirth")} type="date" className={inputClass} />
+            </Field>
+            <Field label="Gender" htmlFor="ep-gender">
+              <select id="ep-gender" {...register("gender")} className={inputClass}>
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </Field>
+          </div>
+        </FieldGroup>
 
-            <div>
-              <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Email <span className="text-danger">*</span></label>
-              <input {...register("email")} type="email" className={`${fieldCls} mt-1.5`} />
-              {fieldErr("email")}
-            </div>
+        <FieldGroup legend="Contact">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Email" htmlFor="ep-email" required error={err("email")} className="sm:col-span-2">
+              <input id="ep-email" {...register("email")} type="email" aria-invalid={!!errors.email} className={inputClass} />
+            </Field>
+            <Field label="Phone" htmlFor="ep-phone">
+              <input id="ep-phone" {...register("phoneNo")} type="tel" className={inputClass} />
+            </Field>
+          </div>
+        </FieldGroup>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Phone</label>
-                <input {...register("phoneNo")} type="tel" className={`${fieldCls} mt-1.5`} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Date of Birth</label>
-                <input {...register("dateOfBirth")} type="date" className={`${fieldCls} mt-1.5`} />
-              </div>
-            </div>
+        <FieldGroup legend="Clinical">
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem] gap-3">
+            <Field label="Health condition" htmlFor="ep-condition">
+              <input id="ep-condition" {...register("healthCondition")} placeholder="e.g. Generalised Anxiety Disorder" className={inputClass} />
+            </Field>
+            <Field label="Blood group" htmlFor="ep-blood">
+              <select id="ep-blood" {...register("bloodGroup")} className={inputClass}>
+                <option value="">Select</option>
+                {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <Field label="Allergies" htmlFor="ep-allergies" hint="Shown as a flag at the top of the patient record.">
+            <textarea id="ep-allergies" {...register("allergies")} rows={2} placeholder="Known allergies" className={textareaClass} />
+          </Field>
+        </FieldGroup>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Gender</label>
-                <select {...register("gender")} className={`${fieldCls} mt-1.5`}>
-                  <option value="">Select</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Blood Group</label>
-                <select {...register("bloodGroup")} className={`${fieldCls} mt-1.5`}>
-                  <option value="">Select</option>
-                  {["A+","A-","B+","B-","O+","O-","AB+","AB-"].map((g) => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Health Condition</label>
-              <input {...register("healthCondition")} placeholder="e.g. Generalised Anxiety Disorder" className={`${fieldCls} mt-1.5`} />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Allergies</label>
-              <textarea {...register("allergies")} rows={2} placeholder="Known allergies" className={`${fieldCls} mt-1.5 resize-none`} />
-            </div>
-
-            <fieldset className="space-y-3 pt-1">
-              <legend className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Emergency contact</legend>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="ec-name" className="text-xs text-text-secondary">Name</label>
-                  <input id="ec-name" {...register("emergencyContactName")} className={`${fieldCls} mt-1`} />
-                </div>
-                <div>
-                  <label htmlFor="ec-rel" className="text-xs text-text-secondary">Relationship</label>
-                  <input id="ec-rel" {...register("emergencyContactRelation")} placeholder="e.g. Spouse" className={`${fieldCls} mt-1`} />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="ec-phone" className="text-xs text-text-secondary">Phone</label>
-                <input id="ec-phone" type="tel" {...register("emergencyContactPhone")} className={`${fieldCls} mt-1`} />
-                {errors.emergencyContactPhone && <p role="alert" className="text-xs text-danger mt-1">{errors.emergencyContactPhone.message}</p>}
-              </div>
-            </fieldset>
-        </form>
+        <FieldGroup legend="Emergency contact">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Name" htmlFor="ec-name" error={err("emergencyContactName")}>
+              <input id="ec-name" {...register("emergencyContactName")} className={inputClass} />
+            </Field>
+            <Field label="Relationship" htmlFor="ec-rel" error={err("emergencyContactRelation")}>
+              <input id="ec-rel" {...register("emergencyContactRelation")} placeholder="e.g. Spouse" className={inputClass} />
+            </Field>
+            <Field label="Phone" htmlFor="ec-phone" error={err("emergencyContactPhone")}>
+              <input id="ec-phone" type="tel" {...register("emergencyContactPhone")} aria-invalid={!!errors.emergencyContactPhone} className={inputClass} />
+            </Field>
+          </div>
+        </FieldGroup>
+      </form>
     </Modal>
   );
 }

@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, CheckCircle2, Headset } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardBody, CardHeader, InfoList, InfoRow } from "@/components/common/Card";
 import { Page, PageHeader } from "@/components/common/PageLayout";
 import { useDetailCrumb } from "@/contexts/PractitionerBreadcrumbContext";
 import { useSupportLive } from "@/hooks/useSupportLive";
@@ -64,23 +67,39 @@ export default function SupportTicketPage() {
 
   return (
     <Page fill>
-      <PageHeader
-        back={{ href: "/support?tab=tickets", label: "My tickets" }}
-        eyebrow={ticket.ticketNo}
-        title={ticket.subject}
-        subtitle={
-          <span className="flex flex-wrap items-center gap-2 mt-1">
-            <TicketStatusBadge status={ticket.status} />
-            <TicketPriorityBadge priority={ticket.priority} />
-          </span>
-        }
-      />
+      {/* The topbar names the ticket; the subject heads the chat card below. */}
+      <PageHeader title={ticket.subject} />
 
       <div className="flex-1 min-h-0 grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <TicketConversation
           className="min-h-[420px]"
           messages={ticket.messages}
           viewer="requester"
+          header={
+            <div className="flex items-center gap-3 px-3 py-2.5 md:px-4">
+              <Link
+                href="/support?tab=tickets"
+                aria-label="Back to my tickets"
+                title="Back to my tickets"
+                className="size-9 shrink-0 grid place-items-center rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
+              >
+                <ArrowLeft size={18} aria-hidden />
+              </Link>
+              <span className="size-10 shrink-0 grid place-items-center rounded-full bg-primary/10 text-primary-strong" aria-hidden>
+                <Headset size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-title-3 font-semibold text-text-primary truncate">{ticket.subject}</h2>
+                <p className="text-caption text-text-secondary truncate">
+                  <span className="font-mono">{ticket.ticketNo}</span> · BetterYou Support
+                </p>
+              </div>
+              <div className="hidden sm:flex items-center gap-2 shrink-0">
+                <TicketStatusBadge status={ticket.status} />
+                <TicketPriorityBadge priority={ticket.priority} />
+              </div>
+            </div>
+          }
           composer={
             <ReplyBox
               onSend={async (body, files) => setTicket(await supportApi.reply(id, body, files))}
@@ -90,24 +109,29 @@ export default function SupportTicketPage() {
         />
 
         <aside className="space-y-4 lg:overflow-y-auto" aria-label="Ticket details">
-          <section className="rounded-md border border-border bg-bg-card p-5">
-            <h2 className="text-sm font-semibold text-text-primary mb-3">Details</h2>
-            <dl className="space-y-3 text-sm">
-              <div className="flex justify-between gap-3"><dt className="text-text-secondary">Category</dt><dd className="text-text-primary text-right">{CATEGORY_LABEL[ticket.category]}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-text-secondary">Opened</dt><dd className="text-text-primary text-right">{formatWhen(ticket.createdAt)}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-text-secondary">Last update</dt><dd className="text-text-primary text-right">{formatWhen(ticket.lastMessageAt)}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-text-secondary">Messages</dt><dd className="text-text-primary text-right tabular-nums">{ticket.messages.length}</dd></div>
-            </dl>
-            {!finished && (
-              <button
-                type="button"
-                onClick={() => setConfirmClose(true)}
-                className="mt-4 w-full h-10 inline-flex items-center justify-center gap-2 rounded-md border border-border text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors cursor-pointer"
-              >
-                <CheckCircle2 size={16} aria-hidden /> My issue is sorted
-              </button>
-            )}
-          </section>
+          <Card>
+            <CardHeader title="Details" />
+            <CardBody>
+              <InfoList>
+                <InfoRow label="Status"><TicketStatusBadge status={ticket.status} /></InfoRow>
+                <InfoRow label="Priority"><TicketPriorityBadge priority={ticket.priority} /></InfoRow>
+                <InfoRow label="Category">{CATEGORY_LABEL[ticket.category]}</InfoRow>
+                <InfoRow label="Opened">{formatWhen(ticket.createdAt)}</InfoRow>
+                <InfoRow label="Last update">{formatWhen(ticket.lastMessageAt)}</InfoRow>
+                <InfoRow label="Messages"><span className="tabular-nums">{ticket.messages.length}</span></InfoRow>
+              </InfoList>
+              {!finished && (
+                <Button variant="secondary" className="mt-5 w-full" onClick={() => setConfirmClose(true)}>
+                  <CheckCircle2 aria-hidden /> My issue is sorted
+                </Button>
+              )}
+              {finished && (
+                <p className="mt-5 rounded-md bg-bg-subtle px-3 py-2.5 text-footnote text-text-secondary">
+                  This ticket is {ticket.status === "resolved" ? "resolved" : "closed"}. Reply to reopen it.
+                </p>
+              )}
+            </CardBody>
+          </Card>
         </aside>
       </div>
 

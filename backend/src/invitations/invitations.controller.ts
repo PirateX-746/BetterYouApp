@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { IsString, MinLength } from 'class-validator';
+import { IsString, Matches, MinLength } from 'class-validator';
 import { InvitationsService } from './invitations.service';
 import { Public } from '../common/decorators/public.decorator';
 
@@ -8,8 +8,15 @@ class AcceptInvitationDto {
   @IsString()
   token: string;
 
+  // Same rules as ChangePasswordDto: an invited account's first password
+  // shouldn't be weaker than any later one.
   @IsString()
   @MinLength(8)
+  @Matches(/[A-Z]/, { message: 'Password must contain 1 uppercase letter' })
+  @Matches(/[0-9]/, { message: 'Password must contain 1 number' })
+  @Matches(/[!@#$%^&*]/, {
+    message: 'Password must contain 1 special character',
+  })
   password: string;
 }
 

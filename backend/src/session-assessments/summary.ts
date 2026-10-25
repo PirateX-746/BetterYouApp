@@ -24,14 +24,26 @@ export interface SummaryGenerator {
 }
 
 const fmtDate = (d: Date) =>
-  d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 
 export class TemplateSummaryGenerator implements SummaryGenerator {
   readonly kind = 'template' as const;
 
-  async generate({ sections, responses, notes, appointment }: SummaryInput): Promise<string> {
+  // Synchronous today; the Promise is for the interface (an AI generator).
+  generate({
+    sections,
+    responses,
+    notes,
+    appointment,
+  }: SummaryInput): Promise<string> {
     const byId = new Map(responses.map((r) => [r.itemId, r]));
-    const minutes = Math.round((appointment.end.getTime() - appointment.start.getTime()) / 60000);
+    const minutes = Math.round(
+      (appointment.end.getTime() - appointment.start.getTime()) / 60000,
+    );
     const parts: string[] = [];
 
     parts.push(
@@ -60,12 +72,16 @@ export class TemplateSummaryGenerator implements SummaryGenerator {
           lines.push(`${item.label}: ${r.note.trim()}`);
         }
       }
-      if (notObserved.length) lines.push(`Not observed: ${notObserved.join(', ')}.`);
-      if (lines.length) parts.push(`${section.title}\n${lines.map((l) => `• ${l}`).join('\n')}`);
+      if (notObserved.length)
+        lines.push(`Not observed: ${notObserved.join(', ')}.`);
+      if (lines.length)
+        parts.push(
+          `${section.title}\n${lines.map((l) => `• ${l}`).join('\n')}`,
+        );
     }
 
     if (notes?.trim()) parts.push(`Practitioner notes\n${notes.trim()}`);
 
-    return parts.join('\n\n');
+    return Promise.resolve(parts.join('\n\n'));
   }
 }

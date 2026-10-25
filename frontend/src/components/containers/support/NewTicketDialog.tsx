@@ -71,7 +71,7 @@ export function NewTicketDialog({
 
   const errText = (k: keyof Errors, id: string) =>
     show(k) ? (
-      <p id={`${id}-err`} role="alert" className="text-xs text-danger">
+      <p id={`${id}-err`} role="alert" className="text-xs text-danger-strong">
         {errors[k]}
       </p>
     ) : null;

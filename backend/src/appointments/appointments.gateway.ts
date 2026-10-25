@@ -27,7 +27,7 @@ export class AppointmentsGateway implements OnGatewayConnection {
       return;
     }
 
-    client.data.user = user;
+    WsAuthService.attach(client, user);
 
     // A socket joins exactly one room: its own user id, taken from the
     // verified session. Room ids used to come from the handshake query

@@ -1,33 +1,80 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, IsDateString, Min, Max } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  IsDateString,
+  IsMongoId,
+  Min,
+  Max,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateProgressNoteDto {
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   patientId: string;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   practitionerId: string;
 
-  @IsString() @IsNotEmpty()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @IsNotEmpty({ message: 'Title is required' })
+  @MaxLength(200)
   title: string;
 
   @IsDateString()
   sessionDate: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   content?: string;
 
-  @IsOptional() @IsNumber() @Min(1) @Max(10)
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(10)
   progressScore?: number;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   mood?: string;
 
-  @IsOptional() @IsArray() @IsString({ each: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   symptoms?: string[];
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   observations?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   nextSteps?: string;
+
+  /* Follow-up section */
+
+  @IsOptional()
+  @IsMongoId()
+  appointmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  recommendations?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  actionItems?: string[];
+
+  @IsOptional()
+  @IsDateString()
+  followUpDate?: string;
 }

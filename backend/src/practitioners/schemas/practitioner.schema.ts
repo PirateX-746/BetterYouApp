@@ -54,6 +54,15 @@ export class Practitioner extends Document {
 
   @Prop({ type: Date })
   tempPasswordExpiresAt?: Date;
+
+  // Read by JwtStrategy and the admin console. Was missing from the schema,
+  // so strict mode dropped it on create; only seeded records carried it.
+  @Prop({ default: true })
+  isActive: boolean;
+
+  // Maintained by `timestamps: true`.
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const PractitionerSchema = SchemaFactory.createForClass(Practitioner);

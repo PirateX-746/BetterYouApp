@@ -13,9 +13,11 @@ import {
   EmptyState,
   toneForUserStatus,
 } from "@/components/containers/superadmin/console-ui";
+import { ConfirmActionButton } from "@/components/containers/superadmin/ConfirmActionButton";
 import {
   fetchPlatformPractitioners,
   formatDate,
+  setPractitionerStatus,
   useAsync,
 } from "@/lib/superadmin/api";
 
@@ -137,7 +139,7 @@ export default function PlatformPractitionersPage() {
           />
         ) : (
           <TableShell
-            headers={["Name", "Role", "Practice", "Joined", "Status"]}
+            headers={["Name", "Role", "Practice", "Joined", "Status", ""]}
           >
             {filtered.map((u) => (
               <tr key={u.id} className="hover:bg-bg-hover transition-colors">
@@ -188,6 +190,35 @@ export default function PlatformPractitionersPage() {
                   <StatusPill
                     label={u.status}
                     tone={toneForUserStatus(u.status)}
+                  />
+                </td>
+                <td className="px-5 py-3.5 text-right">
+                  <ConfirmActionButton
+                    {...(u.status === "DISABLED"
+                      ? {
+                          label: "Enable",
+                          title: `Enable ${u.name || u.email}?`,
+                          description:
+                            "They can sign in again and pick up where they left off.",
+                          confirmLabel: "Enable",
+                          success: "Account enabled",
+                        }
+                      : {
+                          label: "Disable",
+                          title: `Disable ${u.name || u.email}?`,
+                          description:
+                            "They are signed out and can't sign in until re-enabled. None of their records are deleted.",
+                          confirmLabel: "Disable",
+                          success: "Account disabled",
+                          danger: true,
+                        })}
+                    onConfirm={() =>
+                      setPractitionerStatus(
+                        u.id,
+                        u.status === "DISABLED" ? "ACTIVE" : "DISABLED",
+                      )
+                    }
+                    onDone={reload}
                   />
                 </td>
               </tr>

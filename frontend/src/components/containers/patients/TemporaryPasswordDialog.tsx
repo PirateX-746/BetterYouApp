@@ -92,7 +92,7 @@ export function TemporaryPasswordDialog({
                 onClick={() => void copy()}
                 className="h-11 inline-flex items-center gap-2 px-4 rounded-xl border border-border text-sm text-text-primary hover:bg-bg-hover transition-colors cursor-pointer shrink-0"
               >
-                {copied ? <Check size={16} className="text-success" aria-hidden /> : <Copy size={16} aria-hidden />}
+                {copied ? <Check size={16} className="text-success-strong" aria-hidden /> : <Copy size={16} aria-hidden />}
                 {copied ? "Copied" : "Copy"}
               </button>
             </div>

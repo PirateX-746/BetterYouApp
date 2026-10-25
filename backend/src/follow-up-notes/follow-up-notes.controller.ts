@@ -1,14 +1,30 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { FollowUpNotesService } from './follow-up-notes.service';
 import { CreateFollowUpNoteDto } from './dto/create-follow-up-note.dto';
 import { UpdateFollowUpNoteDto } from './dto/update-follow-up-note.dto';
 
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, CLINICAL_ROLES } from '../common/role.enum';
+import { CLINICAL_ROLES } from '../common/role.enum';
 import type { AuthedRequest } from '../common/auth-user';
 
 // Clinical data — practitioner-only. Authentication itself is enforced
 // globally by JwtAuthGuard (see AppModule).
+/**
+ * DEPRECATED — follow-up notes were merged into progress notes (the
+ * "Follow-up" section of a session note). Migration 003 copies existing
+ * records across; the frontend no longer calls these routes. Kept, not
+ * deleted, so old data stays readable and nothing is removed.
+ */
 @Roles(...CLINICAL_ROLES)
 @Controller('follow-up-notes')
 export class FollowUpNotesController {
@@ -26,8 +42,13 @@ export class FollowUpNotesController {
     @Req() req: AuthedRequest,
   ) {
     const practiceId = req.user.practiceId ?? null;
-    if (patientId) return this.followUpNotesService.findByPatient(patientId, practiceId);
-    if (practitionerId) return this.followUpNotesService.findByPractitioner(practitionerId, practiceId);
+    if (patientId)
+      return this.followUpNotesService.findByPatient(patientId, practiceId);
+    if (practitionerId)
+      return this.followUpNotesService.findByPractitioner(
+        practitionerId,
+        practiceId,
+      );
     return [];
   }
 
@@ -37,8 +58,16 @@ export class FollowUpNotesController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateFollowUpNoteDto, @Req() req: AuthedRequest) {
-    return this.followUpNotesService.update(id, dto, req.user.practiceId ?? null);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateFollowUpNoteDto,
+    @Req() req: AuthedRequest,
+  ) {
+    return this.followUpNotesService.update(
+      id,
+      dto,
+      req.user.practiceId ?? null,
+    );
   }
 
   @Delete(':id')

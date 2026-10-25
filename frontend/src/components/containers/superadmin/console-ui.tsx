@@ -22,21 +22,6 @@ export function PageHeader({
   return <SharedPageHeader title={title} subtitle={subtitle} actions={actions} className="mb-6" />;
 }
 
-/** Notice for a screen whose backend does not exist yet. */
-export function NotImplementedBanner({ what }: { what: string }) {
-  return (
-    <div className="flex items-start gap-3 mb-6 px-4 py-3 rounded-xl border border-warning bg-warning-light">
-      <AlertTriangle size={16} className="text-warning shrink-0 mt-0.5" />
-      <p className="text-xs text-text-secondary leading-relaxed">
-        <span className="font-semibold text-text-primary">
-          Not implemented yet.
-        </span>{" "}
-        {what}
-      </p>
-    </div>
-  );
-}
-
 /** Full-panel loading state. */
 export function LoadingState({ label = "Loading…" }: { label?: string }) {
   return (
@@ -57,7 +42,7 @@ export function ErrorState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-3 px-5 text-center">
-      <AlertTriangle size={22} className="text-danger" />
+      <AlertTriangle size={22} className="text-danger-strong" />
       <div>
         <p className="text-sm font-medium text-text-primary">
           Couldn&apos;t load this
@@ -126,9 +111,9 @@ export function StatTile({
 type PillTone = "success" | "warning" | "danger" | "neutral" | "purple";
 
 const PILL_CLASS: Record<PillTone, string> = {
-  success: "bg-success-light text-success",
-  warning: "bg-warning-light text-warning",
-  danger:  "bg-danger-light text-danger",
+  success: "bg-success-light text-success-strong",
+  warning: "bg-warning-light text-warning-strong",
+  danger:  "bg-danger-light text-danger-strong",
   neutral: "bg-bg-light text-text-secondary",
   purple:  "bg-purple-light text-purple",
 };

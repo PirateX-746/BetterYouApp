@@ -14,16 +14,23 @@ import {
  * exercised directly rather than through a built Query — no database needed
  * and the assertion is on the real code path the hook calls.
  */
-function fakeQuery(modelName = 'Widget') {
+interface FakeQuery {
+  applied: Record<string, unknown>[];
+  model: { modelName: string };
+  where(filter: Record<string, unknown>): FakeQuery;
+}
+
+function fakeQuery(modelName = 'Widget'): FakeQuery {
   const applied: Record<string, unknown>[] = [];
-  return {
+  const query: FakeQuery = {
     applied,
     model: { modelName },
-    where(filter: Record<string, unknown>) {
+    where(filter) {
       applied.push(filter);
-      return this;
+      return query;
     },
   };
+  return query;
 }
 
 describe('tenant scoping', () => {
@@ -115,7 +122,13 @@ describe('tenant scoping', () => {
       tenantScoped(schema);
 
       const hooked = spy.mock.calls.map((c) => c[0]);
-      for (const op of ['find', 'findOne', 'deleteMany', 'updateMany', 'save']) {
+      for (const op of [
+        'find',
+        'findOne',
+        'deleteMany',
+        'updateMany',
+        'save',
+      ]) {
         expect(hooked).toContain(op);
       }
       spy.mockRestore();

@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { darken, isValidHex, lighten } from "@/lib/color";
+import { createContext, useCallback, useContext, useEffect, useSyncExternalStore } from "react";
+import { darken, isValidHex } from "@/lib/color";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -23,6 +23,9 @@ function resolveDark(mode: ThemeMode): boolean {
     return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
+/** Pre-2026-10-19 default accent; see readAccent. */
+const LEGACY_DEFAULT_ACCENT = "#5b8def";
+
 function applyAccent(hex: string | null) {
     const root = document.documentElement.style;
     if (!hex || !isValidHex(hex)) {
@@ -35,50 +38,79 @@ function applyAccent(hex: string | null) {
     }
     root.setProperty("--primary", hex);
     root.setProperty("--primary-hover", darken(hex, 0.12));
-    root.setProperty("--primary-light", lighten(hex, 0.85));
+    // --primary-light is derived from --primary in globals.css per theme; an
+    // inline value here would pin the light tint in dark mode too.
+    root.removeProperty("--primary-light");
     root.setProperty("--ring", hex);
     root.setProperty("--accent-foreground", hex);
 }
 
+/* Theme mode and accent live in localStorage; the OS preference in a media
+ * query. Components read them through useSyncExternalStore so there is no
+ * state to copy them into, and SSR/hydration sees the defaults. */
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+const storeListeners = new Set<() => void>();
+
+function notifyThemeStore() {
+    storeListeners.forEach((l) => l());
+}
+
+function subscribeThemeStore(onChange: () => void) {
+    storeListeners.add(onChange);
+    const mq = window.matchMedia(DARK_QUERY);
+    window.addEventListener("storage", onChange);
+    mq.addEventListener("change", onChange);
+    return () => {
+        storeListeners.delete(onChange);
+        window.removeEventListener("storage", onChange);
+        mq.removeEventListener("change", onChange);
+    };
+}
+
+function readThemeMode(): ThemeMode {
+    const saved = localStorage.getItem("theme");
+    return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
+}
+
+function readAccent(): string | null {
+    const saved = localStorage.getItem("accentColor");
+    // The old default blue was saved as an explicit choice by the
+    // Appearance tab; treat it as "default" so it follows the new brand blue.
+    return saved?.toLowerCase() === LEGACY_DEFAULT_ACCENT ? null : saved;
+}
+
+const readSystemDark = () => window.matchMedia(DARK_QUERY).matches;
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
-    const [darkMode, setDarkMode] = useState(false);
-    const [accentColor, setAccentColorState] = useState<string | null>(null);
+    const themeMode = useSyncExternalStore(subscribeThemeStore, readThemeMode, () => "system" as const);
+    const accentColor = useSyncExternalStore(subscribeThemeStore, readAccent, () => null);
+    const systemDark = useSyncExternalStore(subscribeThemeStore, readSystemDark, () => false);
+    const darkMode = themeMode === "dark" || (themeMode === "system" && systemDark);
 
+    // The inline script in the root layout applies the theme before
+    // hydration; this fills in what it doesn't (--primary-hover) and drops
+    // the legacy accent.
     useEffect(() => {
-        const savedTheme = localStorage.getItem("theme");
-        const mode: ThemeMode =
-            savedTheme === "light" || savedTheme === "dark" || savedTheme === "system"
-                ? savedTheme
-                : "system";
-        setThemeModeState(mode);
-        const isDark = resolveDark(mode);
-        setDarkMode(isDark);
-        document.documentElement.classList.toggle("dark", isDark);
-
-        const savedAccent = localStorage.getItem("accentColor");
-        setAccentColorState(savedAccent);
-        applyAccent(savedAccent);
+        if (localStorage.getItem("accentColor")?.toLowerCase() === LEGACY_DEFAULT_ACCENT) {
+            localStorage.removeItem("accentColor");
+        }
+        document.documentElement.classList.toggle("dark", resolveDark(readThemeMode()));
+        applyAccent(readAccent());
     }, []);
 
     // Follow OS theme changes live while in "system" mode.
     useEffect(() => {
         if (themeMode !== "system") return;
-        const mq = window.matchMedia("(prefers-color-scheme: dark)");
-        const handler = () => {
-            setDarkMode(mq.matches);
-            document.documentElement.classList.toggle("dark", mq.matches);
-        };
+        const mq = window.matchMedia(DARK_QUERY);
+        const handler = () => document.documentElement.classList.toggle("dark", mq.matches);
         mq.addEventListener("change", handler);
         return () => mq.removeEventListener("change", handler);
     }, [themeMode]);
 
     const setThemeMode = useCallback((mode: ThemeMode) => {
-        setThemeModeState(mode);
         localStorage.setItem("theme", mode);
-        const isDark = resolveDark(mode);
-        setDarkMode(isDark);
-        document.documentElement.classList.toggle("dark", isDark);
+        document.documentElement.classList.toggle("dark", resolveDark(mode));
+        notifyThemeStore();
     }, []);
 
     const toggleDarkMode = useCallback(() => {
@@ -86,15 +118,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }, [darkMode, setThemeMode]);
 
     const setAccentColor = useCallback((hex: string) => {
-        setAccentColorState(hex);
         localStorage.setItem("accentColor", hex);
         applyAccent(hex);
+        notifyThemeStore();
     }, []);
 
     const resetAccentColor = useCallback(() => {
-        setAccentColorState(null);
         localStorage.removeItem("accentColor");
         applyAccent(null);
+        notifyThemeStore();
     }, []);
 
     return (

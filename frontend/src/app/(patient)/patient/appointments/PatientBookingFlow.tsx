@@ -96,7 +96,7 @@ function safeDate(value: unknown): Date | null {
 function formatTime(iso: string): string {
   const d = safeDate(iso);
   if (!d) return "—";
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString([], { hour: "numeric", hour12: true, minute: "2-digit" });
 }
 
 function formatDateTime(iso: string): string {
@@ -107,7 +107,7 @@ function formatDateTime(iso: string): string {
     day: "numeric",
     month: "long",
     year: "numeric",
-    hour: "2-digit",
+    hour: "numeric", hour12: true,
     minute: "2-digit",
   });
 }
@@ -456,7 +456,7 @@ export default function PatientBookingFlow({
                   </div>
 
                   <p className="text-xs text-text-disabled text-center pt-1">
-                    You'll receive a confirmation once the booking is accepted.
+                    You&apos;ll receive a confirmation once the booking is accepted.
                   </p>
                 </div>
               )}

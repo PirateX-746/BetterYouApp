@@ -98,8 +98,14 @@ function AcceptInviteInner() {
     e.preventDefault();
     setError("");
 
-    if (password.length < MIN_PASSWORD) {
-      setError(`Password must be at least ${MIN_PASSWORD} characters.`);
+    const weak =
+      password.length < MIN_PASSWORD ? `Password must be at least ${MIN_PASSWORD} characters.`
+      : !/[A-Z]/.test(password) ? "Password must contain an uppercase letter."
+      : !/[0-9]/.test(password) ? "Password must contain a number."
+      : !/[!@#$%^&*]/.test(password) ? "Password must contain a special character (!@#$%^&*)."
+      : null;
+    if (weak) {
+      setError(weak);
       return;
     }
     if (password !== confirm) {
@@ -134,7 +140,7 @@ function AcceptInviteInner() {
       <Shell>
         <div className="text-center space-y-3">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-danger-light">
-            <AlertCircle className="w-7 h-7 text-danger" />
+            <AlertCircle className="w-7 h-7 text-danger-strong" />
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-text-primary">
             Invitation unavailable
@@ -156,7 +162,7 @@ function AcceptInviteInner() {
       <Shell>
         <div className="text-center space-y-3">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-success-light">
-            <CheckCircle2 className="w-7 h-7 text-success" />
+            <CheckCircle2 className="w-7 h-7 text-success-strong" />
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-text-primary">
             You&rsquo;re all set
@@ -204,7 +210,7 @@ function AcceptInviteInner() {
 
       {error && (
         <div className="flex items-start gap-3 mb-6 px-4 py-3 rounded-xl border border-danger bg-danger-light">
-          <AlertCircle size={16} className="text-danger shrink-0 mt-0.5" />
+          <AlertCircle size={16} className="text-danger-strong shrink-0 mt-0.5" />
           <p className="text-xs text-text-secondary leading-relaxed">{error}</p>
         </div>
       )}
@@ -249,7 +255,7 @@ function AcceptInviteInner() {
             </button>
           </div>
           <p className="text-[11px] text-text-disabled">
-            At least {MIN_PASSWORD} characters.
+            At least {MIN_PASSWORD} characters, with an uppercase letter, a number and a special character (!@#$%^&amp;*).
           </p>
         </div>
 

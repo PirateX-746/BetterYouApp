@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useRef, type ReactNode } from "react";
-import { Download, FileText, Headset } from "lucide-react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Download, FileText, Headset, Image as ImageIcon } from "lucide-react";
 import { attachmentUrl, formatBytes, type SupportMessage } from "@/lib/support";
 
 const dayLabel = (iso: string) => {
@@ -12,7 +12,7 @@ const dayLabel = (iso: string) => {
   if (d.toDateString() === y.toDateString()) return "Yesterday";
   return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === today.getFullYear() ? undefined : "numeric" });
 };
-const timeOf = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+const timeOf = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", hour12: true, minute: "2-digit" });
 const initials = (name: string) =>
   name
     .split(/\s+/)
@@ -43,9 +43,11 @@ export function TicketThread({ messages, viewer }: { messages: SupportMessage[];
           <Fragment key={m._id}>
             {newDay && (
               <li role="separator" className="flex items-center gap-3 py-3" aria-label={dayLabel(m.createdAt)}>
-                <span className="h-px flex-1 bg-border" />
-                <span className="text-xs font-medium text-text-secondary">{dayLabel(m.createdAt)}</span>
-                <span className="h-px flex-1 bg-border" />
+                <span className="h-px flex-1 bg-border-light" />
+                <span className="rounded-full border border-border-light bg-bg-card px-3 py-1 text-caption font-medium text-text-secondary shadow-xs">
+                  {dayLabel(m.createdAt)}
+                </span>
+                <span className="h-px flex-1 bg-border-light" />
               </li>
             )}
             <li className={`flex gap-2.5 ${mine ? "flex-row-reverse" : ""} ${grouped ? "" : "pt-3"}`}>
@@ -54,7 +56,7 @@ export function TicketThread({ messages, viewer }: { messages: SupportMessage[];
                 {!grouped && (
                   <span
                     className={`size-8 rounded-full grid place-items-center text-[11px] font-semibold ${
-                      isSupport ? "bg-primary-light text-primary" : "bg-bg-hover text-text-secondary"
+                      isSupport ? "bg-primary/10 text-primary-strong" : "bg-bg-card border border-border text-text-secondary"
                     }`}
                   >
                     {isSupport ? <Headset size={15} /> : initials(m.authorName)}
@@ -64,16 +66,18 @@ export function TicketThread({ messages, viewer }: { messages: SupportMessage[];
               <article className={`min-w-0 max-w-[min(42rem,80%)] flex flex-col ${mine ? "items-end" : "items-start"}`}>
                 {!grouped && (
                   <header className={`flex flex-wrap items-baseline gap-x-2 mb-1 ${mine ? "justify-end" : ""}`}>
-                    <span className="text-sm font-semibold text-text-primary">{mine ? "You" : m.authorName}</span>
-                    {isSupport && !mine && <span className="text-xs text-text-secondary">BetterYou Support</span>}
-                    <time dateTime={m.createdAt} className="text-xs text-text-secondary">
+                    <span className="text-footnote font-semibold text-text-primary">{mine ? "You" : m.authorName}</span>
+                    {isSupport && !mine && <span className="text-caption text-text-secondary">BetterYou Support</span>}
+                    <time dateTime={m.createdAt} className="text-caption text-text-secondary tabular-nums">
                       {timeOf(m.createdAt)}
                     </time>
                   </header>
                 )}
                 <div
-                  className={`rounded-md px-3.5 py-2.5 ${
-                    mine ? "bg-primary text-white" : "bg-bg-page border border-border text-text-primary"
+                  className={`rounded-2xl px-3.5 py-2 shadow-xs ${
+                    mine
+                      ? `bg-primary text-white ${grouped ? "" : "rounded-tr-md"}`
+                      : `bg-bg-card border border-border-light text-text-primary ${grouped ? "" : "rounded-tl-md"}`
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{m.body}</p>
@@ -89,14 +93,7 @@ export function TicketThread({ messages, viewer }: { messages: SupportMessage[];
                             download={a.fileName}
                             className="flex items-center gap-2 rounded-md border border-border bg-bg-card p-1.5 pr-3 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
                           >
-                            {a.contentType.startsWith("image/") ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={href} alt={`Attached image ${a.fileName}`} loading="lazy" className="size-10 rounded object-cover bg-bg-light" />
-                            ) : (
-                              <span className="size-10 rounded bg-danger-light text-danger grid place-items-center">
-                                <FileText size={18} aria-hidden />
-                              </span>
-                            )}
+                            <AttachmentThumb href={href} fileName={a.fileName} isImage={a.contentType.startsWith("image/")} />
                             <span className="min-w-0">
                               <span className="block text-xs font-medium text-text-primary truncate max-w-[10rem]">{a.fileName}</span>
                               <span className="flex items-center gap-1 text-[11px] text-text-secondary">
@@ -118,6 +115,29 @@ export function TicketThread({ messages, viewer }: { messages: SupportMessage[];
   );
 }
 
+/** Image preview, falling back to a file tile when the image can't load
+ *  (otherwise the browser draws a broken icon plus overflowing alt text). */
+function AttachmentThumb({ href, fileName, isImage }: { href: string; fileName: string; isImage: boolean }) {
+  const [failed, setFailed] = useState(false);
+  if (isImage && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={href}
+        alt={`Attached image ${fileName}`}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="size-10 shrink-0 overflow-hidden rounded object-cover bg-bg-subtle text-[0px]"
+      />
+    );
+  }
+  return (
+    <span className={`size-10 shrink-0 rounded grid place-items-center ${isImage ? "bg-primary/10 text-primary-strong" : "bg-danger-light text-danger-strong"}`}>
+      {isImage ? <ImageIcon size={18} aria-hidden /> : <FileText size={18} aria-hidden />}
+    </span>
+  );
+}
+
 /**
  * Conversation card: the thread scrolls inside, the composer stays pinned
  * at the bottom, and new messages scroll into view.
@@ -126,11 +146,14 @@ export function TicketConversation({
   messages,
   viewer,
   composer,
+  header,
   className = "",
 }: {
   messages: SupportMessage[];
   viewer: "requester" | "support";
   composer: ReactNode;
+  /** Pinned above the thread, like a chat app's title bar. */
+  header?: ReactNode;
   className?: string;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -139,8 +162,9 @@ export function TicketConversation({
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: messages.length ? "smooth" : "auto" });
   }, [messages.length]);
   return (
-    <section aria-label="Ticket conversation" className={`flex flex-col min-h-0 rounded-md border border-border bg-bg-card overflow-clip ${className}`}>
-      <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-4 md:px-6 pb-5">
+    <section aria-label="Ticket conversation" className={`flex flex-col min-h-0 rounded-2xl border border-border/70 bg-bg-card shadow-xs overflow-clip ${className}`}>
+      {header && <div className="shrink-0 border-b border-border bg-bg-card">{header}</div>}
+      <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto bg-bg-subtle px-4 md:px-6 pb-5">
         <TicketThread messages={messages} viewer={viewer} />
       </div>
       <div className="border-t border-border bg-bg-card p-3 md:p-4">{composer}</div>

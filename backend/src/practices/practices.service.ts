@@ -69,7 +69,10 @@ export class PracticesService {
   }
 
   async listAll(): Promise<PracticeDocument[]> {
-    return this.practiceModel.find({ deletedAt: null }).sort({ name: 1 }).exec();
+    return this.practiceModel
+      .find({ deletedAt: null })
+      .sort({ name: 1 })
+      .exec();
   }
 
   async setStatus(

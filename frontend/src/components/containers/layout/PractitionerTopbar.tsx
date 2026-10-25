@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Menu, Lock, Bell, ChevronRight, X, Users, XCircle, CalendarClock, BellRing } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { usePortalLock } from "@/contexts/PortalLockContext";
@@ -15,7 +15,6 @@ import {
 } from "@/contexts/PractitionerNotificationsContext";
 
 interface TopbarProps {
-  open: boolean;
   onToggle: () => void;
 }
 
@@ -27,11 +26,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(m / 60)}h ago`;
 }
 
-export default function PractitionerTopbar({
-  open: _open,
-  onToggle,
-}: TopbarProps) {
-  const router = useRouter();
+export default function PractitionerTopbar({ onToggle }: TopbarProps) {
   const pathname = usePathname();
   const { isLocked, lock } = usePortalLock();
   const { chatOpen } = usePractitionerChat();
@@ -72,7 +67,7 @@ export default function PractitionerTopbar({
 
   return (
     <header
-      className={`fixed top-0 right-0 left-0 lg:left-64 z-30 h-14 bg-bg-card border-b border-border items-center justify-between px-4 ${
+      className={`fixed top-0 right-0 left-0 lg:left-64 z-30 h-14 bg-bg-card border-b border-border items-center justify-between px-4 md:px-6 ${
         chatOpen ? "hidden md:flex" : "flex"
       }`}
     >
@@ -85,21 +80,23 @@ export default function PractitionerTopbar({
         <Menu size={20} />
       </button>
 
+      {/* The page title lives here, not in the content: a top-level page shows
+          its name; a detail page shows the path to it ("Patients › Name"). */}
       {breadcrumbs.length > 0 ? (
-        <nav aria-label="Breadcrumb" className="hidden lg:flex items-center gap-1.5 text-sm min-w-0">
+        <nav aria-label="Breadcrumb" className="flex-1 lg:flex-none flex items-center gap-1.5 min-w-0 ml-1 lg:ml-0">
           {breadcrumbs.map((crumb, i) => {
             const isLast = i === breadcrumbs.length - 1;
             return (
-              <span key={crumb.href} className="flex items-center gap-1.5 min-w-0">
-                {i > 0 && <ChevronRight size={14} className="text-text-disabled shrink-0" />}
+              <span key={crumb.href} className={`items-center gap-1.5 min-w-0 ${isLast ? "flex" : "hidden lg:flex"}`}>
+                {i > 0 && <ChevronRight size={16} className="hidden lg:block text-text-light shrink-0" aria-hidden />}
                 {isLast ? (
-                  <span className="font-medium text-text-primary truncate max-w-[240px]">
+                  <span aria-current="page" className="text-title-3 font-semibold text-text-primary truncate max-w-[60vw] lg:max-w-[360px]">
                     {crumb.label}
                   </span>
                 ) : (
                   <Link
                     href={crumb.href}
-                    className="text-text-secondary hover:text-text-primary transition truncate max-w-[160px]"
+                    className="text-title-3 font-medium text-text-secondary hover:text-text-primary transition-colors truncate max-w-[200px] rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   >
                     {crumb.label}
                   </Link>
@@ -113,7 +110,7 @@ export default function PractitionerTopbar({
       )}
 
       {/* Right */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 shrink-0">
         <ThemeToggle />
 
         {/* Notification bell */}
@@ -133,7 +130,7 @@ export default function PractitionerTopbar({
 
           {/* Dropdown */}
           {bellOpen && (
-            <div className="absolute right-0 top-full mt-1 w-80 bg-bg-card border border-border rounded-2xl shadow-xl z-50 overflow-hidden">
+            <div className="absolute right-0 top-full mt-2 w-80 bg-bg-card border border-border rounded-2xl shadow-lg z-50 overflow-hidden origin-top-right animate-in fade-in-0 zoom-in-[0.97] duration-150 motion-reduce:zoom-in-100">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                 <span className="text-sm font-semibold text-text-primary">
@@ -195,9 +192,9 @@ export default function PractitionerTopbar({
 }
 
 const KIND_META: Record<string, { icon: typeof Users; iconCls: string; verb: string; action: string }> = {
-  check_in:        { icon: Users,         iconCls: "bg-success/10 text-success",  verb: "has arrived",    action: "View in Waiting Room" },
-  appt_cancelled:  { icon: XCircle,       iconCls: "bg-danger/10 text-danger",    verb: "cancelled",      action: "View appointments" },
-  appt_rescheduled:{ icon: CalendarClock, iconCls: "bg-warning/10 text-warning",  verb: "rescheduled",    action: "View appointments" },
+  check_in:        { icon: Users,         iconCls: "bg-success/10 text-success-strong",  verb: "has arrived",    action: "View in Waiting Room" },
+  appt_cancelled:  { icon: XCircle,       iconCls: "bg-danger/10 text-danger-strong",    verb: "cancelled",      action: "View appointments" },
+  appt_rescheduled:{ icon: CalendarClock, iconCls: "bg-warning/10 text-warning-strong",  verb: "rescheduled",    action: "View appointments" },
   appt_reminder:   { icon: BellRing,      iconCls: "bg-primary/10 text-primary",  verb: "is coming up",   action: "View appointments" },
 };
 
@@ -211,7 +208,7 @@ function NotificationRow({
   onDismiss: () => void;
 }) {
   const apptTime = new Date(n.appointmentStart).toLocaleTimeString([], {
-    hour: "2-digit",
+    hour: "numeric", hour12: true,
     minute: "2-digit",
   });
   const meta = KIND_META[n.kind] ?? KIND_META.check_in;

@@ -1,4 +1,10 @@
-import { IsString, IsDateString, IsEnum, IsOptional, IsMongoId } from 'class-validator';
+import {
+  IsString,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsMongoId,
+} from 'class-validator';
 import { AppointmentStatus } from '../schemas/appointment.schema';
 
 export class CreateAppointmentDto {

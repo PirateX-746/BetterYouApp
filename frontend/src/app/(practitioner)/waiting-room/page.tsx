@@ -39,21 +39,19 @@ interface WaitingPatient {
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
+    hour: "numeric", hour12: true,
     minute: "2-digit",
   });
 }
 
 function useWaitTimer(checkedInAt: string | null): string {
-  const [tick, setTick] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    const id = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   if (!checkedInAt) return "—";
-  const diff = Math.floor((Date.now() - new Date(checkedInAt).getTime()) / 60_000);
-  void tick; // subscribe to timer
+  const diff = Math.floor((now - new Date(checkedInAt).getTime()) / 60_000);
   if (diff < 1) return "< 1 min";
   if (diff < 60) return `${diff} min`;
   return `${Math.floor(diff / 60)}h ${diff % 60}m`;
@@ -117,7 +115,7 @@ function PatientRow({
         <span
           className={`text-sm font-medium ${
             waitTime !== "—" && parseInt(waitTime) >= 15
-              ? "text-danger"
+              ? "text-danger-strong"
               : "text-text-primary"
           }`}
         >
@@ -166,7 +164,7 @@ function PatientRow({
           <button
             onClick={() => onAction(patient.id, "no_show")}
             disabled={isUpdating || patient.status === "in_progress"}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-danger/40 text-danger text-xs font-medium rounded-lg hover:bg-danger/5 transition disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-danger/40 text-danger-strong text-xs font-medium rounded-lg hover:bg-danger/5 transition disabled:opacity-30 disabled:cursor-not-allowed"
             title="Mark No Show"
           >
             <XCircle size={12} />
@@ -298,7 +296,7 @@ function WaitingRoomPageImpl() {
         </div>
         <div className="bg-bg-card border border-border rounded-2xl p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center shrink-0">
-            <Play size={18} className="text-warning" />
+            <Play size={18} className="text-warning-strong" />
           </div>
           <div>
             <p className="text-2xl font-bold text-text-primary">{inSessionCount}</p>
@@ -307,7 +305,7 @@ function WaitingRoomPageImpl() {
         </div>
         <div className="bg-bg-card border border-border rounded-2xl p-4 flex items-center gap-3 col-span-2 sm:col-span-1">
           <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
-            <CheckCircle2 size={18} className="text-success" />
+            <CheckCircle2 size={18} className="text-success-strong" />
           </div>
           <div>
             <p className="text-2xl font-bold text-text-primary">{patients.length}</p>

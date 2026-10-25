@@ -48,6 +48,7 @@ import {
   toneForInvitationStatus,
   toneForSubscription,
 } from "@/components/containers/superadmin/console-ui";
+import { ConfirmActionButton } from "@/components/containers/superadmin/ConfirmActionButton";
 import {
   archivePractice,
   fetchPractice,
@@ -57,6 +58,8 @@ import {
   useAsync,
   fetchInvitations,
   invitePractitioner,
+  revokeInvitation,
+  setPractitionerStatus,
   invitationLink,
   INVITABLE_ROLES,
   updatePractice,
@@ -92,10 +95,12 @@ export default function PracticeDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const { data: practice, loading, error, reload } = useAsync(
-    () => fetchPractice(id),
-    [id],
-  );
+  const {
+    data: practice,
+    loading,
+    error,
+    reload,
+  } = useAsync(() => fetchPractice(id), [id]);
 
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [working, setWorking] = useState(false);
@@ -399,7 +404,7 @@ export default function PracticeDetailPage({
             <Button
               variant="outline"
               onClick={() => setConfirm("archive")}
-              className="text-danger hover:text-danger"
+              className="text-danger-strong hover:text-danger-strong"
             >
               <Archive size={15} />
               Archive
@@ -565,7 +570,7 @@ export default function PracticeDetailPage({
             hint="Staff appear here once they are linked to this practice."
           />
         ) : (
-          <TableShell headers={["Name", "Role", "Joined", "Status"]}>
+          <TableShell headers={["Name", "Role", "Joined", "Status", ""]}>
             {practice.team.map((u) => (
               <tr key={u.id} className="hover:bg-bg-hover transition-colors">
                 <td className="px-5 py-3.5">
@@ -588,6 +593,35 @@ export default function PracticeDetailPage({
                   <StatusPill
                     label={u.status}
                     tone={toneForUserStatus(u.status)}
+                  />
+                </td>
+                <td className="px-5 py-3.5 text-right">
+                  <ConfirmActionButton
+                    {...(u.status === "DISABLED"
+                      ? {
+                          label: "Enable",
+                          title: `Enable ${u.name || u.email}?`,
+                          description:
+                            "They can sign in again and pick up where they left off.",
+                          confirmLabel: "Enable",
+                          success: "Account enabled",
+                        }
+                      : {
+                          label: "Disable",
+                          title: `Disable ${u.name || u.email}?`,
+                          description:
+                            "They are signed out and can't sign in until re-enabled. None of their records are deleted.",
+                          confirmLabel: "Disable",
+                          success: "Account disabled",
+                          danger: true,
+                        })}
+                    onConfirm={() =>
+                      setPractitionerStatus(
+                        u.id,
+                        u.status === "DISABLED" ? "ACTIVE" : "DISABLED",
+                      )
+                    }
+                    onDone={reload}
                   />
                 </td>
               </tr>
@@ -618,10 +652,13 @@ export default function PracticeDetailPage({
             />
           ) : (
             <TableShell
-              headers={["Invitee", "Role", "Sent", "Expires", "Status"]}
+              headers={["Invitee", "Role", "Sent", "Expires", "Status", ""]}
             >
               {invites.map((inv) => (
-                <tr key={inv._id} className="hover:bg-bg-hover transition-colors">
+                <tr
+                  key={inv._id}
+                  className="hover:bg-bg-hover transition-colors"
+                >
                   <td className="px-5 py-3.5">
                     <p className="text-sm font-medium text-text-primary truncate">
                       {inv.name}
@@ -646,6 +683,20 @@ export default function PracticeDetailPage({
                       label={inv.status}
                       tone={toneForInvitationStatus(inv.status)}
                     />
+                  </td>
+                  <td className="px-5 py-3.5 text-right">
+                    {inv.status === "PENDING" && (
+                      <ConfirmActionButton
+                        label="Revoke"
+                        title={`Revoke the invitation for ${inv.email}?`}
+                        description="The link stops working immediately. You can send a new invitation later."
+                        confirmLabel="Revoke"
+                        success="Invitation revoked"
+                        danger
+                        onConfirm={() => revokeInvitation(id, inv._id)}
+                        onDone={reloadInvites}
+                      />
+                    )}
                   </td>
                 </tr>
               ))}
@@ -696,8 +747,8 @@ export default function PracticeDetailPage({
                 <DialogTitle>Invitation ready</DialogTitle>
                 <DialogDescription>
                   No email is sent — the platform has no mail provider yet, so
-                  deliver this link to {issued.email} yourself. It is shown
-                  once and expires {formatDate(issued.expiresAt)}.
+                  deliver this link to {issued.email} yourself. It is shown once
+                  and expires {formatDate(issued.expiresAt)}.
                 </DialogDescription>
               </DialogHeader>
 
@@ -771,8 +822,8 @@ export default function PracticeDetailPage({
                     ))}
                   </select>
                   <p className="text-xs text-text-disabled">
-                    A practice admin manages staff and billing. The first one
-                    to accept becomes the practice owner.
+                    A practice admin manages staff and billing. The first one to
+                    accept becomes the practice owner.
                   </p>
                 </div>
               </div>
@@ -785,7 +836,10 @@ export default function PracticeDetailPage({
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleInvite} disabled={!canInvite || inviting}>
+                <Button
+                  onClick={handleInvite}
+                  disabled={!canInvite || inviting}
+                >
                   {inviting && <Loader2 size={14} className="animate-spin" />}
                   Create invitation
                 </Button>
@@ -795,14 +849,17 @@ export default function PracticeDetailPage({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={editOpen} onOpenChange={(o) => !o && !saving && setEditOpen(false)}>
+      <Dialog
+        open={editOpen}
+        onOpenChange={(o) => !o && !saving && setEditOpen(false)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit {practice.name}</DialogTitle>
             <DialogDescription>
               The subdomain is fixed once a practice is created — changing it
-              would break every existing link and sign-in, so it is not
-              editable here.
+              would break every existing link and sign-in, so it is not editable
+              here.
             </DialogDescription>
           </DialogHeader>
 
@@ -826,7 +883,7 @@ export default function PracticeDetailPage({
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
               {!emailOk && (
-                <p className="text-xs text-danger">
+                <p className="text-xs text-danger-strong">
                   Enter a valid email address.
                 </p>
               )}
@@ -945,9 +1002,7 @@ export default function PracticeDetailPage({
             </Button>
             <Button
               onClick={savePlan}
-              disabled={
-                changingPlan || !plans || nextPlan === practice.plan
-              }
+              disabled={changingPlan || !plans || nextPlan === practice.plan}
             >
               {changingPlan && <Loader2 size={14} className="animate-spin" />}
               Change plan

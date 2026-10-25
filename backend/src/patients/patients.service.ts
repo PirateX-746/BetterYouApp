@@ -155,7 +155,6 @@ export class PatientsService {
      =============================== */
   async update(id: string, dto: UpdatePatientDto, practiceId: string | null) {
     // Email is immutable — silently strip it if sent
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { email: _email, ...safeDto } = dto as UpdatePatientDto & {
       email?: string;
     };

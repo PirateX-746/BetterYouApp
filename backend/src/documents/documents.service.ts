@@ -23,13 +23,19 @@ import { Patient, PatientDocument } from '../patients/schemas/patient.schema';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
-import { practiceScopeFilter, practiceStamp } from '../common/tenancy/practice-scope';
+import {
+  practiceScopeFilter,
+  practiceStamp,
+} from '../common/tenancy/practice-scope';
+import { withObjectIds } from '../common/object-ids';
+import { assertPatientInPractice } from '../common/tenancy/assert-in-practice';
 import { StorageService } from '../storage/storage.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthUser } from '../common/auth-user';
 import {
   PDF_MIME,
   UPLOAD_LIMITS,
+  countPdfPages,
   hasActivePdfContent,
   isPdf,
   safeFileName,
@@ -58,16 +64,29 @@ export class DocumentsService {
   ) {}
 
   async create(dto: CreateDocumentDto, practiceId: string | null) {
-    return this.documentModel.create({
-      ...dto,
-      date: new Date(dto.date),
-      practiceId: practiceStamp(practiceId),
-    });
+    await assertPatientInPractice(
+      this.documentModel.db,
+      dto.patient,
+      practiceId,
+    );
+    return this.documentModel.create(
+      withObjectIds(
+        {
+          ...dto,
+          date: new Date(dto.date),
+          practiceId: practiceStamp(practiceId),
+        },
+        ['doctor', 'patient'],
+      ),
+    );
   }
 
   async findByPatient(patientId: string, practiceId: string | null) {
     return this.documentModel
-      .find({ patient: new Types.ObjectId(patientId), ...practiceScopeFilter(practiceId) })
+      .find({
+        patient: new Types.ObjectId(patientId),
+        ...practiceScopeFilter(practiceId),
+      })
       .populate('doctor', 'firstName lastName')
       .populate('patient', 'firstName lastName')
       .select(HIDDEN_FIELDS)
@@ -111,7 +130,9 @@ export class DocumentsService {
       .select('type')
       .lean();
     if (target?.type === DocumentType.SESSION_ASSESSMENT) {
-      throw new ForbiddenException('Submitted session assessments can be amended but not deleted');
+      throw new ForbiddenException(
+        'Submitted session assessments can be amended but not deleted',
+      );
     }
     const deleted = await this.documentModel.findOneAndDelete({
       _id: id,
@@ -174,24 +195,48 @@ export class DocumentsService {
       throw new PayloadTooLargeException('File is too large');
     }
     if (!isPdf(file.buffer)) {
-      throw new UnsupportedMediaTypeException('Only valid PDF files are accepted');
+      throw new UnsupportedMediaTypeException(
+        'Only valid PDF files are accepted',
+      );
     }
     if (hasActivePdfContent(file.buffer)) {
       throw new UnsupportedMediaTypeException(
         'PDFs containing scripts or embedded files are not accepted',
       );
     }
+    const countedPages = countPdfPages(file.buffer);
+    if (countedPages > UPLOAD_LIMITS.maxPages) {
+      throw new BadRequestException(
+        `A document can have at most ${UPLOAD_LIMITS.maxPages} pages`,
+      );
+    }
+    // A day of slack: the date is the practitioner's local calendar day,
+    // which can be "tomorrow" in UTC.
+    if (new Date(dto.date).getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+      throw new BadRequestException("The document date can't be in the future");
+    }
+    // Prefer what is actually in the file; fall back to the client's count
+    // when the pages can't be seen (compressed object streams).
+    const pageCount = countedPages || dto.pageCount;
 
     const documentId = new Types.ObjectId();
-    const storageKey = storageKeyFor(practiceId, patientId, documentId.toHexString());
+    const storageKey = storageKeyFor(
+      practiceId,
+      patientId,
+      documentId.toHexString(),
+    );
 
     try {
       await this.storage.put(storageKey, file.buffer, PDF_MIME);
     } catch (err) {
-      this.logger.error(`Storage write failed for document ${documentId.toHexString()}: ${(err as Error).message}`);
+      this.logger.error(
+        `Storage write failed for document ${documentId.toHexString()}: ${(err as Error).message}`,
+      );
       // The write may have partially landed — don't leave it behind.
       await this.storage.deleteQuietly(storageKey);
-      throw new InternalServerErrorException('Could not store the document. Please try again.');
+      throw new InternalServerErrorException(
+        'Could not store the document. Please try again.',
+      );
     }
 
     try {
@@ -214,7 +259,7 @@ export class DocumentsService {
           driver: this.storage.driverName,
           mimeType: PDF_MIME,
           size: file.size,
-          pageCount: dto.pageCount,
+          pageCount,
           fileName: safeFileName(dto.title),
         },
       });
@@ -226,8 +271,12 @@ export class DocumentsService {
         const winner = await this.findByUploadKey(practiceId, dto.uploadKey);
         if (winner) return this.resolveDuplicate(winner, patientId, practiceId);
       }
-      this.logger.error(`Metadata write failed for document ${documentId.toHexString()}: ${(err as Error).message}`);
-      throw new InternalServerErrorException('Could not save the document. Please try again.');
+      this.logger.error(
+        `Metadata write failed for document ${documentId.toHexString()}: ${(err as Error).message}`,
+      );
+      throw new InternalServerErrorException(
+        'Could not save the document. Please try again.',
+      );
     }
 
     await this.audit.record({
@@ -237,7 +286,11 @@ export class DocumentsService {
       action: 'document.upload',
       entityType: 'MedicalDocument',
       entityId: documentId.toHexString(),
-      metadata: { source: dto.source, pageCount: dto.pageCount, size: file.size },
+      metadata: {
+        source: dto.source,
+        pageCount,
+        size: file.size,
+      },
     });
 
     return this.findOne(documentId.toHexString(), practiceId);
@@ -247,25 +300,35 @@ export class DocumentsService {
    * Opens the stored file for an authorized caller. Scoped by practice just
    * like every other read, so a document id from another practice 404s.
    */
-  async openFile(id: string, user: AuthUser): Promise<{
+  async openFile(
+    id: string,
+    user: AuthUser,
+  ): Promise<{
     stream: Readable;
     mimeType: string;
     size: number;
     fileName: string;
   }> {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Document not found');
+    if (!Types.ObjectId.isValid(id))
+      throw new NotFoundException('Document not found');
 
     const doc = await this.documentModel
-      .findOne({ _id: new Types.ObjectId(id), ...practiceScopeFilter(user.practiceId) })
+      .findOne({
+        _id: new Types.ObjectId(id),
+        ...practiceScopeFilter(user.practiceId),
+      })
       .select('file')
       .lean();
-    if (!doc?.file?.storageKey) throw new NotFoundException('Document file not found');
+    if (!doc?.file?.storageKey)
+      throw new NotFoundException('Document file not found');
 
     let stream: Readable;
     try {
       stream = await this.storage.get(doc.file.storageKey);
     } catch (err) {
-      this.logger.error(`Storage read failed for document ${id}: ${(err as Error).message}`);
+      this.logger.error(
+        `Storage read failed for document ${id}: ${(err as Error).message}`,
+      );
       throw new NotFoundException('Document file is unavailable');
     }
 

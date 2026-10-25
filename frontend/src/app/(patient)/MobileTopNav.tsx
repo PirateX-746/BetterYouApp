@@ -45,7 +45,7 @@ export default function MobileTopNav() {
 
         <button
           aria-label="Log out"
-          className="flex items-center justify-center text-text-secondary hover:text-danger transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center justify-center text-text-secondary hover:text-danger-strong transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleLogout}
           disabled={isPending}
         >
