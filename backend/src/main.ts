@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { httpCorsOptions } from './common/cors';
 import { assertTrustProxySafe, parseTrustProxy } from './common/trust-proxy';
+import { passwordTransportMiddleware } from './common/password-transport';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -40,6 +41,8 @@ async function bootstrap() {
   // Profile photos travel as base64 JSON (a 2 MB image is ~2.7 MB encoded);
   // Express's 100 KB default turned every real photo into an error.
   app.useBodyParser('json', { limit: '4mb' });
+  // Decrypts __enc__ password fields from the frontend; needs the parsed body.
+  app.use(passwordTransportMiddleware());
   app.use(cookieParser());
 
   app.useGlobalFilters(new AllExceptionsFilter());

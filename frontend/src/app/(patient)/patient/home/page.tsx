@@ -59,6 +59,7 @@ export default function HomePage() {
       setLoading(false);
       return;
     }
+    setLoading(true);
 
     const fetchAppointments = async () => {
       try {
