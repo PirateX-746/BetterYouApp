@@ -12,6 +12,7 @@ import {
   Appointment,
   AppointmentDocument,
   AppointmentStatus,
+  LIVE_STATUSES,
 } from './schemas/appointment.schema';
 import { AppointmentsGateway } from './appointments.gateway';
 import { AvailabilityService } from '../availability/availability.service';
@@ -23,6 +24,7 @@ import {
 import { AppointmentTypesService } from '../appointment-types/appointment-types.service';
 import { Patient } from '../patients/schemas/patient.schema';
 import { localParts, zonedInstant } from './practice-time';
+import { AppointmentNotificationsService } from './appointment-notifications.service';
 
 const DAY_KEYS = [
   'sunday',
@@ -77,6 +79,7 @@ export class AppointmentsService {
     private readonly availabilityService: AvailabilityService,
     private readonly practitionersService: PractitionersService,
     private readonly appointmentTypesService: AppointmentTypesService,
+    private readonly notifications: AppointmentNotificationsService,
   ) {}
 
   /**
@@ -198,9 +201,12 @@ export class AppointmentsService {
         appointmentTypeId,
         status: data.status || 'scheduled',
         practiceId: practiceStamp(practiceId),
+        bookedAt: new Date(),
+        remindersSent: [],
       });
 
       const formatted = this.formatAppointment(appointment);
+      this.notifications.notifyBooked(appointment);
 
       this.gateway.emitAppointmentUpdate(
         formatted.patientId,
@@ -360,6 +366,7 @@ export class AppointmentsService {
     // unguarded path to double-booking a practitioner.
     const start = data.start ? new Date(data.start) : existing.start;
     const end = data.end ? new Date(data.end) : existing.end;
+    const moved = start.getTime() !== existing.start.getTime();
     if (data.start || data.end) {
       if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
         throw new BadRequestException('Invalid start or end time');
@@ -367,7 +374,6 @@ export class AppointmentsService {
       if (end <= start) {
         throw new BadRequestException('End time must be after start time');
       }
-      const moved = start.getTime() !== existing.start.getTime();
       if (moved && start.getTime() < Date.now() - PAST_GRACE_MS) {
         throw new BadRequestException(
           "Can't move an appointment into the past",
@@ -424,6 +430,8 @@ export class AppointmentsService {
         end: data.end,
         notes: data.notes,
         status: data.status,
+        // A new time is a new booking as far as reminders are concerned.
+        ...(moved && { bookedAt: new Date(), remindersSent: [] }),
       },
       { new: true },
     );
@@ -433,6 +441,10 @@ export class AppointmentsService {
     }
 
     const formatted = this.formatAppointment(updated);
+    this.notifyStatusChange(existing.status, updated);
+    if (moved && LIVE_STATUSES.includes(updated.status)) {
+      this.notifications.notifyRescheduled(updated, existing.start);
+    }
 
     this.gateway.emitAppointmentUpdate(
       formatted.patientId,
@@ -459,6 +471,10 @@ export class AppointmentsService {
     if (!deleted) throw new NotFoundException('Appointment not found');
 
     const formatted = this.formatAppointment(deleted);
+    // To the patient, a deleted upcoming appointment is a cancelled one.
+    if (LIVE_STATUSES.includes(deleted.status)) {
+      this.notifications.notifyCancelled(deleted);
+    }
 
     this.gateway.emitAppointmentUpdate(
       formatted.patientId,
@@ -467,6 +483,19 @@ export class AppointmentsService {
     );
 
     return formatted;
+  }
+
+  /** Emails the patient when a live appointment becomes cancelled. */
+  private notifyStatusChange(
+    previousStatus: AppointmentStatus,
+    updated: AppointmentDocument,
+  ) {
+    if (
+      updated.status === AppointmentStatus.CANCELLED &&
+      LIVE_STATUSES.includes(previousStatus)
+    ) {
+      this.notifications.notifyCancelled(updated);
+    }
   }
 
   /* =====================================================
@@ -584,14 +613,16 @@ export class AppointmentsService {
       throw new BadRequestException(`Invalid status: ${status}`);
     }
 
-    const updated = await this.appointmentModel.findByIdAndUpdate(
+    const previous = await this.appointmentModel.findByIdAndUpdate(
       appointmentId,
       { status },
-      { new: true },
     );
-    if (!updated) throw new NotFoundException('Appointment not found');
+    if (!previous) throw new NotFoundException('Appointment not found');
+    const previousStatus = previous.status;
+    const updated = previous.set({ status });
 
     const formatted = this.formatAppointment(updated);
+    this.notifyStatusChange(previousStatus, updated);
     this.gateway.emitAppointmentUpdate(
       formatted.patientId,
       formatted,

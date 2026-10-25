@@ -90,7 +90,7 @@ export default function ForgotPasswordContainer({ role }: ForgotPasswordProps) {
               </h2>
               <p className="text-sm text-gray-500 leading-relaxed">
                 Enter your {isPatient ? "patient" : "practitioner"} account
-                email and we&apos;ll generate a temporary password.
+                email and we&apos;ll email you a temporary password.
               </p>
             </div>
 

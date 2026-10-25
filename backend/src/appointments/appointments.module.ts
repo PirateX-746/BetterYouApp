@@ -4,6 +4,7 @@ import { AppointmentsService } from './appointments.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Appointment, AppointmentSchema } from './schemas/appointment.schema';
 import { AppointmentsGateway } from './appointments.gateway';
+import { AppointmentNotificationsService } from './appointment-notifications.service';
 import { AvailabilityModule } from '../availability/availability.module';
 import { PractitionersModule } from '../practitioners/practitioners.module';
 import { AppointmentTypesModule } from '../appointment-types/appointment-types.module';
@@ -18,6 +19,10 @@ import { AppointmentTypesModule } from '../appointment-types/appointment-types.m
     AppointmentTypesModule,
   ],
   controllers: [AppointmentsController],
-  providers: [AppointmentsService, AppointmentsGateway],
+  providers: [
+    AppointmentsService,
+    AppointmentsGateway,
+    AppointmentNotificationsService,
+  ],
 })
 export class AppointmentsModule {}

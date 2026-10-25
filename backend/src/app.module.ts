@@ -35,6 +35,7 @@ import { TreatmentPlansModule } from './treatment-plans/treatment-plans.module';
 import { SessionAssessmentsModule } from './session-assessments/session-assessments.module';
 import { AppointmentTypesModule } from './appointment-types/appointment-types.module';
 import { SupportModule } from './support/support.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -60,6 +61,8 @@ import { SupportModule } from './support/support.module';
     }),
     // Authenticates Socket.io handshakes from the session cookie.
     WsAuthModule,
+    // Outgoing email (Resend in production, Mailpit/SMTP in dev).
+    EmailModule,
 
     // Tenancy foundation. Inert until MULTI_TENANCY_ENABLED=true — these
     // register schemas and services but change no existing behaviour.

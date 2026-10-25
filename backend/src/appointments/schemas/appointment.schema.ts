@@ -11,6 +11,12 @@ export enum AppointmentStatus {
   CANCELLED = 'cancelled',
 }
 
+/** Statuses a patient is still expected to turn up for (reminders, cancellation notices). */
+export const LIVE_STATUSES: AppointmentStatus[] = [
+  AppointmentStatus.SCHEDULED,
+  AppointmentStatus.CONFIRMED,
+];
+
 export type AppointmentDocument = Appointment & Document;
 
 @Schema({ timestamps: true })
@@ -51,6 +57,23 @@ export class Appointment {
 
   @Prop({ type: Date })
   checkedInAt?: Date;
+
+  /**
+   * When the current time was booked: creation, or the last reschedule.
+   * Reminders whose window had already opened by then are skipped, since the
+   * patient just got a confirmation. Older appointments fall back to createdAt.
+   */
+  @Prop({ type: Date })
+  bookedAt?: Date;
+
+  /** Reminder emails handled for the current time (see reminders.ts). Reset on reschedule. */
+  @Prop({ type: [String], default: [] })
+  remindersSent: string[];
+
+  createdAt?: Date;
 }
 
 export const AppointmentSchema = SchemaFactory.createForClass(Appointment);
+
+// The reminder job's scan: live appointments starting in the next 24h.
+AppointmentSchema.index({ status: 1, start: 1 });

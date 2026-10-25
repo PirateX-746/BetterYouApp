@@ -10,6 +10,8 @@ export interface IssuedPassword {
   temporaryPassword: string;
   /** ISO date */
   expiresAt: string;
+  /** The server also emailed it to the patient. */
+  emailed?: boolean;
 }
 
 /**
@@ -71,8 +73,10 @@ export function TemporaryPasswordDialog({
               <KeyRound size={18} aria-hidden />
             </span>
             <p className="text-sm text-text-secondary leading-relaxed">
-              Give the patient this temporary password in person or by phone. They&apos;ll choose their own
-              password the first time they sign in.
+              {issued.emailed
+                ? "We've emailed this temporary password to the patient. You can also give it to them in person or by phone."
+                : "Give the patient this temporary password in person or by phone."}{" "}
+              They&apos;ll choose their own password the first time they sign in.
             </p>
           </div>
 

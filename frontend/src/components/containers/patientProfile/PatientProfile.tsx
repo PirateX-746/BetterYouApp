@@ -104,6 +104,7 @@ export default function PatientProfilePage() {
         email: patient.email ?? "",
         temporaryPassword: data.temporaryPassword,
         expiresAt: data.temporaryPasswordExpiresAt,
+        emailed: !!data.emailed,
       });
     } catch {
       toast.error("Couldn't reset the password. Try again.");
