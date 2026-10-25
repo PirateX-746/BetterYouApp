@@ -80,7 +80,7 @@ export class AuthService {
       isActive: true,
     });
 
-    this.logger.log(`New patient registered: ${patient._id}`);
+    this.logger.log(`New patient registered: ${String(patient._id)}`);
 
     return {
       message: 'Patient created successfully',
@@ -124,6 +124,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // JwtStrategy rejects a disabled account on every request; refusing here
+    // too keeps it from getting a token (and a half-working session) at all.
+    if (user.isActive === false) {
+      throw new UnauthorizedException('This account has been disabled');
+    }
+
     // The "practitioner" portal serves every practice-member role (practice
     // admin, practitioner, staff) — not just the literal Role.PRACTITIONER
     // string. Matches CLINICAL_ROLES/isPractitioner() elsewhere: a practice
@@ -158,7 +164,7 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload);
 
-    this.logger.log(`User ${user._id} logged in as ${user.role}`);
+    this.logger.log(`User ${String(user._id)} logged in as ${user.role}`);
 
     return {
       access_token: accessToken,
@@ -285,6 +291,17 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Account not found');
+    }
+
+    // A session alone must not be enough to take over the account. 400, not
+    // 401: the web client treats 401 as "signed out".
+    if (!user.mustChangePassword) {
+      const matches =
+        !!dto.currentPassword &&
+        (await bcrypt.compare(dto.currentPassword, user.password));
+      if (!matches) {
+        throw new BadRequestException('Current password is incorrect');
+      }
     }
 
     user.password = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);

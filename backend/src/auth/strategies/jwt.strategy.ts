@@ -10,19 +10,33 @@ import { PlatformAdmin } from '../../platform-admins/schemas/platform-admin.sche
 import { Role } from '../../common/role.enum';
 import { AUTH_COOKIE } from '../auth.cookies';
 
+/** Claims we sign into the session token (see AuthService). */
+interface JwtPayload {
+  sub: string;
+  role: Role;
+  practiceId?: string | null;
+}
+
+/** The fields validate() selects, common to all three account collections. */
+interface AccountRecord {
+  role: Role;
+  isActive?: boolean;
+  practiceId?: unknown;
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private config: ConfigService,
 
     @InjectModel(Patient.name)
-    private readonly patientModel: Model<any>,
+    private readonly patientModel: Model<Patient>,
 
     @InjectModel(Practitioner.name)
-    private readonly practitionerModel: Model<any>,
+    private readonly practitionerModel: Model<Practitioner>,
 
     @InjectModel(PlatformAdmin.name)
-    private readonly platformAdminModel: Model<any>,
+    private readonly platformAdminModel: Model<PlatformAdmin>,
   ) {
     const secret = config.get<string>('JWT_SECRET');
     if (!secret) throw new Error('JWT_SECRET is not defined');
@@ -41,12 +55,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  override async validate(payload: any) {
+  override async validate(payload: JwtPayload) {
     const { sub: id, role, practiceId } = payload;
 
     // Three collections, one per kind of account. A platform admin is not a
     // practitioner, so it gets its own branch rather than being folded in.
-    let model: Model<any>;
+    let model: Model<Patient> | Model<Practitioner> | Model<PlatformAdmin>;
     if (role === Role.SUPER_ADMIN) {
       model = this.platformAdminModel;
     } else if (role === Role.PATIENT) {
@@ -55,17 +69,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       model = this.practitionerModel;
     }
 
-    const user = await model
+    const user = await (model as Model<unknown>)
       .findById(id)
       .select('_id role isActive practiceId')
-      .lean()
+      .lean<AccountRecord>()
       .exec();
 
     if (!user) {
       throw new UnauthorizedException('Account not found');
     }
 
-    if ('isActive' in user && user.isActive === false) {
+    if (user.isActive === false) {
       throw new UnauthorizedException('Account is deactivated');
     }
 
@@ -78,9 +92,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       practiceId:
         user.role === Role.SUPER_ADMIN
           ? null
-          : ((user.practiceId as unknown)?.toString() ??
-            practiceId ??
-            null),
+          : (user.practiceId?.toString() ?? practiceId ?? null),
     };
   }
 }

@@ -54,7 +54,9 @@ async function seed() {
 
   /* ── PRACTITIONER ── */
   const practitionerEmail = 'dr.sarah@betteryou.com';
-  const existingPractitioner = await Practitioner.findOne({ email: practitionerEmail });
+  const existingPractitioner = await Practitioner.findOne({
+    email: practitionerEmail,
+  });
 
   if (!existingPractitioner) {
     await Practitioner.create({

@@ -4,7 +4,10 @@ import { Model, Types } from 'mongoose';
 import { FollowUpNote } from './schemas/follow-up-note.schema';
 import { CreateFollowUpNoteDto } from './dto/create-follow-up-note.dto';
 import { UpdateFollowUpNoteDto } from './dto/update-follow-up-note.dto';
-import { practiceScopeFilter, practiceStamp } from '../common/tenancy/practice-scope';
+import {
+  practiceScopeFilter,
+  practiceStamp,
+} from '../common/tenancy/practice-scope';
 
 @Injectable()
 export class FollowUpNotesService {
@@ -27,7 +30,10 @@ export class FollowUpNotesService {
 
   async findByPatient(patientId: string, practiceId: string | null) {
     return this.followUpNoteModel
-      .find({ patientId: new Types.ObjectId(patientId), ...practiceScopeFilter(practiceId) })
+      .find({
+        patientId: new Types.ObjectId(patientId),
+        ...practiceScopeFilter(practiceId),
+      })
       .populate('practitionerId', 'firstName lastName')
       .sort({ createdAt: -1 })
       .lean();
@@ -35,7 +41,10 @@ export class FollowUpNotesService {
 
   async findByPractitioner(practitionerId: string, practiceId: string | null) {
     return this.followUpNoteModel
-      .find({ practitionerId: new Types.ObjectId(practitionerId), ...practiceScopeFilter(practiceId) })
+      .find({
+        practitionerId: new Types.ObjectId(practitionerId),
+        ...practiceScopeFilter(practiceId),
+      })
       .populate('patientId', 'firstName lastName')
       .sort({ createdAt: -1 })
       .lean();
@@ -51,7 +60,11 @@ export class FollowUpNotesService {
     return note;
   }
 
-  async update(id: string, dto: UpdateFollowUpNoteDto, practiceId: string | null) {
+  async update(
+    id: string,
+    dto: UpdateFollowUpNoteDto,
+    practiceId: string | null,
+  ) {
     const note = await this.followUpNoteModel
       .findOneAndUpdate(
         { _id: id, ...practiceScopeFilter(practiceId) },
@@ -72,5 +85,4 @@ export class FollowUpNotesService {
     if (!note) throw new NotFoundException('Follow-up note not found');
     return { deleted: true };
   }
-
 }

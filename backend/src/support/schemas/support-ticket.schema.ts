@@ -37,7 +37,12 @@ export class SupportTicket extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Practice', index: true })
   practiceId?: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Practitioner', required: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Practitioner',
+    required: true,
+    index: true,
+  })
   requesterId: Types.ObjectId;
 
   @Prop({ required: true })
@@ -58,7 +63,12 @@ export class SupportTicket extends Document {
   @Prop({ type: String, enum: TicketPriority, default: TicketPriority.NORMAL })
   priority: TicketPriority;
 
-  @Prop({ type: String, enum: TicketStatus, default: TicketStatus.OPEN, index: true })
+  @Prop({
+    type: String,
+    enum: TicketStatus,
+    default: TicketStatus.OPEN,
+    index: true,
+  })
   status: TicketStatus;
 
   @Prop({ type: Date, required: true })

@@ -21,10 +21,7 @@ export type PlanKey = "FREE" | "TRIAL" | "BASIC" | "PRO" | "ENTERPRISE";
 
 /** Mirrors SubscriptionStatus. A practice status and a billing status differ. */
 export type SubscriptionStatus =
-  | "TRIALING"
-  | "ACTIVE"
-  | "PAST_DUE"
-  | "CANCELLED";
+  "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELLED";
 
 export interface Practice {
   id: string;
@@ -107,7 +104,7 @@ export interface AuditEntry {
 
 /** The API stores statuses lowercase; the UI renders them as chips. */
 function upper<T extends string>(v: string | null | undefined, fallback: T): T {
-  return (v ? (v.toUpperCase() as T) : fallback);
+  return v ? (v.toUpperCase() as T) : fallback;
 }
 
 function normalisePractice(p: Practice): Practice {
@@ -142,7 +139,9 @@ export async function fetchPractice(id: string): Promise<PracticeDetail> {
 export async function fetchPlatformPractitioners(): Promise<
   PlatformPractitioner[]
 > {
-  const { data } = await api.get<PlatformPractitioner[]>("/admin/practitioners");
+  const { data } = await api.get<PlatformPractitioner[]>(
+    "/admin/practitioners",
+  );
   return data;
 }
 
@@ -262,6 +261,28 @@ export async function invitePractitioner(
   return data;
 }
 
+/** Revokes a pending invitation; its link stops working immediately. */
+export async function revokeInvitation(practiceId: string, inviteId: string) {
+  await api.post(
+    `/admin/practices/${practiceId}/invitations/${inviteId}/revoke`,
+  );
+}
+
+/**
+ * Disables or re-enables a practice member. A disabled account can't sign
+ * in, and its existing session is rejected on the next request.
+ */
+export async function setPractitionerStatus(
+  id: string,
+  status: "ACTIVE" | "DISABLED",
+) {
+  const { data } = await api.patch<{
+    id: string;
+    status: "ACTIVE" | "DISABLED";
+  }>(`/admin/practitioners/${id}/status`, { status });
+  return data;
+}
+
 /**
  * Builds the link handed to the invitee. No email is sent — the platform has
  * no mail provider — so the console shows this once for out-of-band delivery.
@@ -269,8 +290,7 @@ export async function invitePractitioner(
  * the host against the invite's practice.
  */
 export function invitationLink(token: string): string {
-  const origin =
-    typeof window === "undefined" ? "" : window.location.origin;
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
   return `${origin}/acceptInvite?token=${encodeURIComponent(token)}`;
 }
 
@@ -367,7 +387,8 @@ export function formatDateTime(iso: string | null | undefined): string {
   return new Date(iso).toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
-    hour: "2-digit",
+    hour: "numeric",
+    hour12: true,
     minute: "2-digit",
   });
 }

@@ -16,7 +16,7 @@ export function FormInput({
         {label}
       </label>
       <input {...props} className={fieldCls} />
-      {error && <p className="text-xs text-danger">{error.message}</p>}
+      {error && <p className="text-xs text-danger-strong">{error.message}</p>}
     </div>
   );
 }
@@ -45,7 +45,7 @@ export function FormSelect({
           <option key={o} value={o}>{o}</option>
         ))}
       </select>
-      {error && <p className="text-xs text-danger">{error.message}</p>}
+      {error && <p className="text-xs text-danger-strong">{error.message}</p>}
     </div>
   );
 }
@@ -70,7 +70,7 @@ export function FormTextarea({
         rows={props.rows ?? 3}
         className={`${fieldCls} resize-none ${error ? "border-danger" : ""}`}
       />
-      {error && <p className="text-xs text-danger">{error.message}</p>}
+      {error && <p className="text-xs text-danger-strong">{error.message}</p>}
     </div>
   );
 }

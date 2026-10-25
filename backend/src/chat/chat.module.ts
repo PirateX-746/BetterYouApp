@@ -4,7 +4,10 @@ import { ChatGateway } from './chat.gateway';
 import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
 import { Message, MessageSchema } from './schemas/message.schema';
-import { Conversation, ConversationSchema } from './schemas/conversation.schema';
+import {
+  Conversation,
+  ConversationSchema,
+} from './schemas/conversation.schema';
 import { SseModule } from '../sse/sse.module';
 
 @Module({

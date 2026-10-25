@@ -2,13 +2,13 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export enum AppointmentStatus {
-  SCHEDULED      = 'scheduled',
-  CONFIRMED      = 'confirmed',
-  CHECKED_IN     = 'checked_in',
-  IN_PROGRESS    = 'in_progress',
-  COMPLETED      = 'completed',
-  NO_SHOW        = 'no_show',
-  CANCELLED      = 'cancelled',
+  SCHEDULED = 'scheduled',
+  CONFIRMED = 'confirmed',
+  CHECKED_IN = 'checked_in',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+  NO_SHOW = 'no_show',
+  CANCELLED = 'cancelled',
 }
 
 export type AppointmentDocument = Appointment & Document;

@@ -16,7 +16,10 @@ import { Role } from '../../common/role.enum';
  * because platform-level actions belong to no practice, and the log must
  * stay writable from platform context.
  */
-@Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'auditlogs' })
+@Schema({
+  timestamps: { createdAt: true, updatedAt: false },
+  collection: 'auditlogs',
+})
 export class AuditLog {
   /** Null for platform-level actions (e.g. creating a practice). */
   @Prop({ type: Types.ObjectId, ref: 'Practice', default: null, index: true })

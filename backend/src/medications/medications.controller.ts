@@ -14,7 +14,7 @@ import { CreateMedicationDto } from './dto/create-medication.dto';
 import { UpdateMedicationDto } from './dto/update-medication.dto';
 
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, CLINICAL_ROLES } from '../common/role.enum';
+import { CLINICAL_ROLES } from '../common/role.enum';
 import { assertSelf, type AuthedRequest } from '../common/auth-user';
 
 // Clinical data — practitioner-only. Authentication itself is enforced
@@ -34,7 +34,10 @@ export class MedicationsController {
   create(@Body() dto: CreateMedicationDto, @Req() req: AuthedRequest) {
     // The owner is always the caller, never a client-supplied id — otherwise
     // a practitioner could plant an entry in someone else's library.
-    return this.medicationsService.create({ ...dto, practitionerId: req.user.userId });
+    return this.medicationsService.create({
+      ...dto,
+      practitionerId: req.user.userId,
+    });
   }
 
   @Get()

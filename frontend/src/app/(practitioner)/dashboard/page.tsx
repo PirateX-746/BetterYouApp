@@ -6,6 +6,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useClientValue } from "@/hooks/useClientValue";
 import { Badge } from "@/components/common/Badge";
 import {
   Users,
@@ -101,7 +102,7 @@ function isPracticeOpen(hours: PracticeHours, now: Date): boolean {
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
+    hour: "numeric", hour12: true,
     minute: "2-digit",
   });
 }
@@ -142,20 +143,13 @@ export default function DashboardPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [patientMedications, setPatientMedications] = useState<PatientMedication[]>([]);
   const [practiceHours, setPracticeHours] = useState<PracticeHours>(DEFAULT_HOURS);
-  const [loading, setLoading] = useState(true);
-  const [doctorName, setDoctorName] = useState("Doctor");
-
-  // Read name from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem("name");
-    if (stored) setDoctorName(stored);
-  }, []);
+  // Which practitioner the data on screen belongs to; loading until it matches.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const loading = !!practitionerId && loadedFor !== practitionerId;
+  const doctorName = useClientValue(() => localStorage.getItem("name"), null) || "Doctor";
 
   useEffect(() => {
-    if (!practitionerId) {
-      setLoading(false);
-      return;
-    }
+    if (!practitionerId) return;
 
     Promise.all([
       api
@@ -178,7 +172,7 @@ export default function DashboardPage() {
         .catch(() => {}),
     ])
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => setLoadedFor(practitionerId));
   }, [practitionerId]);
 
   /* ─── Derived stats ─── */
@@ -322,7 +316,7 @@ export default function DashboardPage() {
         items.push({
           id: `pm-${pm._id}`,
           icon: FileText,
-          color: "text-warning bg-warning/10",
+          color: "text-warning-strong bg-warning/10",
           text: `Medication recorded for ${name}`,
           time: timeAgo(pm.createdAt),
         });
@@ -342,7 +336,7 @@ export default function DashboardPage() {
         items.push({
           id: `ca-${a.id}`,
           icon: CalendarCheck,
-          color: "text-success bg-success/10",
+          color: "text-success-strong bg-success/10",
           text: `Session completed — ${name}`,
           time: timeAgo(a.start),
         });
@@ -358,7 +352,7 @@ export default function DashboardPage() {
         items.push({
           id: `xa-${a.id}`,
           icon: AlertCircle,
-          color: "text-danger bg-danger/10",
+          color: "text-danger-strong bg-danger/10",
           text: `Appointment cancelled — ${name}`,
           time: timeAgo(a.start),
         });
@@ -381,7 +375,7 @@ export default function DashboardPage() {
     year: "numeric",
   });
   const timeStr = now.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
+    hour: "numeric", hour12: true,
     minute: "2-digit",
   });
 
@@ -419,6 +413,7 @@ export default function DashboardPage() {
           tone="primary"
           sub={`${todayConfirmed} confirmed`}
           href="/appointmentsPractitioner"
+          featured
         />
         <StatCard
           label="This week"
@@ -481,7 +476,7 @@ export default function DashboardPage() {
                   const mins = Math.round((new Date(appt.end).getTime() - new Date(appt.start).getTime()) / 60000);
                   return (
                     <li key={appt.id} className="flex items-center gap-4 px-5 py-3.5">
-                      <div className="w-14 shrink-0">
+                      <div className="w-[4.75rem] shrink-0 whitespace-nowrap tabular-nums">
                         <p className="text-sm font-semibold text-text-primary tabular-nums">{formatTime(appt.start)}</p>
                         <p className="text-xs text-text-secondary">{mins} min</p>
                       </div>

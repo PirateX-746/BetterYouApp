@@ -63,7 +63,9 @@ export class SaveDraftDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(5000, { message: 'Session notes must be 5000 characters or fewer' })
+  @MaxLength(5000, {
+    message: 'Session notes must be 5000 characters or fewer',
+  })
   notes?: string;
 
   /** Practitioner edits to the generated summary. */

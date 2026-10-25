@@ -19,6 +19,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Page, PageHeader } from "@/components/common/PageLayout";
+import { Segmented } from "@/components/common/Tabs";
+import { inputClass } from "@/components/common/Field";
+import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/common/DataTable";
 import { useSupportLive } from "@/hooks/useSupportLive";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -268,11 +271,16 @@ function RecentTickets({ tickets, onViewAll }: { tickets: SupportTicket[]; onVie
 
 /* ─── Full ticket list ─── */
 
+/* Workflow order, not alphabetical, so "sort by priority/status" reads naturally. */
+const PRIORITY_RANK: Record<SupportTicket["priority"], number> = { low: 0, normal: 1, high: 2, urgent: 3 };
+const STATUS_RANK: Record<SupportTicket["status"], number> = { open: 0, in_progress: 1, resolved: 2, closed: 3 };
+
 const TICKET_COLUMNS: DataTableColumn<SupportTicket>[] = [
   {
     key: "ticket",
     header: "Ticket",
     width: "40%",
+    sortValue: (t) => t.ticketNo,
     render: (t) => (
       <div className="min-w-0">
         <p className="text-xs font-mono text-text-secondary">{t.ticketNo}</p>
@@ -285,10 +293,10 @@ const TICKET_COLUMNS: DataTableColumn<SupportTicket>[] = [
       </div>
     ),
   },
-  { key: "category", header: "Category", width: "16%", render: (t) => <span className="text-sm text-text-secondary">{CATEGORY_LABEL[t.category]}</span> },
-  { key: "priority", header: "Priority", width: "14%", render: (t) => <TicketPriorityBadge priority={t.priority} /> },
-  { key: "status", header: "Status", width: "12%", render: (t) => <TicketStatusBadge status={t.status} /> },
-  { key: "updated", header: "Last update", width: "14%", render: (t) => <span className="text-sm text-text-secondary whitespace-nowrap">{formatWhen(t.lastMessageAt)}</span> },
+  { key: "category", header: "Category", width: "16%", sortValue: (t) => CATEGORY_LABEL[t.category], render: (t) => <span className="text-sm text-text-secondary">{CATEGORY_LABEL[t.category]}</span> },
+  { key: "priority", header: "Priority", width: "14%", sortValue: (t) => PRIORITY_RANK[t.priority], firstSortDirection: "desc", render: (t) => <TicketPriorityBadge priority={t.priority} /> },
+  { key: "status", header: "Status", width: "12%", sortValue: (t) => STATUS_RANK[t.status], render: (t) => <TicketStatusBadge status={t.status} /> },
+  { key: "updated", header: "Last update", width: "14%", sortValue: (t) => new Date(t.lastMessageAt), firstSortDirection: "desc", render: (t) => <span className="text-sm text-text-secondary whitespace-nowrap">{formatWhen(t.lastMessageAt)}</span> },
   {
     key: "chevron",
     header: "",
@@ -298,34 +306,54 @@ const TICKET_COLUMNS: DataTableColumn<SupportTicket>[] = [
   },
 ];
 
-function TicketTable({ tickets, onNew }: { tickets: SupportTicket[]; onNew: () => void }) {
+type TicketFilter = "active" | "done" | "all";
+
+const FILTER_MATCH: Record<TicketFilter, (t: SupportTicket) => boolean> = {
+  active: (t) => t.status === "open" || t.status === "in_progress",
+  done: (t) => t.status === "resolved" || t.status === "closed",
+  all: () => true,
+};
+
+function TicketTable({ tickets, filter, query }: { tickets: SupportTicket[]; filter: TicketFilter; query: string }) {
   const router = useRouter();
+  const q = query.trim().toLowerCase();
+  const shown = tickets.filter(
+    (t) => FILTER_MATCH[filter](t) && (!q || t.subject.toLowerCase().includes(q) || t.ticketNo.toLowerCase().includes(q)),
+  );
+  const unread = tickets.filter((t) => t.unreadForRequester).length;
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <p className="text-sm text-text-secondary">
-          {tickets.length} ticket{tickets.length === 1 ? "" : "s"}
-          {tickets.some((t) => t.unreadForRequester) && " · new replies are shown in bold"}
+    <DataTable
+      fill
+      columns={TICKET_COLUMNS}
+      data={shown}
+      getRowId={(t) => t._id}
+      onRowClick={(t) => router.push(`/support/${t._id}`)}
+      defaultSort={{ key: "updated", direction: "desc" }}
+      footer={
+        <p className="text-footnote text-text-secondary tabular-nums">
+          {shown.length} of {tickets.length} ticket{tickets.length === 1 ? "" : "s"}
+          {unread > 0 && ` · ${unread} with new replies`}
         </p>
-        <button type="button" onClick={onNew} className="h-11 inline-flex items-center gap-2 px-4 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors cursor-pointer">
-          <Plus size={16} aria-hidden /> Raise a ticket
-        </button>
-      </div>
-      <DataTable
-        fill
-        columns={TICKET_COLUMNS}
-        data={tickets}
-        getRowId={(t) => t._id}
-        onRowClick={(t) => router.push(`/support/${t._id}`)}
-        emptyState={
-          <div className="py-6 space-y-2">
-            <Inbox className="mx-auto text-text-disabled" size={28} aria-hidden />
-            <p className="text-sm font-medium text-text-primary">You haven&apos;t raised any tickets</p>
-            <p className="text-sm text-text-secondary">If something isn&apos;t working or you have a question, we&apos;re here to help.</p>
-          </div>
-        }
-      />
-    </div>
+      }
+      emptyState={
+        <div className="py-6 space-y-2">
+          <Inbox className="mx-auto text-text-disabled" size={28} aria-hidden />
+          {tickets.length === 0 ? (
+            <>
+              <p className="text-sm font-medium text-text-primary">You haven&apos;t raised any tickets</p>
+              <p className="text-sm text-text-secondary">If something isn&apos;t working or you have a question, we&apos;re here to help.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-text-primary">
+                {q ? `No tickets match “${query.trim()}”` : filter === "active" ? "No open tickets" : "No resolved tickets yet"}
+              </p>
+              <p className="text-sm text-text-secondary">{q ? "Try a ticket number or a word from the subject." : "Switch to All to see every ticket."}</p>
+            </>
+          )}
+        </div>
+      }
+    />
   );
 }
 
@@ -338,6 +366,8 @@ export default function SupportPage() {
   const [tickets, setTickets] = useState<SupportTicket[] | null>(null);
   const [error, setError] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [filter, setFilter] = useState<TicketFilter>("all");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     // ?tab=tickets (e.g. "Back to my tickets") is read here rather than via
@@ -359,17 +389,12 @@ export default function SupportPage() {
 
   const unread = tickets?.filter((t) => t.unreadForRequester).length ?? 0;
 
-  const segment = (v: View, label: React.ReactNode) => (
-    <button
-      role="tab"
-      aria-selected={view === v}
-      onClick={() => setView(v)}
-      className={`h-9 px-4 rounded-lg text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-        view === v ? "bg-bg-card text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
-      }`}
-    >
+  const count = (f: TicketFilter) => tickets?.filter(FILTER_MATCH[f]).length ?? 0;
+  const withCount = (label: string, n: number) => (
+    <span className="inline-flex items-center gap-1.5">
       {label}
-    </button>
+      <span className="tabular-nums text-text-secondary">{n}</span>
+    </span>
   );
 
   return (
@@ -377,22 +402,66 @@ export default function SupportPage() {
     <Page fill={view === "tickets"}>
       <PageHeader
         title="Help & Support"
-        subtitle="Find answers, or ask the BetterYou team directly."
-        actions={
-          <div role="tablist" aria-label="Help sections" className="inline-flex p-1 rounded-xl bg-bg-light border border-border">
-            {segment("help", "Help center")}
-            {segment(
-              "tickets",
+        toolbar={
+          <>
+            <Segmented<View>
+              label="Help sections"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "help", label: "Help center" },
+                {
+                  value: "tickets",
+                  label: (
+                    <span className="inline-flex items-center gap-1.5">
+                      My tickets
+                      {unread > 0 && (
+                        <span
+                          className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-white text-[11px] font-semibold"
+                          aria-label={`${unread} with new replies`}
+                        >
+                          {unread}
+                        </span>
+                      )}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+            {view === "tickets" && tickets && tickets.length > 0 && (
               <>
-                My tickets
-                {unread > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-white text-[11px] font-semibold" aria-label={`${unread} with new replies`}>
-                    {unread}
-                  </span>
-                )}
-              </>,
+                <span className="hidden sm:block h-6 w-px bg-border" aria-hidden />
+                <div className="relative w-full sm:w-64 sm:order-first">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-light pointer-events-none" aria-hidden />
+                  <input
+                    type="search"
+                    aria-label="Search tickets"
+                    placeholder="Search tickets…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className={`${inputClass} pl-9`}
+                  />
+                </div>
+                <Segmented<TicketFilter>
+                  label="Filter tickets"
+                  value={filter}
+                  onChange={setFilter}
+                  options={[
+                    { value: "active", label: withCount("Open", count("active")) },
+                    { value: "done", label: withCount("Resolved", count("done")) },
+                    { value: "all", label: withCount("All", tickets.length) },
+                  ]}
+                />
+              </>
             )}
-          </div>
+          </>
+        }
+        actions={
+          view === "tickets" && (
+            <Button onClick={() => setNewOpen(true)}>
+              <Plus aria-hidden /> Raise a ticket
+            </Button>
+          )
         }
       />
 
@@ -407,7 +476,7 @@ export default function SupportPage() {
         <LoadingState size="lg" />
       ) : view === "tickets" ? (
         <div role="tabpanel" aria-label="My tickets" className="flex-1 min-h-0 flex flex-col">
-          <TicketTable tickets={tickets} onNew={() => setNewOpen(true)} />
+          <TicketTable tickets={tickets} filter={filter} query={query} />
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] items-start">

@@ -45,9 +45,9 @@ function statusConfig(status: string) {
 function StatusIcon({ status }: { status: string }) {
   const s = status.toLowerCase();
   if (s === "confirmed" || s === "completed")
-    return <CheckCircle size={14} className="text-success" />;
+    return <CheckCircle size={14} className="text-success-strong" />;
   if (s === "cancelled" || s === "no_show")
-    return <XCircle size={14} className="text-danger" />;
+    return <XCircle size={14} className="text-danger-strong" />;
   if (s === "checked_in")
     return <LogIn size={14} className="text-teal" />;
   return <Clock size={14} className="text-primary" />;
@@ -202,7 +202,7 @@ export default function AppointmentsPage() {
                     <p className="font-medium text-sm">{appt.title}</p>
                     <p className="text-xs text-text-secondary">
                       {startDate.toLocaleTimeString([], {
-                        hour: "2-digit",
+                        hour: "numeric", hour12: true,
                         minute: "2-digit",
                       })}
                     </p>

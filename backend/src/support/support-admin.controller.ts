@@ -16,7 +16,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SupportService } from './support.service';
 import { attachmentsInterceptor } from './support.controller';
-import { AdminUpdateTicketDto, ListTicketsQuery, ReplyDto } from './dto/ticket.dto';
+import {
+  AdminUpdateTicketDto,
+  ListTicketsQuery,
+  ReplyDto,
+} from './dto/ticket.dto';
 import { CreateFaqDto, UpdateFaqDto } from './dto/faq.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../common/role.enum';
@@ -31,7 +35,8 @@ export class SupportAdminController {
   constructor(
     private readonly support: SupportService,
     private readonly audit: AuditService,
-    @InjectModel(PlatformAdmin.name) private readonly adminModel: Model<PlatformAdmin>,
+    @InjectModel(PlatformAdmin.name)
+    private readonly adminModel: Model<PlatformAdmin>,
   ) {}
 
   @Get('tickets')
@@ -52,8 +57,17 @@ export class SupportAdminController {
     @UploadedFiles() files: Express.Multer.File[] | undefined,
     @Req() req: AuthedRequest,
   ) {
-    const admin = await this.adminModel.findById(req.user.userId).select('name').lean();
-    return this.support.replyAny(id, dto, files ?? [], req.user, admin?.name ?? 'BetterYou Support');
+    const admin = await this.adminModel
+      .findById(req.user.userId)
+      .select('name')
+      .lean();
+    return this.support.replyAny(
+      id,
+      dto,
+      files ?? [],
+      req.user,
+      admin?.name ?? 'BetterYou Support',
+    );
   }
 
   @Patch('tickets/:id')
@@ -72,8 +86,12 @@ export class SupportAdminController {
       entityId: id,
       metadata: {
         ticketNo: before.ticketNo,
-        ...(dto.status ? { status: { from: before.status, to: dto.status } } : {}),
-        ...(dto.priority ? { priority: { from: before.priority, to: dto.priority } } : {}),
+        ...(dto.status
+          ? { status: { from: before.status, to: dto.status } }
+          : {}),
+        ...(dto.priority
+          ? { priority: { from: before.priority, to: dto.priority } }
+          : {}),
       },
       ipAddress: req.ip ?? undefined,
     });
@@ -86,27 +104,46 @@ export class SupportAdminController {
   }
 
   @Post('faqs')
-  async createFaq(@Body() dto: CreateFaqDto, @Req() req: AuthedRequest & Request) {
+  async createFaq(
+    @Body() dto: CreateFaqDto,
+    @Req() req: AuthedRequest & Request,
+  ) {
     const faq = await this.support.createFaq(dto);
-    await this.auditFaq(req, 'support.faq.create', String(faq._id), { question: faq.question });
+    await this.auditFaq(req, 'support.faq.create', String(faq._id), {
+      question: faq.question,
+    });
     return faq;
   }
 
   @Patch('faqs/:id')
-  async updateFaq(@Param('id') id: string, @Body() dto: UpdateFaqDto, @Req() req: AuthedRequest & Request) {
+  async updateFaq(
+    @Param('id') id: string,
+    @Body() dto: UpdateFaqDto,
+    @Req() req: AuthedRequest & Request,
+  ) {
     const faq = await this.support.updateFaq(id, dto);
-    await this.auditFaq(req, 'support.faq.update', id, { fields: Object.keys(dto) });
+    await this.auditFaq(req, 'support.faq.update', id, {
+      fields: Object.keys(dto),
+    });
     return faq;
   }
 
   @Delete('faqs/:id')
-  async deleteFaq(@Param('id') id: string, @Req() req: AuthedRequest & Request) {
+  async deleteFaq(
+    @Param('id') id: string,
+    @Req() req: AuthedRequest & Request,
+  ) {
     const res = await this.support.deleteFaq(id);
     await this.auditFaq(req, 'support.faq.delete', id);
     return res;
   }
 
-  private auditFaq(req: AuthedRequest & Request, action: string, id: string, metadata?: Record<string, unknown>) {
+  private auditFaq(
+    req: AuthedRequest & Request,
+    action: string,
+    id: string,
+    metadata?: Record<string, unknown>,
+  ) {
     return this.audit.record({
       practiceId: null,
       actorId: req.user.userId,

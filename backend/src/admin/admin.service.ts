@@ -37,6 +37,9 @@ import { PlanKey } from '../subscriptions/schemas/plan.schema';
  * low-risk. If a future ticket asks for clinical data here, it needs its own
  * design and audit trail, not an extra field on one of these queries.
  */
+
+/** One row of a `$group` by practice. */
+type PracticeCount = { _id: unknown; n: number };
 @Injectable()
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
@@ -45,11 +48,11 @@ export class AdminService {
     @InjectModel(Practice.name)
     private readonly practiceModel: Model<PracticeDocument>,
     @InjectModel(Patient.name)
-    private readonly patientModel: Model<any>,
+    private readonly patientModel: Model<Patient>,
     @InjectModel(Practitioner.name)
-    private readonly practitionerModel: Model<any>,
+    private readonly practitionerModel: Model<Practitioner>,
     @InjectModel(Appointment.name)
-    private readonly appointmentModel: Model<any>,
+    private readonly appointmentModel: Model<Appointment>,
     private readonly practices: PracticesService,
     private readonly audit: AuditService,
     private readonly subscriptions: SubscriptionsService,
@@ -69,9 +72,18 @@ export class AdminService {
       appointmentsTotal,
     ] = await Promise.all([
       this.practiceModel.countDocuments({ deletedAt: null }),
-      this.practiceModel.countDocuments({ deletedAt: null, status: PracticeStatus.ACTIVE }),
-      this.practiceModel.countDocuments({ deletedAt: null, status: PracticeStatus.TRIAL }),
-      this.practiceModel.countDocuments({ deletedAt: null, status: PracticeStatus.SUSPENDED }),
+      this.practiceModel.countDocuments({
+        deletedAt: null,
+        status: PracticeStatus.ACTIVE,
+      }),
+      this.practiceModel.countDocuments({
+        deletedAt: null,
+        status: PracticeStatus.TRIAL,
+      }),
+      this.practiceModel.countDocuments({
+        deletedAt: null,
+        status: PracticeStatus.SUSPENDED,
+      }),
       this.practitionerModel.countDocuments({}),
       this.patientModel.countDocuments({}),
       this.appointmentModel.countDocuments({}),
@@ -128,18 +140,18 @@ export class AdminService {
   /** Per-practice counts in one pass, rather than a query per row. */
   private async countsByPractice() {
     const [practitioners, patients, appointments] = await Promise.all([
-      this.practitionerModel.aggregate([
+      this.practitionerModel.aggregate<PracticeCount>([
         { $group: { _id: '$practiceId', n: { $sum: 1 } } },
       ]),
-      this.patientModel.aggregate([
+      this.patientModel.aggregate<PracticeCount>([
         { $group: { _id: '$practiceId', n: { $sum: 1 } } },
       ]),
-      this.appointmentModel.aggregate([
+      this.appointmentModel.aggregate<PracticeCount>([
         { $group: { _id: '$practiceId', n: { $sum: 1 } } },
       ]),
     ]);
 
-    const toMap = (rows: { _id: unknown; n: number }[]) =>
+    const toMap = (rows: PracticeCount[]) =>
       new Map(rows.map((r) => [String(r._id), r.n]));
 
     return {
@@ -173,7 +185,10 @@ export class AdminService {
 
   async listPractices() {
     const [practices, counts, subs] = await Promise.all([
-      this.practiceModel.find({ deletedAt: null }).sort({ createdAt: -1 }).exec(),
+      this.practiceModel
+        .find({ deletedAt: null })
+        .sort({ createdAt: -1 })
+        .exec(),
       this.countsByPractice(),
       this.subscriptions.listAll(),
     ]);
@@ -198,11 +213,15 @@ export class AdminService {
     const [plans, subs, practices, mrr] = await Promise.all([
       this.subscriptions.listPlans(),
       this.subscriptions.listAll(),
-      this.practiceModel.find({ deletedAt: null }).select('_id name subdomain').lean().exec(),
+      this.practiceModel
+        .find({ deletedAt: null })
+        .select('_id name subdomain')
+        .lean()
+        .exec(),
       this.subscriptions.mrr(),
     ]);
 
-    const byId = new Map(practices.map((p: any) => [String(p._id), p]));
+    const byId = new Map(practices.map((p) => [String(p._id), p]));
 
     return {
       mrr,
@@ -253,6 +272,12 @@ export class AdminService {
     actor: AuthUser,
     ip?: string,
   ) {
+    // Accepting creates an account in this practice, so it must be real.
+    const practice = Types.ObjectId.isValid(practiceId)
+      ? await this.practiceModel.exists({ _id: practiceId, deletedAt: null })
+      : null;
+    if (!practice) throw new NotFoundException('Practice not found');
+
     const { rawToken, expiresAt, invitation } = await this.invitations.invite({
       practiceId,
       email: body.email,
@@ -278,6 +303,37 @@ export class AdminService {
 
   listInvitations(practiceId: string) {
     return this.invitations.listForPractice(practiceId);
+  }
+
+  /** Revoke a pending invitation so its link can no longer be accepted. */
+  async revokeInvitation(
+    practiceId: string,
+    inviteId: string,
+    actor: AuthUser,
+    ip?: string,
+  ) {
+    if (
+      !Types.ObjectId.isValid(practiceId) ||
+      !Types.ObjectId.isValid(inviteId)
+    ) {
+      throw new NotFoundException('Invitation not found');
+    }
+    const invitation = await this.invitations.revoke(inviteId, practiceId);
+    if (!invitation) {
+      throw new NotFoundException('No pending invitation found');
+    }
+
+    await this.audit.record({
+      practiceId,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      action: 'practitioner.invite_revoked',
+      entityType: 'Invitation',
+      entityId: inviteId,
+      ipAddress: ip,
+    });
+
+    return invitation;
   }
 
   async getPractice(id: string) {
@@ -309,7 +365,7 @@ export class AdminService {
       monthlyPrice: sub?.monthlyPrice ?? 0,
       renewsAt: sub?.renewsAt ?? null,
       trialEndsAt: sub?.trialEndsAt ?? null,
-      team: team.map((t: any) => ({
+      team: team.map((t) => ({
         id: String(t._id),
         name: [t.firstName, t.lastName].filter(Boolean).join(' '),
         email: t.email,
@@ -463,30 +519,65 @@ export class AdminService {
 
   /* ========================= practitioners ========================= */
 
+  /**
+   * Disable or re-enable a practice member's account. A disabled account
+   * can't sign in, and JwtStrategy / WsAuthService reject its existing
+   * tokens on the next request or socket connect. Nothing is deleted.
+   */
+  async setPractitionerStatus(
+    id: string,
+    status: 'ACTIVE' | 'DISABLED',
+    actor: AuthUser,
+    ip?: string,
+  ) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Practitioner not found');
+    }
+    const user = await this.practitionerModel
+      .findByIdAndUpdate(id, { isActive: status === 'ACTIVE' }, { new: true })
+      .select('_id practiceId isActive')
+      .lean()
+      .exec();
+    if (!user) throw new NotFoundException('Practitioner not found');
+
+    await this.audit.record({
+      practiceId: user.practiceId ? String(user.practiceId) : undefined,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      action:
+        status === 'ACTIVE' ? 'practitioner.enabled' : 'practitioner.disabled',
+      entityType: 'Practitioner',
+      entityId: id,
+      ipAddress: ip,
+    });
+
+    return { id, status };
+  }
+
   async listPractitioners() {
     const [rows, practices] = await Promise.all([
       this.practitionerModel
         .find({})
-        .select('_id firstName lastName email role isActive practiceId createdAt')
+        .select(
+          '_id firstName lastName email role isActive practiceId createdAt',
+        )
         .sort({ createdAt: -1 })
         .lean()
         .exec(),
       this.practiceModel.find({}).select('_id name subdomain').lean().exec(),
     ]);
 
-    const byId = new Map(
-      practices.map((p: any) => [String(p._id), p]),
-    );
+    const byId = new Map(practices.map((p) => [String(p._id), p]));
 
     const patientCounts = new Map(
       (
-        await this.patientModel.aggregate([
+        await this.patientModel.aggregate<PracticeCount>([
           { $group: { _id: '$practiceId', n: { $sum: 1 } } },
         ])
-      ).map((r: any) => [String(r._id), r.n]),
+      ).map((r) => [String(r._id), r.n]),
     );
 
-    return rows.map((u: any) => {
+    return rows.map((u) => {
       const practice = byId.get(String(u.practiceId));
       return {
         id: String(u._id),

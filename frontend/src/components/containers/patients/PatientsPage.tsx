@@ -12,6 +12,8 @@ import {
   Users,
 } from "lucide-react";
 import { Page, PageHeader } from "@/components/common/PageLayout";
+import { Button } from "@/components/ui/button";
+import { inputClass } from "@/components/common/Field";
 import { SkeletonRow } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DataTable, type DataTableColumn } from "@/components/common/DataTable";
@@ -41,6 +43,7 @@ const patientColumns: DataTableColumn<PatientView>[] = [
     key: "patient",
     header: "Patient",
     width: "28%",
+    sortValue: (p) => p.displayName,
     render: (p) => (
       <div className="flex items-center gap-3 min-w-0">
         <Avatar patient={p} />
@@ -56,7 +59,9 @@ const patientColumns: DataTableColumn<PatientView>[] = [
   {
     key: "age",
     header: "Age",
-    width: "10%",
+    width: "9%",
+    // Age ascending = date of birth descending.
+    sortValue: (p) => (p.dateOfBirth ? -new Date(p.dateOfBirth).getTime() : null),
     className: "text-sm text-text-secondary whitespace-nowrap",
     render: (p) => calculateAge(p.dateOfBirth),
   },
@@ -64,6 +69,7 @@ const patientColumns: DataTableColumn<PatientView>[] = [
     key: "gender",
     header: "Gender",
     width: "10%",
+    sortValue: (p) => p.gender,
     render: (p) =>
       p.gender ? (
         <GenderBadge gender={p.gender} />
@@ -80,23 +86,27 @@ const patientColumns: DataTableColumn<PatientView>[] = [
   },
   {
     key: "healthCondition",
-    header: "Health Condition",
-    width: "17%",
+    header: "Health condition",
+    width: "16%",
+    sortValue: (p) => p.healthCondition,
     className: "text-sm text-text-secondary truncate max-w-[220px]",
     render: (p) =>
       p.healthCondition || <span className="text-text-disabled">—</span>,
   },
   {
     key: "lastVisit",
-    header: "Last Visit",
+    header: "Last visit",
     width: "12%",
+    sortValue: (p) => (p.lastVisit ? new Date(p.lastVisit) : null),
+    firstSortDirection: "desc",
     className: "text-sm text-text-secondary whitespace-nowrap",
     render: (p) => formatDate(p.lastVisit),
   },
   {
     key: "status",
     header: "Status",
-    width: "8%",
+    width: "10%",
+    sortValue: (p) => (p.isActive === false ? 1 : 0),
     render: (p) => <StatusBadge active={p.isActive} />,
   },
   {
@@ -186,60 +196,51 @@ export default function PatientsPage() {
   return (
     <Page fill>
       {/* ── Header ── */}
+      {/* Finding (search, filter) on the left; the primary action on the right. */}
       <PageHeader
         title="Patients"
-        subtitle={`${filtered.length} of ${patients.length} patient${patients.length !== 1 ? "s" : ""}`}
-        actions={
-          <div className="flex gap-2">
-            {/* Search */}
-            <div className="relative flex-1 sm:flex-none">
-              <Search
-                size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-text-disabled pointer-events-none"
-              />
+        toolbar={
+          <>
+            <div className="relative w-full sm:w-72">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-light pointer-events-none" aria-hidden />
               <input
-                type="text"
+                type="search"
+                aria-label="Search patients"
                 placeholder="Search patients…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 text-sm bg-bg-card border border-border rounded-xl w-full sm:w-56 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-text-primary placeholder:text-text-disabled transition"
+                className={`${inputClass} pl-9 pr-9`}
               />
               {search && (
                 <button
+                  type="button"
                   onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-primary transition"
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded text-text-light hover:text-text-primary transition-colors"
                 >
-                  <X size={13} />
+                  <X size={13} aria-hidden />
                 </button>
               )}
             </div>
-  
-            {/* Filter toggle */}
-            <button
+            <Button
+              variant="secondary"
               onClick={() => setShowFilters((v) => !v)}
-              className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-sm transition ${
-                showFilters || filterStatus !== "all"
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border text-text-secondary hover:bg-bg-hover"
-              }`}
+              aria-expanded={showFilters}
+              className={showFilters || filterStatus !== "all" ? "border-primary/40 bg-primary/10 text-primary-strong hover:bg-primary/15" : ""}
             >
-              <SlidersHorizontal size={14} />
+              <SlidersHorizontal aria-hidden />
               <span className="hidden sm:inline">Filter</span>
-              {filterStatus !== "all" && (
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-              )}
-            </button>
-  
-            {/* Add patient */}
-            <Link
-              href="/patients/new"
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition shadow-sm shrink-0"
-            >
-              <Plus size={16} aria-hidden />
-              <span className="hidden sm:inline">Add Patient</span>
-              <span className="sm:hidden">Add</span>
+              {filterStatus !== "all" && <span className="size-1.5 rounded-full bg-primary" aria-label="Filter active" />}
+            </Button>
+          </>
+        }
+        actions={
+          <Button asChild>
+            <Link href="/patients/new">
+              <Plus aria-hidden />
+              Add patient
             </Link>
-          </div>
+          </Button>
         }
       />
 
@@ -334,14 +335,11 @@ export default function PatientsPage() {
             getRowId={(p) => p._id}
             onRowClick={(p) => router.push(`/patients/${p._id}`)}
             footer={
-              <>
-                <p className="text-xs text-text-disabled">
-                  Showing {filtered.length} of {patients.length} patients
-                </p>
-                <p className="text-xs text-text-disabled">
-                  Click a row to view profile
-                </p>
-              </>
+              <p className="text-footnote text-text-secondary tabular-nums">
+                {filtered.length === patients.length
+                  ? `${patients.length} patients`
+                  : `${filtered.length} of ${patients.length} patients match`}
+              </p>
             }
           />
         </>

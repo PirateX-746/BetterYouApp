@@ -1,9 +1,21 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { SessionAssessment, SessionAssessmentSchema } from './schemas/session-assessment.schema';
-import { AssessmentTemplate, AssessmentTemplateSchema } from './schemas/assessment-template.schema';
-import { Appointment, AppointmentSchema } from '../appointments/schemas/appointment.schema';
-import { MedicalDocument, DocumentSchema } from '../documents/schemas/document.schema';
+import {
+  SessionAssessment,
+  SessionAssessmentSchema,
+} from './schemas/session-assessment.schema';
+import {
+  AssessmentTemplate,
+  AssessmentTemplateSchema,
+} from './schemas/assessment-template.schema';
+import {
+  Appointment,
+  AppointmentSchema,
+} from '../appointments/schemas/appointment.schema';
+import {
+  MedicalDocument,
+  DocumentSchema,
+} from '../documents/schemas/document.schema';
 import { Patient, PatientSchema } from '../patients/schemas/patient.schema';
 import { AuditModule } from '../audit/audit.module';
 import { SessionAssessmentsService } from './session-assessments.service';

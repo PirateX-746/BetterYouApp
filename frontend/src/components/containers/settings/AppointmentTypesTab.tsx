@@ -208,7 +208,7 @@ function TypeEditor({
             autoFocus
           />
           {nameError && (
-            <p id={`${ids.name}-err`} role="alert" className="text-xs text-danger">
+            <p id={`${ids.name}-err`} role="alert" className="text-xs text-danger-strong">
               {nameError}
             </p>
           )}
@@ -255,7 +255,7 @@ function TypeEditor({
             </div>
           </div>
           {durationError && (
-            <p id={`${ids.duration}-err`} role="alert" className="text-xs text-danger">
+            <p id={`${ids.duration}-err`} role="alert" className="text-xs text-danger-strong">
               {durationError}
             </p>
           )}
@@ -455,7 +455,7 @@ export default function AppointmentTypesTab() {
               <button
                 type="button"
                 onClick={() => setDeleting(type)}
-                className={`${iconBtnCls} hover:!text-danger`}
+                className={`${iconBtnCls} hover:!text-danger-strong`}
                 aria-label={`Delete ${type.name}`}
               >
                 <Trash2 size={16} aria-hidden />

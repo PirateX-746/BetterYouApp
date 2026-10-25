@@ -25,10 +25,7 @@ export enum Role {
  * admin is a clinician too, and hard-coding the single role would lock them
  * out of their own practice's records the moment the first one is created.
  */
-export const CLINICAL_ROLES = [
-  Role.PRACTICE_ADMIN,
-  Role.PRACTITIONER,
-] as const;
+export const CLINICAL_ROLES = [Role.PRACTICE_ADMIN, Role.PRACTITIONER] as const;
 
 /** Everyone who works at a practice, clinical or not. */
 export const PRACTICE_MEMBER_ROLES = [
@@ -36,8 +33,3 @@ export const PRACTICE_MEMBER_ROLES = [
   Role.PRACTITIONER,
   Role.STAFF,
 ] as const;
-
-/** Roles stored in the `practitioners` collection. */
-export function isPractitionerCollectionRole(role: Role): boolean {
-  return (PRACTICE_MEMBER_ROLES as readonly Role[]).includes(role);
-}

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
 /**
  * A theme color backed by a CSS variable that still supports Tailwind's
@@ -52,6 +53,16 @@ const config: Config = {
           foreground: v("--primary-foreground"),
           light: v("--primary-light"),
           hover: v("--primary-hover"),
+          /* Accent darkened for text on tinted fills (badges, selected tabs) — AA contrast. */
+          strong: v("--primary-strong"),
+          pressed: v("--primary-pressed"),
+          /* Faintest tint — quiet featured areas, selected rows. */
+          subtle: v("--primary-subtle"),
+        },
+        info: {
+          DEFAULT: v("--info"),
+          light: v("--info-light"),
+          strong: v("--info-strong"),
         },
 
         /* Status */
@@ -65,10 +76,19 @@ const config: Config = {
         "purple-light": v("--purple-light"),
         teal: v("--teal"),
         "teal-light": v("--teal-light"),
+        /* Text-safe status shades: use for status text/icons on a -light fill
+           or on a card. The base status colors are for fills, dots and bars. */
+        "success-strong": v("--success-strong"),
+        "warning-strong": v("--warning-strong"),
+        "danger-strong": v("--danger-strong"),
+        "purple-strong": v("--purple-strong"),
+        "teal-strong": v("--teal-strong"),
 
         /* Backgrounds */
         bg: {
           page: v("--bg-page"),
+          /* Recessed surface inside a card: input wells, grouped rows, code. */
+          subtle: v("--bg-subtle"),
           card: v("--bg-card"),
           light: v("--bg-light"),
           hover: v("--bg-hover"),
@@ -89,27 +109,54 @@ const config: Config = {
         },
       },
 
-      boxShadow: {
-        sm: v("--shadow-sm"),
-        md: v("--shadow-md"),
-        lg: v("--shadow-lg"),
+      /* Shadows are whole box-shadow values, so they're plain var()s — the
+         v() color-mix wrapper made every shadow-* class invalid CSS. */
+      /* Featured surfaces only (see DESIGN_SYSTEM.md → Color → Gradients). */
+      backgroundImage: {
+        brand: "var(--gradient-brand)",
+        "brand-soft": "var(--gradient-brand-soft)",
       },
 
-      /* One corner radius for every component (6px, --radius-md): cards,
-         buttons, inputs, dialogs. lg/xl/2xl/3xl all map to it so existing
-         classes follow the design without touching each file. Pills and
-         avatars keep rounded-full. Not wrapped in v(): that's for colors. */
+      boxShadow: {
+        brand: "var(--shadow-brand)",
+        xs: "var(--shadow-xs)",
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+      },
+
+      /* Two radii (see DESIGN_SYSTEM.md): controls — buttons, inputs, menu
+         items — are 8px (rounded-md/lg/xl); surfaces — cards, dialogs,
+         popovers — are 12px (rounded-2xl/3xl). Existing classes map onto
+         them so every file follows without edits. Pills/avatars: rounded-full. */
       borderRadius: {
         sm: "var(--radius-sm)",
         md: "var(--radius-md)",
         lg: "var(--radius-md)",
         xl: "var(--radius-md)",
-        "2xl": "var(--radius-md)",
-        "3xl": "var(--radius-md)",
+        "2xl": "var(--radius-lg)",
+        "3xl": "var(--radius-lg)",
+      },
+
+      /* Type scale (Apple-style: tracking tightens as size grows, leading
+         loosens as size shrinks). Pair with a weight class. */
+      fontSize: {
+        "title-1": ["1.5rem", { lineHeight: "1.2", letterSpacing: "-0.022em" }],
+        "title-2": ["1.25rem", { lineHeight: "1.3", letterSpacing: "-0.016em" }],
+        "title-3": ["1.0625rem", { lineHeight: "1.35", letterSpacing: "-0.01em" }],
+        body: ["0.875rem", { lineHeight: "1.5", letterSpacing: "-0.003em" }],
+        footnote: ["0.8125rem", { lineHeight: "1.45", letterSpacing: "0" }],
+        caption: ["0.75rem", { lineHeight: "1.4", letterSpacing: "0.003em" }],
+        eyebrow: ["0.6875rem", { lineHeight: "1.3", letterSpacing: "0.06em" }],
+      },
+
+      transitionTimingFunction: {
+        /* Apple's standard ease-out: fast start, long gentle settle. */
+        apple: "cubic-bezier(0.32, 0.72, 0, 1)",
       },
     },
   },
-  plugins: [],
+  plugins: [animate],
 };
 
 export default config;

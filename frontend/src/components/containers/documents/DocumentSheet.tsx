@@ -75,7 +75,7 @@ export const DOC_CSS = `
 const fmtDate = (v?: string) =>
   v ? new Date(v).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const fmtDateTime = (v?: string) =>
-  v ? new Date(v).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
+  v ? new Date(v).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", hour12: true, minute: "2-digit" }) : "—";
 const ageOf = (dob?: string) => {
   if (!dob) return null;
   const d = new Date(dob);

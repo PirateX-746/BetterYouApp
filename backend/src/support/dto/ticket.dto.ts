@@ -1,5 +1,12 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import {
   TicketCategory,
   TicketPriority,
@@ -29,7 +36,9 @@ export class CreateTicketDto {
   @Transform(trim)
   @IsString()
   @IsNotEmpty({ message: 'Describe the problem or question' })
-  @MaxLength(BODY_MAX, { message: `Message must be ${BODY_MAX} characters or fewer` })
+  @MaxLength(BODY_MAX, {
+    message: `Message must be ${BODY_MAX} characters or fewer`,
+  })
   body: string;
 }
 
@@ -37,7 +46,9 @@ export class ReplyDto {
   @Transform(trim)
   @IsString()
   @IsNotEmpty({ message: 'Reply cannot be empty' })
-  @MaxLength(BODY_MAX, { message: `Reply must be ${BODY_MAX} characters or fewer` })
+  @MaxLength(BODY_MAX, {
+    message: `Reply must be ${BODY_MAX} characters or fewer`,
+  })
   body: string;
 }
 

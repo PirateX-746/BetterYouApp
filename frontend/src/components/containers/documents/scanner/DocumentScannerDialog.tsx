@@ -441,7 +441,7 @@ export default function DocumentScannerDialog({ patientId, onClose, onSaved }: P
 
                 {notice && (
                     <div role="status" className="mx-5 mt-4 flex items-start gap-2 px-3 py-2.5 rounded-xl bg-warning-light text-sm text-text-primary">
-                        <AlertTriangle size={16} className="text-warning mt-0.5 shrink-0" />
+                        <AlertTriangle size={16} className="text-warning-strong mt-0.5 shrink-0" />
                         <span className="flex-1">{notice}</span>
                         <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss" className="text-text-secondary hover:text-text-primary">
                             <X size={14} />
@@ -525,7 +525,7 @@ export default function DocumentScannerDialog({ patientId, onClose, onSaved }: P
 
                             {currentPage.quality && (
                                 <div role="status" className="flex items-start gap-2 px-3 py-2 rounded-xl bg-warning-light text-sm">
-                                    <AlertTriangle size={16} className="text-warning mt-0.5 shrink-0" />
+                                    <AlertTriangle size={16} className="text-warning-strong mt-0.5 shrink-0" />
                                     {QUALITY_TEXT[currentPage.quality]}
                                 </div>
                             )}
@@ -587,7 +587,7 @@ export default function DocumentScannerDialog({ patientId, onClose, onSaved }: P
                     <footer className="px-5 py-4 border-t border-border shrink-0 space-y-3">
                         {uploadError && (
                             <div role="alert" className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-danger-light text-sm text-text-primary">
-                                <AlertTriangle size={16} className="text-danger mt-0.5 shrink-0" />
+                                <AlertTriangle size={16} className="text-danger-strong mt-0.5 shrink-0" />
                                 {uploadError}
                             </div>
                         )}
@@ -680,7 +680,7 @@ function ActionButton({ icon, label, onClick, disabled, danger }: { icon: React.
             type="button"
             onClick={onClick}
             disabled={disabled}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${danger ? "border-danger/30 text-danger hover:bg-danger-light" : "border-border text-text-primary hover:bg-bg-hover"}`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${danger ? "border-danger/30 text-danger-strong hover:bg-danger-light" : "border-border text-text-primary hover:bg-bg-hover"}`}
         >
             {icon}
             {label}

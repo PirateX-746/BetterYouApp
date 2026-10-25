@@ -111,7 +111,7 @@ export function AttachmentPicker({
       </div>
 
       {error && (
-        <p id={errorId} role="alert" className="text-xs text-danger">
+        <p id={errorId} role="alert" className="text-xs text-danger-strong">
           {error}
         </p>
       )}

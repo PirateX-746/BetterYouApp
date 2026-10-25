@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { platformLogin } from "@/lib/superadmin/api";
+import { setDisplayCookie } from "@/lib/session";
 
 /**
  * Platform console sign-in.
@@ -39,7 +40,7 @@ export default function AdminLoginPage() {
       } catch {
         /* storage unavailable — non-fatal */
       }
-      document.cookie = `name=${encodeURIComponent(res.name)}; path=/; SameSite=Lax`;
+      setDisplayCookie("name", res.name);
       router.refresh();
       router.replace("/admin/dashboard");
     } catch (err: unknown) {
@@ -79,7 +80,7 @@ export default function AdminLoginPage() {
 
         {error && (
           <div className="flex items-start gap-3 mb-6 px-4 py-3 rounded-xl border border-danger bg-danger-light">
-            <AlertCircle size={16} className="text-danger shrink-0 mt-0.5" />
+            <AlertCircle size={16} className="text-danger-strong shrink-0 mt-0.5" />
             <p className="text-xs text-text-secondary leading-relaxed">
               {error}
             </p>

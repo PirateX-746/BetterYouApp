@@ -18,12 +18,12 @@ import { ChevronRight, TrendingDown, TrendingUp, type LucideIcon } from "lucide-
 export type StatTone = "primary" | "teal" | "purple" | "success" | "warning" | "danger" | "neutral";
 
 const TONE: Record<StatTone, string> = {
-  primary: "bg-primary/10 text-primary",
-  teal: "bg-teal/10 text-teal",
-  purple: "bg-purple/10 text-purple",
-  success: "bg-success/10 text-success",
-  warning: "bg-warning/10 text-warning",
-  danger: "bg-danger/10 text-danger",
+  primary: "bg-primary/10 text-primary-strong",
+  teal: "bg-teal-light text-teal-strong",
+  purple: "bg-purple-light text-purple-strong",
+  success: "bg-success/10 text-success-strong",
+  warning: "bg-warning/10 text-warning-strong",
+  danger: "bg-danger/10 text-danger-strong",
   neutral: "bg-bg-light text-text-secondary",
 };
 
@@ -35,6 +35,7 @@ export function StatCard({
   sub,
   trend,
   href,
+  featured = false,
 }: {
   label: string;
   value: ReactNode;
@@ -43,21 +44,26 @@ export function StatCard({
   sub?: ReactNode;
   trend?: { value: string; up: boolean };
   href?: string;
+  /** Brand-gradient hero card — at most one per row, for the day's key number. */
+  featured?: boolean;
 }) {
   const body = (
     <>
       {Icon && (
-        <span className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ${TONE[tone]}`} aria-hidden>
+        <span
+          className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${featured ? "bg-white/15 text-white" : TONE[tone]}`}
+          aria-hidden
+        >
           <Icon size={20} />
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-text-secondary truncate">{label}</p>
-        <p className="mt-1 text-2xl font-semibold text-text-primary tabular-nums leading-tight">{value}</p>
+        <p className={`text-body truncate ${featured ? "text-white/85" : "text-text-secondary"}`}>{label}</p>
+        <p className={`mt-1 text-2xl font-semibold tabular-nums leading-tight tracking-tight ${featured ? "text-white" : "text-text-primary"}`}>{value}</p>
         {(sub || trend) && (
-          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-text-secondary">
+          <p className={`mt-1 flex flex-wrap items-center gap-1.5 text-caption ${featured ? "text-white/85" : "text-text-secondary"}`}>
             {trend && (
-              <span className={`inline-flex items-center gap-0.5 font-medium ${trend.up ? "text-success" : "text-danger"}`}>
+              <span className={`inline-flex items-center gap-0.5 font-medium ${trend.up ? "text-success-strong" : "text-danger-strong"}`}>
                 {trend.up ? <TrendingUp size={12} aria-hidden /> : <TrendingDown size={12} aria-hidden />}
                 {trend.value}
               </span>
@@ -68,11 +74,13 @@ export function StatCard({
       </div>
     </>
   );
-  const cls = "bg-bg-card border border-border rounded-2xl p-5 flex items-start gap-4";
+  const cls = featured
+    ? "bg-brand border border-transparent shadow-brand rounded-2xl p-5 flex items-start gap-4"
+    : "bg-bg-card border border-border/70 shadow-xs rounded-2xl p-5 flex items-start gap-4";
   return href ? (
     <Link
       href={href}
-      className={`${cls} hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40`}
+      className={`${cls} ${featured ? "hover:brightness-105" : "hover:border-primary/40"} transition-[border-color,filter] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40`}
     >
       {body}
     </Link>
@@ -86,7 +94,7 @@ export function CardLink({ href, children }: { href: string; children: ReactNode
   return (
     <Link
       href={href}
-      className="shrink-0 inline-flex items-center gap-1 h-9 px-2 -mr-2 rounded-md text-sm font-medium text-primary hover:bg-primary/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      className="shrink-0 inline-flex items-center gap-1 h-9 px-2 -mr-2 rounded-md text-sm font-medium text-primary-strong hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
     >
       {children} <ChevronRight size={14} aria-hidden />
     </Link>
@@ -110,11 +118,11 @@ export function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <section className={`bg-bg-card border border-border rounded-2xl overflow-hidden flex flex-col ${className}`}>
-      <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border">
+    <section className={`bg-bg-card border border-border/70 shadow-xs rounded-2xl overflow-hidden flex flex-col ${className}`}>
+      <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border-light">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-text-primary">{title}</h2>
-          {subtitle && <p className="text-xs text-text-secondary mt-0.5">{subtitle}</p>}
+          <h2 className="text-title-3 font-semibold text-text-primary">{title}</h2>
+          {subtitle && <p className="text-caption text-text-secondary mt-0.5">{subtitle}</p>}
         </div>
         {action}
       </header>

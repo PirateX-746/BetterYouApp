@@ -33,10 +33,16 @@ const OTHER_PRACTICE = new Types.ObjectId().toHexString();
 const PATIENT = new Types.ObjectId().toHexString();
 const USER = new Types.ObjectId().toHexString();
 
-const user: AuthUser = { userId: USER, role: Role.PRACTITIONER, practiceId: PRACTICE };
+const user: AuthUser = {
+  userId: USER,
+  role: Role.PRACTITIONER,
+  practiceId: PRACTICE,
+};
 
 const pdfBuffer = Buffer.from(
-  '%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n' + 'x'.repeat(100) + '\n%%EOF\n',
+  '%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n' +
+    'x'.repeat(100) +
+    '\n%%EOF\n',
   'latin1',
 );
 const file = { buffer: pdfBuffer, size: pdfBuffer.length };
@@ -58,16 +64,28 @@ const q = (value: unknown) => {
   return chain;
 };
 
+/** The fields of the record DocumentsService.upload creates that tests read. */
+interface CreatedDocument {
+  _id: Types.ObjectId;
+  type: DocumentType;
+  doctor: Types.ObjectId;
+  patient: Types.ObjectId;
+  practiceId: Types.ObjectId;
+  file: unknown;
+}
+
 function setup() {
   const documentModel = {
     findOne: jest.fn(),
-    create: jest.fn(),
+    create: jest.fn<Promise<unknown>, [CreatedDocument]>(),
     findOneAndDelete: jest.fn(),
   };
   const patientModel = { exists: jest.fn() };
   const storage = {
     driverName: 'gridfs',
-    put: jest.fn().mockResolvedValue(undefined),
+    put: jest
+      .fn<Promise<void>, [string, Buffer, string]>()
+      .mockResolvedValue(undefined),
     get: jest.fn(),
     deleteQuietly: jest.fn().mockResolvedValue(true),
   };
@@ -101,7 +119,11 @@ describe('DocumentsService.upload', () => {
     );
 
     const [key, body, mime] = storage.put.mock.calls[0];
-    expect(key).toMatch(new RegExp(`^documents/${PRACTICE}/patients/${PATIENT}/[a-f0-9]{24}/original\\.pdf$`));
+    expect(key).toMatch(
+      new RegExp(
+        `^documents/${PRACTICE}/patients/${PATIENT}/[a-f0-9]{24}/original\\.pdf$`,
+      ),
+    );
     expect(body).toBe(pdfBuffer);
     expect(mime).toBe('application/pdf');
 
@@ -110,7 +132,11 @@ describe('DocumentsService.upload', () => {
     expect(created.doctor.toString()).toBe(USER);
     expect(created.patient.toString()).toBe(PATIENT);
     expect(created.practiceId.toString()).toBe(PRACTICE);
-    expect(created.file).toMatchObject({ storageKey: key, mimeType: 'application/pdf', pageCount: 2 });
+    expect(created.file).toMatchObject({
+      storageKey: key,
+      mimeType: 'application/pdf',
+      pageCount: 2,
+    });
     expect(created._id.toString()).toBe(key.split('/')[4]);
 
     expect(audit.record).toHaveBeenCalledWith(
@@ -123,7 +149,10 @@ describe('DocumentsService.upload', () => {
     patientModel.exists.mockResolvedValue(null);
 
     await expect(
-      service.upload(PATIENT, dto(), file, { ...user, practiceId: OTHER_PRACTICE }),
+      service.upload(PATIENT, dto(), file, {
+        ...user,
+        practiceId: OTHER_PRACTICE,
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(storage.put).not.toHaveBeenCalled();
   });
@@ -139,7 +168,10 @@ describe('DocumentsService.upload', () => {
     const { service, documentModel, patientModel, storage } = setup();
     patientModel.exists.mockResolvedValue({ _id: PATIENT });
     documentModel.findOne.mockReturnValue(q(null));
-    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(200)]);
+    const png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+      Buffer.alloc(200),
+    ]);
 
     await expect(
       service.upload(PATIENT, dto(), { buffer: png, size: png.length }, user),
@@ -153,9 +185,9 @@ describe('DocumentsService.upload', () => {
     documentModel.findOne.mockReturnValue(q(null));
     documentModel.create.mockRejectedValue(new Error('mongo down'));
 
-    await expect(service.upload(PATIENT, dto(), file, user)).rejects.toBeInstanceOf(
-      InternalServerErrorException,
-    );
+    await expect(
+      service.upload(PATIENT, dto(), file, user),
+    ).rejects.toBeInstanceOf(InternalServerErrorException);
     const key = storage.put.mock.calls[0][0];
     expect(storage.deleteQuietly).toHaveBeenCalledWith(key);
   });
@@ -166,9 +198,9 @@ describe('DocumentsService.upload', () => {
     documentModel.findOne.mockReturnValue(q(null));
     storage.put.mockRejectedValue(new Error('r2 down'));
 
-    await expect(service.upload(PATIENT, dto(), file, user)).rejects.toBeInstanceOf(
-      InternalServerErrorException,
-    );
+    await expect(
+      service.upload(PATIENT, dto(), file, user),
+    ).rejects.toBeInstanceOf(InternalServerErrorException);
     expect(documentModel.create).not.toHaveBeenCalled();
   });
 
@@ -178,10 +210,14 @@ describe('DocumentsService.upload', () => {
     const existingId = new Types.ObjectId();
     const saved = { _id: existingId };
     documentModel.findOne
-      .mockReturnValueOnce(q({ _id: existingId, patient: new Types.ObjectId(PATIENT) }))
+      .mockReturnValueOnce(
+        q({ _id: existingId, patient: new Types.ObjectId(PATIENT) }),
+      )
       .mockReturnValueOnce(q(saved));
 
-    await expect(service.upload(PATIENT, dto(), file, user)).resolves.toBe(saved);
+    await expect(service.upload(PATIENT, dto(), file, user)).resolves.toBe(
+      saved,
+    );
     expect(storage.put).not.toHaveBeenCalled();
     expect(documentModel.create).not.toHaveBeenCalled();
   });
@@ -193,9 +229,9 @@ describe('DocumentsService.upload', () => {
       q({ _id: new Types.ObjectId(), patient: new Types.ObjectId() }),
     );
 
-    await expect(service.upload(PATIENT, dto(), file, user)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.upload(PATIENT, dto(), file, user),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('resolves a concurrent duplicate (E11000) to the winning document', async () => {
@@ -204,13 +240,21 @@ describe('DocumentsService.upload', () => {
     const winnerId = new Types.ObjectId();
     documentModel.findOne
       .mockReturnValueOnce(q(null))
-      .mockReturnValueOnce(q({ _id: winnerId, patient: new Types.ObjectId(PATIENT) }))
+      .mockReturnValueOnce(
+        q({ _id: winnerId, patient: new Types.ObjectId(PATIENT) }),
+      )
       .mockReturnValueOnce(q({ _id: winnerId }));
-    documentModel.create.mockRejectedValue(Object.assign(new Error('dup'), { code: 11000 }));
+    documentModel.create.mockRejectedValue(
+      Object.assign(new Error('dup'), { code: 11000 }),
+    );
 
-    await expect(service.upload(PATIENT, dto(), file, user)).resolves.toEqual({ _id: winnerId });
+    await expect(service.upload(PATIENT, dto(), file, user)).resolves.toEqual({
+      _id: winnerId,
+    });
     // Our own (losing) object is cleaned up.
-    expect(storage.deleteQuietly).toHaveBeenCalledWith(storage.put.mock.calls[0][0]);
+    expect(storage.deleteQuietly).toHaveBeenCalledWith(
+      storage.put.mock.calls[0][0],
+    );
   });
 });
 
@@ -220,10 +264,15 @@ describe('DocumentsService.openFile', () => {
     documentModel.findOne.mockReturnValue(q(null));
 
     await expect(
-      service.openFile(new Types.ObjectId().toHexString(), { ...user, practiceId: OTHER_PRACTICE }),
+      service.openFile(new Types.ObjectId().toHexString(), {
+        ...user,
+        practiceId: OTHER_PRACTICE,
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(documentModel.findOne).toHaveBeenCalledWith(
-      expect.objectContaining({ practiceId: new Types.ObjectId(OTHER_PRACTICE) }),
+      expect.objectContaining({
+        practiceId: new Types.ObjectId(OTHER_PRACTICE),
+      }),
     );
     expect(storage.get).not.toHaveBeenCalled();
   });
@@ -231,13 +280,27 @@ describe('DocumentsService.openFile', () => {
   it('streams the stored object for an authorized caller', async () => {
     const { service, documentModel, storage } = setup();
     documentModel.findOne.mockReturnValue(
-      q({ file: { storageKey: 'k', mimeType: 'application/pdf', size: 10, fileName: 'a.pdf' } }),
+      q({
+        file: {
+          storageKey: 'k',
+          mimeType: 'application/pdf',
+          size: 10,
+          fileName: 'a.pdf',
+        },
+      }),
     );
     const stream = {};
     storage.get.mockResolvedValue(stream);
 
-    const res = await service.openFile(new Types.ObjectId().toHexString(), user);
-    expect(res).toMatchObject({ stream, mimeType: 'application/pdf', fileName: 'a.pdf' });
+    const res = await service.openFile(
+      new Types.ObjectId().toHexString(),
+      user,
+    );
+    expect(res).toMatchObject({
+      stream,
+      mimeType: 'application/pdf',
+      fileName: 'a.pdf',
+    });
     expect(storage.get).toHaveBeenCalledWith('k');
   });
 });
@@ -246,7 +309,9 @@ describe('DocumentsService.remove', () => {
   it('deletes the stored object along with the metadata', async () => {
     const { service, documentModel, storage } = setup();
     documentModel.findOne.mockReturnValue(q({ type: 'custom-document' }));
-    documentModel.findOneAndDelete.mockResolvedValue({ file: { storageKey: 'k' } });
+    documentModel.findOneAndDelete.mockResolvedValue({
+      file: { storageKey: 'k' },
+    });
 
     await service.remove(new Types.ObjectId().toHexString(), PRACTICE);
     expect(storage.deleteQuietly).toHaveBeenCalledWith('k');
@@ -256,7 +321,9 @@ describe('DocumentsService.remove', () => {
     const { service, documentModel } = setup();
     documentModel.findOne.mockReturnValue(q({ type: 'session-assessment' }));
 
-    await expect(service.remove(new Types.ObjectId().toHexString(), PRACTICE)).rejects.toThrow(
+    await expect(
+      service.remove(new Types.ObjectId().toHexString(), PRACTICE),
+    ).rejects.toThrow(
       'Submitted session assessments can be amended but not deleted',
     );
     expect(documentModel.findOneAndDelete).not.toHaveBeenCalled();

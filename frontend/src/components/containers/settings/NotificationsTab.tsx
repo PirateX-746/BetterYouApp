@@ -22,12 +22,13 @@ const notificationOptions = [
         description: "Browser push notifications for real-time alerts",
         defaultOn: true,
     },
-    {
-        id: "marketing",
-        title: "Marketing Emails",
-        description: "Receive tips, product updates and promotional content",
-        defaultOn: false,
-    },
+    // Hidden for now — no marketing emails are sent yet.
+    // {
+    //     id: "marketing",
+    //     title: "Marketing Emails",
+    //     description: "Receive tips, product updates and promotional content",
+    //     defaultOn: false,
+    // },
 ];
 
 export default function NotificationsTab() {

@@ -2,12 +2,13 @@
 
 import { Page, PageHeader } from "@/components/common/PageLayout";
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Trash2, Pencil, Loader2, Pill, X, Search } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Pill, Search } from "lucide-react";
 import { api } from "@/lib/api";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/common/Badge";
+import { Modal } from "@/components/common/Modal";
+import { Field, inputClass, textareaClass } from "@/components/common/Field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DataTable, type DataTableColumn } from "@/components/common/DataTable";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
@@ -31,51 +32,50 @@ function medicationColumns(
     {
       key: "name",
       header: "Name",
-      width: "30%",
+      width: "28%",
+      sortValue: (m) => m.name,
       render: (m) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary-light text-primary flex items-center justify-center shrink-0">
-            <Pill size={14} />
-          </div>
-          <p className="text-sm font-medium text-text-primary">{m.name}</p>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="size-8 rounded-lg bg-primary/10 text-primary-strong grid place-items-center shrink-0" aria-hidden>
+            <Pill size={15} />
+          </span>
+          <span className="text-body font-medium text-text-primary truncate">{m.name}</span>
         </div>
       ),
     },
     {
       key: "category",
       header: "Category",
-      width: "20%",
-      className: "text-sm text-text-secondary",
-      render: (m) => m.category || <span className="text-text-disabled">—</span>,
+      width: "22%",
+      sortValue: (m) => m.category,
+      render: (m) => (m.category ? <Badge tone="neutral">{m.category}</Badge> : <span className="text-text-light">—</span>),
     },
     {
       key: "description",
       header: "Description",
-      width: "35%",
-      className: "text-sm text-text-secondary truncate max-w-xs",
-      render: (m) => m.description || <span className="text-text-disabled">—</span>,
+      className: "text-body text-text-secondary",
+      render: (m) => (m.description ? <span className="line-clamp-1">{m.description}</span> : <span className="text-text-light">—</span>),
     },
     {
       key: "actions",
-      header: "",
-      width: "15%",
+      header: <span className="sr-only">Actions</span>,
+      width: "6.5rem",
       align: "right",
       render: (m) => (
-        <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={() => onEdit(m)}
-            className="text-text-secondary hover:text-primary transition p-1.5"
-            title="Edit"
-          >
-            <Pencil size={14} />
-          </button>
-          <button
+        <div className="flex items-center justify-end gap-0.5">
+          <Button variant="ghost" size="icon-sm" onClick={() => onEdit(m)} aria-label={`Edit ${m.name}`} title="Edit">
+            <Pencil aria-hidden />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => onDelete(m)}
-            className="text-text-secondary hover:text-danger transition p-1.5"
+            aria-label={`Remove ${m.name}`}
             title="Remove"
+            className="hover:text-danger-strong hover:bg-danger/10"
           >
-            <Trash2 size={14} />
-          </button>
+            <Trash2 aria-hidden />
+          </Button>
         </div>
       ),
     },
@@ -182,92 +182,44 @@ export default function MedicationsPage() {
     );
   }
 
+  const closeForm = () => {
+    setShowForm(false);
+    resetForm();
+  };
+
   return (
     <Page fill>
+      {/* Same toolbar as Patients: search on the left, primary action on the right. */}
       <PageHeader
         title="Medications"
-        subtitle="Your medication library — allocate these to patients from their profile"
+        toolbar={
+          <div className="relative w-full sm:w-72">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-light pointer-events-none" aria-hidden />
+              <input
+                type="search"
+                aria-label="Search medications"
+                placeholder="Search medications…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className={`${inputClass} pl-9`}
+              />
+          </div>
+        }
         actions={
-          <Button
-            onClick={() => {
-              setShowForm((v) => !v);
-              if (showForm) resetForm();
-            }}
-          >
-            {showForm ? <X size={15} className="mr-1.5" /> : <Plus size={15} className="mr-1.5" />}
-            {showForm ? "Cancel" : "Add Medication"}
+          <Button onClick={() => setShowForm(true)}>
+            <Plus aria-hidden />
+            Add medication
           </Button>
         }
       />
 
-      {/* Create/edit form */}
-      {showForm && (
-        <div className="bg-bg-card border border-border rounded-2xl p-5 space-y-4">
-          <h2 className="font-semibold text-text-primary">
-            {editingId ? "Edit Medication" : "Add Medication"}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Name</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Sertraline"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Category (optional)</Label>
-                <Input
-                  value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  placeholder="e.g. SSRI / Antidepressant"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Description (optional)</Label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                rows={2}
-                placeholder="Notes about this medication…"
-                className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-bg-page text-text-primary focus:outline-none focus:border-primary resize-none"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => { setShowForm(false); resetForm(); }}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {saving && <Loader2 size={14} className="animate-spin mr-1.5" />}
-                {saving ? "Saving…" : editingId ? "Save Changes" : "Add Medication"}
-              </Button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="relative">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-disabled pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Search medications…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-72 pl-9 pr-4 py-2 text-sm bg-bg-card border border-border rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-text-primary placeholder:text-text-disabled transition"
-        />
-      </div>
-
-      {/* Table */}
-      {medications.length === 0 ? (
-        <div className="bg-bg-card border border-border rounded-2xl">
+      {medications.length === 0 && !search ? (
+        <div className="bg-bg-card border border-border/70 rounded-2xl shadow-xs">
           <EmptyState
             icon={Pill}
             title="No medications yet"
             description="Add medications to your library so you can quickly record them against a patient's profile."
-            action={{ label: "Add Medication", onClick: () => setShowForm(true) }}
+            action={{ label: "Add medication", onClick: () => setShowForm(true) }}
           />
         </div>
       ) : (
@@ -276,13 +228,65 @@ export default function MedicationsPage() {
           columns={medicationColumns(startEdit, setDeleteTarget)}
           data={medications}
           getRowId={(m) => m._id}
+          emptyState={`No medications match "${search}".`}
           footer={
-            <p className="text-xs text-text-disabled">
-              {medications.length} medication{medications.length !== 1 ? "s" : ""} in your library
+            <p className="text-footnote text-text-secondary">
+              {medications.length} medication{medications.length !== 1 ? "s" : ""} {search ? "found" : "in your library"}
             </p>
           }
         />
       )}
+
+      <Modal
+        open={showForm}
+        onClose={() => !saving && closeForm()}
+        title={editingId ? "Edit medication" : "Add medication"}
+        subtitle="Library entries can be allocated to patients from their Care Plan."
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <Button variant="secondary" onClick={closeForm} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" form="medication-form" loading={saving}>
+              {saving ? "Saving…" : editingId ? "Save changes" : "Add medication"}
+            </Button>
+          </div>
+        }
+      >
+        <form id="medication-form" onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Name" htmlFor="med-name" required>
+              <input
+                id="med-name"
+                className={inputClass}
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Sertraline"
+                autoFocus
+              />
+            </Field>
+            <Field label="Category" htmlFor="med-category">
+              <input
+                id="med-category"
+                className={inputClass}
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                placeholder="e.g. SSRI / Antidepressant"
+              />
+            </Field>
+          </div>
+          <Field label="Description" htmlFor="med-desc">
+            <textarea
+              id="med-desc"
+              rows={3}
+              className={textareaClass}
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="Notes about this medication…"
+            />
+          </Field>
+        </form>
+      </Modal>
 
       <ConfirmationDialog
         open={!!deleteTarget}

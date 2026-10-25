@@ -19,7 +19,13 @@ export const USABLE_PRACTICE_STATUSES: readonly PracticeStatus[] = [
  * become) platform infrastructure. Rejected at creation time.
  */
 export const RESERVED_SUBDOMAINS: readonly string[] = [
-  'www', 'api', 'admin', 'app', 'mail', 'static', 'assets',
+  'www',
+  'api',
+  'admin',
+  'app',
+  'mail',
+  'static',
+  'assets',
 ];
 
 /** Lowercase, 3–30 chars, alphanumeric and hyphens, no leading/trailing hyphen. */

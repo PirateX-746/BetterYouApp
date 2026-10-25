@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Creates the first platform administrator, and optionally practice #1.
  *
@@ -89,8 +88,7 @@ async function main() {
 
     const subdomain =
       process.env.SEED_PRACTICE_SUBDOMAIN?.toLowerCase().trim() ?? 'betteryou';
-    const practiceName =
-      process.env.SEED_PRACTICE_NAME ?? 'BetterYou Clinic';
+    const practiceName = process.env.SEED_PRACTICE_NAME ?? 'BetterYou Clinic';
 
     const found = await practices.findOne({ subdomain });
     if (found) {
@@ -117,6 +115,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('\nSeed failed:', err.message ?? err);
+  console.error('\nSeed failed:', err instanceof Error ? err.message : err);
   process.exit(1);
 });

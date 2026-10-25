@@ -124,4 +124,9 @@ export class WsAuthService {
   static userOf(client: Socket): SocketUser | null {
     return (client.data as { user?: SocketUser }).user ?? null;
   }
+
+  /** Stores the authenticated user on the socket for `userOf`. */
+  static attach(client: Socket, user: SocketUser): void {
+    (client.data as { user?: SocketUser }).user = user;
+  }
 }

@@ -151,7 +151,7 @@ export function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     day: "numeric",
     month: "short",
-    hour: "numeric",
+    hour: "numeric", hour12: true,
     minute: "2-digit",
   });
 }

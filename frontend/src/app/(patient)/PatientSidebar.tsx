@@ -48,7 +48,7 @@ export default function PatientSidebar() {
       </div>
 
       <button
-        className="flex items-center gap-3 px-3 py-2 text-sm text-text-secondary hover:bg-danger/10 hover:text-danger rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center gap-3 px-3 py-2 text-sm text-text-secondary hover:bg-danger/10 hover:text-danger-strong rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed"
         onClick={handleLogout}
         disabled={isPending}
         aria-label="Log out"

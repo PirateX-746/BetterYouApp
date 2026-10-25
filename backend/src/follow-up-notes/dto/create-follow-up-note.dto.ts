@@ -1,27 +1,42 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsArray,
+  IsDateString,
+} from 'class-validator';
 
 export class CreateFollowUpNoteDto {
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   patientId: string;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   practitionerId: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   appointmentId?: string;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   title: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   summary?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   recommendations?: string;
 
-  @IsOptional() @IsArray() @IsString({ each: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   actionItems?: string[];
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   followUpDate?: string;
 }

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { login } from "@/lib/auth";
+import { setDisplayCookie } from "@/lib/session";
 import { loginSchema, type LoginValues } from "@/schemas/auth.schema";
 
 interface LoginProps {
@@ -37,23 +38,25 @@ export default function LoginContainer({ role }: LoginProps) {
       // The session (token + role) is set by the backend as HttpOnly cookies
       // and is deliberately not readable here. What follows is display data
       // only — never treat it as proof of identity or permission.
-      const cookieOpts = "path=/; SameSite=Lax";
-      document.cookie = `name=${encodeURIComponent(res.name)}; ${cookieOpts}`;
-      document.cookie = `userId=${res.id}; ${cookieOpts}`;
+      setDisplayCookie("name", res.name);
+      setDisplayCookie("userId", res.id);
 
       localStorage.setItem("role",   res.role);
       localStorage.setItem("name",   res.name);
       localStorage.setItem("userId", res.id);
       localStorage.setItem("email",  data.email);
+      // A fresh sign-in proves who this is; drop a lock left by an expired session.
+      localStorage.removeItem("portalLocked");
 
+      // Navigate before refreshing: refreshing first re-renders this login
+      // page with the new session, and the proxy then redirects it to the
+      // dashboard — skipping the forced password change.
+      router.replace(
+        res.mustChangePassword
+          ? "/change-password"
+          : role === "practitioner" ? "/dashboard" : "/patient/home",
+      );
       router.refresh();
-
-      if (res.mustChangePassword) {
-        router.replace("/change-password");
-        return;
-      }
-
-      router.replace(role === "practitioner" ? "/dashboard" : "/patient/home");
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
       setServerError(

@@ -9,7 +9,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { api } from "@/lib/api";
+import { useClientValue } from "@/hooks/useClientValue";
+import { fetchUnreadTotal } from "@/lib/chatUnread";
 import { useSSE, type SseEvent } from "@/hooks/useSSE";
 import { usePractitionerChat } from "./PractitionerChatContext";
 
@@ -44,7 +45,7 @@ function fireDesktopNotification(body: string) {
 
 export function PractitionerUnreadProvider({ children }: { children: ReactNode }) {
   const { activeConversationId } = usePractitionerChat();
-  const [practitionerId, setPractitionerId] = useState<string | null>(null);
+  const practitionerId = useClientValue(() => localStorage.getItem("userId"), null);
   const [totalUnread, setTotalUnread] = useState(0);
 
   // Keep active conversation in a ref so the SSE handler reads the latest value
@@ -54,25 +55,14 @@ export function PractitionerUnreadProvider({ children }: { children: ReactNode }
   }, [activeConversationId]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setPractitionerId(localStorage.getItem("userId"));
-    }
     requestNotificationPermission();
   }, []);
 
   /* Initial count from server */
-  const fetchUnread = useCallback(async (id: string) => {
-    try {
-      const res = await api.get(`/chat/conversations/${id}`);
-      if (Array.isArray(res.data)) {
-        const total = res.data.reduce(
-          (acc: number, c: Record<string, unknown>) =>
-            acc + ((c.unreadForPractitioner as number) || 0),
-          0,
-        );
-        setTotalUnread(total);
-      }
-    } catch { /* silent */ }
+  const fetchUnread = useCallback((id: string) => {
+    fetchUnreadTotal(id, "unreadForPractitioner").then((total) => {
+      if (total !== null) setTotalUnread(total);
+    });
   }, []);
 
   const syncUnread = useCallback(() => {

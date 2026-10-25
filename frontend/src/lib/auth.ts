@@ -1,7 +1,4 @@
 import { api } from "./api";
-import { clearSessionStorage } from "./session";
-
-export { clearSessionStorage };
 
 export interface LoginPayload {
   email: string;
@@ -26,10 +23,6 @@ export async function login(data: LoginPayload) {
   return res.data;
 }
 
-export async function logout() {
-  await api.post("/auth/logout");
-}
-
 export interface ForgotPasswordPayload {
   email: string;
   role: "patient" | "practitioner";
@@ -50,6 +43,8 @@ export async function forgotPassword(data: ForgotPasswordPayload) {
 }
 
 export interface ChangePasswordPayload {
+  /** Omit only on the forced change after a temporary-password sign-in. */
+  currentPassword?: string;
   newPassword: string;
 }
 

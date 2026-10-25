@@ -187,7 +187,7 @@ function MessagesPageImpl() {
     if (socket) {
       socket.emit("joinConversation", selected._id);
     }
-  }, [selected, socket, practitionerId]);
+  }, [selected, socket, practitionerId, syncUnread]);
 
   /* ================= SOCKET INIT ================= */
 
@@ -426,7 +426,7 @@ function MessagesPageImpl() {
                               <span>
                                 {new Date(msg.createdAt).toLocaleTimeString(
                                   [],
-                                  { hour: "2-digit", minute: "2-digit" }
+                                  { hour: "numeric", hour12: true, minute: "2-digit" }
                                 )}
                               </span>
                               {isMe && (

@@ -21,6 +21,7 @@ import {
   CreatePracticeDto,
   InvitePractitionerDto,
   SetPracticeStatusDto,
+  SetPractitionerStatusDto,
   UpdatePracticeDto,
 } from './dto/create-practice.dto';
 
@@ -145,11 +146,34 @@ export class AdminController {
     return this.admin.invitePractitioner(id, dto, req.user, this.ip(req));
   }
 
+  @Post('practices/:id/invitations/:inviteId/revoke')
+  revokeInvitation(
+    @Param('id') id: string,
+    @Param('inviteId') inviteId: string,
+    @Req() req: AuthedRequest & Request,
+  ) {
+    return this.admin.revokeInvitation(id, inviteId, req.user, this.ip(req));
+  }
+
   /* ------------------------- practitioners ------------------------- */
 
   @Get('practitioners')
   listPractitioners() {
     return this.admin.listPractitioners();
+  }
+
+  @Patch('practitioners/:id/status')
+  setPractitionerStatus(
+    @Param('id') id: string,
+    @Body() dto: SetPractitionerStatusDto,
+    @Req() req: AuthedRequest & Request,
+  ) {
+    return this.admin.setPractitionerStatus(
+      id,
+      dto.status,
+      req.user,
+      this.ip(req),
+    );
   }
 
   /* --------------------------- audit log --------------------------- */

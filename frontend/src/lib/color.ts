@@ -17,10 +17,6 @@ function mix(hex: string, target: [number, number, number], amount: number): str
   return `#${toHexByte(r + (tr - r) * amount)}${toHexByte(g + (tg - g) * amount)}${toHexByte(b + (tb - b) * amount)}`;
 }
 
-export function lighten(hex: string, amount: number): string {
-  return mix(hex, [255, 255, 255], amount);
-}
-
 export function darken(hex: string, amount: number): string {
   return mix(hex, [0, 0, 0], amount);
 }

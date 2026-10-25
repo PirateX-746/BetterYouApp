@@ -187,13 +187,13 @@ export default function HomePage() {
       label: "Upcoming",
       value: upcoming.length,
       icon: Clock,
-      color: "text-warning",
+      color: "text-warning-strong",
     },
     {
       label: "Completed",
       value: completedCount,
       icon: CheckCircle,
-      color: "text-success",
+      color: "text-success-strong",
     },
   ];
 
@@ -285,7 +285,7 @@ export default function HomePage() {
               </p>
               <div className="flex items-center gap-2 mt-3">
                 <span className="text-xs text-text-secondary">Status:</span>
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success capitalize">
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success-strong capitalize">
                   {next.normalizedStatus}
                 </span>
               </div>
@@ -303,7 +303,7 @@ export default function HomePage() {
                 <button
                   disabled={updatingId === next.id}
                   onClick={() => updateStatus(next.id, "CANCELLED")}
-                  className="py-2.5 border border-danger text-danger text-sm font-medium rounded-xl hover:bg-danger/5 transition disabled:opacity-50"
+                  className="py-2.5 border border-danger text-danger-strong text-sm font-medium rounded-xl hover:bg-danger/5 transition disabled:opacity-50"
                 >
                   {updatingId === next.id ? "Cancelling…" : "Cancel"}
                 </button>
@@ -334,7 +334,7 @@ export default function HomePage() {
                   {new Date(appt.startTime).toLocaleDateString([], {
                     month: "short",
                     day: "numeric",
-                    hour: "2-digit",
+                    hour: "numeric", hour12: true,
                     minute: "2-digit",
                   })}
                 </p>

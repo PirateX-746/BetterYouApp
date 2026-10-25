@@ -6,7 +6,8 @@ import { useTheme, type ThemeMode } from "@/components/containers/layout/ThemePr
 import { isValidHex } from "@/lib/color";
 import styles from "./Settings.module.css";
 
-const DEFAULT_ACCENT = "#5b8def";
+// Keep in sync with --primary in globals.css.
+const DEFAULT_ACCENT = "#2563eb";
 
 const ACCENT_PRESETS = [
     { name: "Slate", hex: "#1f2937" },

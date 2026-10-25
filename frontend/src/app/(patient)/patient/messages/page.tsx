@@ -284,7 +284,7 @@ export default function MessagesPage() {
                           <div className={`px-3.5 py-2.5 rounded-2xl max-w-[78%] text-sm leading-relaxed shadow-sm ${isMe ? "bg-primary text-white rounded-br-sm" : "bg-bg-card border border-border text-text-primary rounded-bl-sm"}`}>
                             {msg.text}
                             <div className={`text-[10px] mt-1 flex items-center gap-1 ${isMe ? "text-white/60 justify-end" : "text-text-secondary"}`}>
-                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: "numeric", hour12: true, minute: "2-digit" })}
                               {isMe && (
                                 <span className="ml-0.5 font-medium">
                                   {msg.status === "seen" ? "✓✓" : msg.status === "delivered" ? "✓✓" : "✓"}

@@ -3,7 +3,6 @@ import "@/styles/notifications.css";
 import "./globals.css";
 
 import { ThemeProvider } from "@/components/containers/layout/ThemeProvider";
-import { Toaster } from "@/components/ui/toaster";
 import AppToaster from "@/components/containers/layout/AppToaster";
 
 export const metadata = {
@@ -24,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               var wantsDark=t==='dark'||((t===null||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);
               if(wantsDark){d.classList.add('dark')}
               var accent=localStorage.getItem('accentColor');
-              if(accent&&/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent)){
+              if(accent&&accent.toLowerCase()!=='#5b8def'&&/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent)){
                 d.style.setProperty('--primary',accent);
                 d.style.setProperty('--ring',accent);
                 d.style.setProperty('--accent-foreground',accent);
@@ -36,7 +35,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>
           {children}
-          <Toaster />
           <AppToaster />
         </ThemeProvider>
       </body>

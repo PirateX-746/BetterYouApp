@@ -15,7 +15,10 @@ import {
   InvitationStatus,
 } from './schemas/invitation.schema';
 import { Practitioner } from '../practitioners/schemas/practitioner.schema';
-import { Practice, PracticeDocument } from '../practices/schemas/practice.schema';
+import {
+  Practice,
+  PracticeDocument,
+} from '../practices/schemas/practice.schema';
 
 const TTL_DAYS = 7;
 const SALT_ROUNDS = 10;
@@ -32,7 +35,7 @@ export class InvitationsService {
     @InjectModel(Invitation.name)
     private readonly inviteModel: Model<InvitationDocument>,
     @InjectModel(Practitioner.name)
-    private readonly practitionerModel: Model<any>,
+    private readonly practitionerModel: Model<Practitioner>,
     @InjectModel(Practice.name)
     private readonly practiceModel: Model<PracticeDocument>,
   ) {}
@@ -55,7 +58,9 @@ export class InvitationsService {
       .lean()
       .exec();
     if (alreadyStaff) {
-      throw new ConflictException('That email already belongs to this practice');
+      throw new ConflictException(
+        'That email already belongs to this practice',
+      );
     }
 
     // Supersede any outstanding invitation for the same address.
@@ -82,9 +87,7 @@ export class InvitationsService {
       tokenHash: hashToken(rawToken),
       status: InvitationStatus.PENDING,
       expiresAt,
-      invitedBy: params.invitedBy
-        ? new Types.ObjectId(params.invitedBy)
-        : null,
+      invitedBy: params.invitedBy ? new Types.ObjectId(params.invitedBy) : null,
     });
 
     this.logger.log(`Invitation issued for ${email} (${params.role})`);
@@ -98,7 +101,8 @@ export class InvitationsService {
       .findOne({ tokenHash: hashToken(rawToken) })
       .exec();
 
-    if (!invite) throw new BadRequestException('This invitation link is not valid');
+    if (!invite)
+      throw new BadRequestException('This invitation link is not valid');
     if (invite.status === InvitationStatus.ACCEPTED) {
       throw new BadRequestException('This invitation has already been used');
     }
@@ -111,7 +115,9 @@ export class InvitationsService {
       throw new BadRequestException('This invitation has expired');
     }
 
-    const practice = await this.practiceModel.findById(invite.practiceId).exec();
+    const practice = await this.practiceModel
+      .findById(invite.practiceId)
+      .exec();
 
     return {
       email: invite.email,
@@ -134,10 +140,14 @@ export class InvitationsService {
     }
 
     const invite = await this.inviteModel
-      .findOne({ tokenHash: hashToken(rawToken), status: InvitationStatus.PENDING })
+      .findOne({
+        tokenHash: hashToken(rawToken),
+        status: InvitationStatus.PENDING,
+      })
       .exec();
 
-    if (!invite) throw new BadRequestException('This invitation link is not valid');
+    if (!invite)
+      throw new BadRequestException('This invitation link is not valid');
     if (invite.expiresAt.getTime() < Date.now()) {
       invite.status = InvitationStatus.EXPIRED;
       await invite.save();
@@ -186,9 +196,18 @@ export class InvitationsService {
       .exec();
   }
 
-  async revoke(id: string) {
+  /** Revokes a still-pending invitation of this practice; null if none. */
+  async revoke(id: string, practiceId: string) {
     return this.inviteModel
-      .findByIdAndUpdate(id, { status: InvitationStatus.REVOKED }, { new: true })
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(id),
+          practiceId: new Types.ObjectId(practiceId),
+          status: InvitationStatus.PENDING,
+        },
+        { status: InvitationStatus.REVOKED },
+        { new: true },
+      )
       .select('-tokenHash')
       .exec();
   }

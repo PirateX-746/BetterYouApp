@@ -22,6 +22,7 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/common/Badge";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import { apiErrorMessage } from "@/lib/api";
@@ -72,9 +73,9 @@ const payloadOf = (f: Form): DraftPayload => ({
 
 const fmtDateTime = (iso?: string) =>
   iso
-    ? new Date(iso).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+    ? new Date(iso).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", hour12: true, minute: "2-digit" })
     : "";
-const fmtTime = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+const fmtTime = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "numeric", hour12: true, minute: "2-digit" });
 const ageOf = (dob?: string) => {
   if (!dob) return null;
   const d = new Date(dob);
@@ -472,7 +473,7 @@ export function AssessmentEditor({
     return (
       <div className="h-full grid place-items-center p-8">
         <div className="max-w-sm text-center space-y-3">
-          <AlertTriangle className="mx-auto text-warning" size={28} aria-hidden />
+          <AlertTriangle className="mx-auto text-warning-strong" size={28} aria-hidden />
           <p className="text-sm text-text-primary">{loadError}</p>
           <button onClick={() => void load()} className="h-10 px-4 rounded-md border border-border text-sm hover:bg-bg-hover cursor-pointer">
             Try again
@@ -499,10 +500,10 @@ export function AssessmentEditor({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 md:px-5 py-3.5 border-b border-border">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-text-primary truncate">{patientName}</h2>
-            <Badge tone={mode === "amend" ? "warning" : meta.tone}>{mode === "amend" ? "Amending" : meta.label}</Badge>
+            <h2 className="text-title-2 font-semibold text-text-primary truncate">{patientName}</h2>
+            <Badge tone={mode === "amend" ? "warning" : meta.tone} dot>{mode === "amend" ? "Amending" : meta.label}</Badge>
           </div>
-          <p className="text-sm text-text-secondary mt-0.5 truncate">
+          <p className="text-footnote text-text-secondary mt-0.5 truncate">
             {appt?.title} · {fmtDateTime(appt?.start)}
           </p>
         </div>
@@ -512,44 +513,36 @@ export function AssessmentEditor({
         <div className="flex flex-wrap items-center gap-2">
           {mode === "edit" && (
             <>
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => void setStatus(a.status === "ready_for_review" ? "draft" : "ready_for_review")}
                 disabled={!!busy || saveState === "conflict"}
-                className="h-10 px-3.5 rounded-md border border-border bg-bg-card text-sm text-text-primary hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-50"
+                loading={busy === "review"}
               >
-                {busy === "review" ? <Loader2 size={14} className="animate-spin inline" aria-hidden /> : a.status === "ready_for_review" ? "Back to draft" : "Mark ready for review"}
-              </button>
-              <button
-                type="button"
-                onClick={() => goTo(steps.length - 1)}
-                disabled={current?.kind === "review"}
-                className="h-10 inline-flex items-center gap-2 px-4 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-default"
-              >
-                <ListChecks size={14} aria-hidden /> Review &amp; submit
-              </button>
+                {a.status === "ready_for_review" ? "Back to draft" : "Mark ready for review"}
+              </Button>
+              <Button onClick={() => goTo(steps.length - 1)} disabled={current?.kind === "review"}>
+                <ListChecks aria-hidden /> Review &amp; submit
+              </Button>
             </>
           )}
           {mode === "view" && permissions.canAmend && (
-            <button
-              type="button"
-              onClick={startAmend}
-              className="h-10 inline-flex items-center gap-2 px-3.5 rounded-md border border-border bg-bg-card text-sm text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-            >
-              <PencilLine size={14} aria-hidden /> Amend
-            </button>
+            <Button variant="secondary" onClick={startAmend}>
+              <PencilLine aria-hidden /> Amend
+            </Button>
           )}
         </div>
       </div>
 
       {/* Progress */}
       <div className="px-4 md:px-5 py-3 border-b border-border">
-        <div className="flex items-center justify-between gap-3 text-xs mb-2">
-          <span className="text-text-secondary truncate">
+        <div className="flex items-center justify-between gap-3 text-caption mb-2">
+          <span className="font-medium text-text-primary truncate">
             {current.kind === "item" ? current.section.title : current.kind === "notes" ? "Session notes" : "Review & submit"}
           </span>
           <span className="tabular-nums text-text-secondary shrink-0">
             <span className="font-semibold text-text-primary">{answered}</span> of {items.length} answered
+            <span className="ml-2 text-text-light">{Math.round((answered / Math.max(1, items.length)) * 100)}%</span>
           </span>
         </div>
         <div
@@ -558,9 +551,9 @@ export function AssessmentEditor({
           aria-valuemin={0}
           aria-valuemax={items.length}
           aria-valuenow={answered}
-          className="h-2 rounded-full bg-bg-hover overflow-hidden"
+          className="h-1.5 rounded-full bg-bg-hover overflow-hidden"
         >
-          <div className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out" style={{ width: `${(answered / Math.max(1, items.length)) * 100}%` }} />
+          <div className="h-full rounded-full bg-brand transition-[width] duration-300 ease-apple motion-reduce:transition-none" style={{ width: `${(answered / Math.max(1, items.length)) * 100}%` }} />
         </div>
       </div>
 
@@ -602,10 +595,17 @@ export function AssessmentEditor({
       {/* Body */}
       <div className="flex-1 min-h-0 grid xl:grid-cols-[250px_minmax(0,1fr)_280px]">
         {/* Question list */}
-        <nav aria-label="Questions" className="hidden xl:block min-h-0 overflow-y-auto border-r border-border p-3">
-          {bundle.template.map((s) => (
-            <div key={s.id} className="mb-3">
-              <p className="px-2.5 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-text-secondary">{s.title}</p>
+        <nav aria-label="Questions" className="hidden xl:block min-h-0 overflow-y-auto border-r border-border bg-bg-subtle p-3">
+          {bundle.template.map((s) => {
+            const done = s.items.filter((it) => (form.responses[it.id]?.state ?? "blank") !== "blank").length;
+            return (
+            <div key={s.id} className="mb-4">
+              <p className="flex items-baseline justify-between gap-2 px-2.5 pt-2 pb-1.5 text-eyebrow font-semibold uppercase text-text-secondary">
+                <span>{s.title}</span>
+                <span className={`tabular-nums normal-case tracking-normal ${done === s.items.length ? "text-success-strong" : "text-text-light"}`}>
+                  {done}/{s.items.length}
+                </span>
+              </p>
               <ul>
                 {s.items.map((it) => {
                   const idx = steps.findIndex((st) => st.kind === "item" && st.item.id === it.id);
@@ -617,8 +617,8 @@ export function AssessmentEditor({
                         type="button"
                         onClick={() => goTo(idx)}
                         aria-current={on ? "step" : undefined}
-                        className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-md text-left text-sm transition-colors cursor-pointer ${
-                          on ? "bg-primary/10 text-primary font-medium" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                        className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-md text-left text-body transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                          on ? "bg-bg-card text-primary-strong font-medium shadow-xs" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                         }`}
                       >
                         <StepDot state={st} />
@@ -629,7 +629,8 @@ export function AssessmentEditor({
                 })}
               </ul>
             </div>
-          ))}
+            );
+          })}
           <div className="border-t border-border pt-2">
             {(["notes", "review"] as const).map((k) => {
               const idx = steps.findIndex((st) => st.kind === k);
@@ -640,8 +641,8 @@ export function AssessmentEditor({
                   type="button"
                   onClick={() => goTo(idx)}
                   aria-current={on ? "step" : undefined}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left text-sm transition-colors cursor-pointer ${
-                    on ? "bg-primary/10 text-primary font-medium" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left text-body transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                    on ? "bg-bg-card text-primary-strong font-medium shadow-xs" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                   }`}
                 >
                   {k === "notes" ? <NotebookPen size={15} aria-hidden /> : <ListChecks size={15} aria-hidden />}
@@ -658,10 +659,10 @@ export function AssessmentEditor({
             <div className="mx-auto w-full max-w-3xl px-4 md:px-8 py-6 md:py-10">
               {current.kind === "item" && (
                 <div key={current.item.id} className="animate-in fade-in duration-200">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  <p className="text-eyebrow font-semibold uppercase text-primary-strong">
                     {current.section.title} · {current.posInSection} of {current.section.items.length}
                   </p>
-                  <h3 id={`q-${appointmentId}`} className="mt-2 text-xl md:text-2xl font-semibold text-text-primary leading-snug">
+                  <h3 id={`q-${appointmentId}`} className="mt-2 text-title-1 font-semibold text-text-primary">
                     {current.item.label}
                   </h3>
                   {current.item.help && <p className="mt-2 text-sm text-text-secondary">{current.item.help}</p>}
@@ -834,7 +835,7 @@ export function AssessmentEditor({
                       </label>
                     ) : (
                       form.summaryApproved && (
-                        <p className="text-xs text-success inline-flex items-center gap-1.5">
+                        <p className="text-xs text-success-strong inline-flex items-center gap-1.5">
                           <CheckCircle2 size={13} aria-hidden /> Approved by the practitioner
                         </p>
                       )
@@ -847,7 +848,7 @@ export function AssessmentEditor({
             {mode === "amend" && (
               <section className="rounded-md border border-warning/40 bg-warning/5 p-4 space-y-3">
                 <label htmlFor={`reason-${appointmentId}`} className="block text-sm font-semibold text-text-primary">
-                  Reason for amendment <span className="text-danger" aria-hidden>*</span>
+                  Reason for amendment <span className="text-danger-strong" aria-hidden>*</span>
                 </label>
                 <textarea
                   id={`reason-${appointmentId}`}
@@ -900,43 +901,33 @@ export function AssessmentEditor({
           {/* Step navigation */}
           {!(readOnly && current.kind === "review") && (
             <div className="shrink-0 border-t border-border bg-bg-card px-4 md:px-6 py-3 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => goTo(step - 1)}
-                disabled={step === 0}
-                className="h-11 inline-flex items-center gap-1.5 px-4 rounded-md border border-border bg-bg-card text-sm text-text-primary hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft size={16} aria-hidden /> Back
-              </button>
-              <span className="flex-1 text-center text-xs text-text-secondary tabular-nums">
+              <Button variant="secondary" size="lg" onClick={() => goTo(step - 1)} disabled={step === 0} className="px-4">
+                <ChevronLeft aria-hidden /> Back
+              </Button>
+              <span className="flex-1 text-center text-caption text-text-secondary tabular-nums">
                 {current.kind === "item" ? `Question ${current.index + 1} of ${items.length}` : current.kind === "notes" ? "Notes" : "Review"}
               </span>
               {current.kind === "review" ? (
                 mode === "edit" && (
-                  <button
-                    type="button"
+                  <Button
+                    size="lg"
                     onClick={() => setConfirmSubmit(true)}
                     disabled={!!busy || !hasContent || summaryPending || saveState === "conflict"}
                     title={!hasContent ? "Record at least one observation first" : summaryPending ? "Approve the summary first" : undefined}
-                    className="h-11 inline-flex items-center gap-2 px-5 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <Send size={15} aria-hidden /> Submit assessment
-                  </button>
+                    <Send aria-hidden /> Submit assessment
+                  </Button>
                 )
               ) : (
                 <>
                   {current.kind === "item" && !readOnly && (form.responses[current.item.id]?.state ?? "blank") === "blank" && (
-                    <button type="button" onClick={() => goTo(step + 1)} className="h-11 px-3 rounded-md text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary cursor-pointer">
+                    <Button variant="ghost" size="lg" onClick={() => goTo(step + 1)} className="px-3">
                       Skip
-                    </button>
+                    </Button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => goTo(step + 1)}
-                    className="h-11 inline-flex items-center gap-1.5 px-5 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer"
-                  >
-                    {step === steps.length - 2 ? "Review" : "Next"} <ChevronRight size={16} aria-hidden />
-                  </button>
+                  <Button size="lg" onClick={() => goTo(step + 1)}>
+                    {step === steps.length - 2 ? "Review" : "Next"} <ChevronRight aria-hidden />
+                  </Button>
                 </>
               )}
             </div>
@@ -944,8 +935,8 @@ export function AssessmentEditor({
         </div>
 
         {/* Patient context */}
-        <aside aria-label="Patient context" className="hidden xl:block min-h-0 overflow-y-auto border-l border-border p-4 space-y-4">
-            <div className="rounded-md border border-border bg-bg-card p-4 space-y-3">
+        <aside aria-label="Patient context" className="hidden xl:block min-h-0 overflow-y-auto border-l border-border bg-bg-subtle p-4 space-y-4">
+            <div className="rounded-xl border border-border/70 bg-bg-card shadow-xs p-4 space-y-3">
               <div className="flex items-center gap-3">
                 <span className="size-10 rounded-full bg-primary-light text-primary grid place-items-center shrink-0">
                   <UserRound size={18} aria-hidden />
@@ -965,15 +956,17 @@ export function AssessmentEditor({
                   <dd className="text-text-primary">{patient?.healthCondition || "Not recorded"}</dd>
                 </div>
                 {patient?.allergies && (
-                  <div>
-                    <dt className="text-xs text-text-secondary">Allergies</dt>
-                    <dd className="text-text-primary">{patient.allergies}</dd>
+                  <div className="rounded-lg bg-warning-light px-3 py-2">
+                    <dt className="text-caption font-semibold text-warning-strong flex items-center gap-1.5">
+                      <AlertTriangle size={13} aria-hidden /> Allergies
+                    </dt>
+                    <dd className="text-text-primary font-medium">{patient.allergies}</dd>
                   </div>
                 )}
               </dl>
             </div>
-            <div className="rounded-md border border-border bg-bg-card">
-              <h3 className="px-4 py-3 border-b border-border text-sm font-semibold text-text-primary">Previous summaries</h3>
+            <div className="rounded-xl border border-border/70 bg-bg-card shadow-xs">
+              <h3 className="px-4 py-3 border-b border-border-light text-body font-semibold text-text-primary">Previous summaries</h3>
               {bundle.previousSummaries.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-text-secondary">No earlier approved summaries.</p>
               ) : (
@@ -1032,12 +1025,12 @@ function SaveIndicator({ state, savedAt, onRetry }: { state: SaveState; savedAt:
         </span>
       )}
       {state === "offline" && (
-        <button type="button" onClick={onRetry} className={`${base} text-warning cursor-pointer hover:underline`}>
+        <button type="button" onClick={onRetry} className={`${base} text-warning-strong cursor-pointer hover:underline`}>
           <CloudOff size={13} aria-hidden /> Offline — kept on this device
         </button>
       )}
       {(state === "error" || state === "conflict") && (
-        <span className={`${base} text-danger`}>
+        <span className={`${base} text-danger-strong`}>
           <AlertTriangle size={13} aria-hidden /> Not saved
         </span>
       )}
@@ -1064,7 +1057,7 @@ function Banner({
     danger: "border-danger/30 bg-danger/5 text-text-primary",
     success: "border-success/30 bg-success/5 text-text-primary",
   }[tone];
-  const iconCls = { info: "text-primary", warning: "text-warning", danger: "text-danger", success: "text-success" }[tone];
+  const iconCls = { info: "text-primary", warning: "text-warning-strong", danger: "text-danger-strong", success: "text-success-strong" }[tone];
   return (
     <div role={tone === "danger" || tone === "warning" ? "alert" : "status"} className={`flex flex-wrap items-center gap-3 rounded-md border px-3.5 py-2.5 text-sm ${cls}`}>
       <Icon size={16} className={`shrink-0 ${iconCls}`} aria-hidden />

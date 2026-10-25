@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { Loader2, Paperclip, Send } from "lucide-react";
+import { Paperclip, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 import { apiErrorMessage } from "@/lib/api";
 import { ATTACHMENT_LIMITS, BODY_MAX, formatBytes } from "@/lib/support";
@@ -60,7 +61,7 @@ export function ReplyBox({
         e.preventDefault();
         void send();
       }}
-      className="rounded-md border border-border bg-bg-page focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition"
+      className="rounded-xl border border-border bg-bg-card focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition"
     >
       <label htmlFor={id} className="sr-only">
         Reply
@@ -86,7 +87,7 @@ export function ReplyBox({
         <div className="px-3 pt-2 space-y-1.5">
           <FileChips files={files} onChange={setFiles} disabled={sending} />
           {fileError && (
-            <p role="alert" className="text-xs text-danger">
+            <p role="alert" className="text-xs text-danger-strong">
               {fileError}
             </p>
           )}
@@ -119,14 +120,10 @@ export function ReplyBox({
           }}
         />
         <p className="flex-1 min-w-0 truncate text-xs text-text-secondary">{hint ?? "Ctrl/⌘ + Enter to send"}</p>
-        <button
-          type="submit"
-          disabled={!body.trim() || sending}
-          className="h-9 inline-flex items-center gap-2 px-4 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {sending ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Send size={15} aria-hidden />}
+        <Button type="submit" size="sm" className="h-9 px-4" disabled={!body.trim()} loading={sending}>
+          {!sending && <Send aria-hidden />}
           Send
-        </button>
+        </Button>
       </div>
     </form>
   );

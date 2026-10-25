@@ -23,7 +23,7 @@ import { UploadDocumentDto } from './dto/upload-document.dto';
 import { UPLOAD_LIMITS } from './document-file';
 
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, CLINICAL_ROLES } from '../common/role.enum';
+import { CLINICAL_ROLES } from '../common/role.enum';
 import type { AuthedRequest } from '../common/auth-user';
 
 // Clinical data — practitioner-only. Authentication itself is enforced
@@ -35,13 +35,23 @@ export class DocumentsController {
 
   @Post()
   create(@Body() dto: CreateDocumentDto, @Req() req: AuthedRequest) {
-    return this.documentsService.create(dto, req.user.practiceId ?? null);
+    // The author is always the signed-in clinician.
+    return this.documentsService.create(
+      { ...dto, doctor: req.user.userId },
+      req.user.practiceId ?? null,
+    );
   }
 
   // 🔥 Clean patient route
   @Get('patient/:patientId')
-  findByPatient(@Param('patientId') patientId: string, @Req() req: AuthedRequest) {
-    return this.documentsService.findByPatient(patientId, req.user.practiceId ?? null);
+  findByPatient(
+    @Param('patientId') patientId: string,
+    @Req() req: AuthedRequest,
+  ) {
+    return this.documentsService.findByPatient(
+      patientId,
+      req.user.practiceId ?? null,
+    );
   }
 
   /**
@@ -90,7 +100,11 @@ export class DocumentsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateDocumentDto, @Req() req: AuthedRequest) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateDocumentDto,
+    @Req() req: AuthedRequest,
+  ) {
     return this.documentsService.update(id, dto, req.user.practiceId ?? null);
   }
 

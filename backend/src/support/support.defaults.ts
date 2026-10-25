@@ -1,5 +1,9 @@
 /** Starter FAQs, inserted only when the collection is empty. Editable in the console. */
-export const DEFAULT_FAQS: { category: string; question: string; answer: string }[] = [
+export const DEFAULT_FAQS: {
+  category: string;
+  question: string;
+  answer: string;
+}[] = [
   {
     category: 'Appointments',
     question: 'How do I book an appointment for a patient?',

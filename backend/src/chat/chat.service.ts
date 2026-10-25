@@ -126,8 +126,9 @@ export class ChatService {
     userId: string,
     role: 'patient' | 'practitioner',
   ): Promise<number> {
-    const matchKey  = role === 'patient' ? 'patientId' : 'practitionerId';
-    const sumField  = role === 'patient' ? '$unreadForPatient' : '$unreadForPractitioner';
+    const matchKey = role === 'patient' ? 'patientId' : 'practitionerId';
+    const sumField =
+      role === 'patient' ? '$unreadForPatient' : '$unreadForPractitioner';
 
     const result = await this.conversationModel.aggregate<{ total: number }>([
       { $match: { [matchKey]: userId } },

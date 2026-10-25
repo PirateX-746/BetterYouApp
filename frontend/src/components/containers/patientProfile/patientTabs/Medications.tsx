@@ -39,8 +39,8 @@ interface PatientMedication {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  active: "bg-success-light text-success",
-  discontinued: "bg-danger-light text-danger",
+  active: "bg-success-light text-success-strong",
+  discontinued: "bg-danger-light text-danger-strong",
   completed: "bg-primary-light text-primary",
 };
 
@@ -378,7 +378,7 @@ export default function MedicationsTab() {
                     <option value="discontinued">Discontinued</option>
                     <option value="completed">Completed</option>
                   </select>
-                  <button onClick={() => setDeleteId(r._id)} className="text-text-secondary hover:text-danger transition p-1">
+                  <button onClick={() => setDeleteId(r._id)} className="text-text-secondary hover:text-danger-strong transition p-1">
                     <Trash2 size={14} />
                   </button>
                 </div>

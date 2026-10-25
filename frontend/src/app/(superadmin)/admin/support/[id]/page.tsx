@@ -117,7 +117,7 @@ export default function AdminSupportTicketPage() {
                   type="button"
                   disabled={saving}
                   onClick={() => void update({ status: "resolved" })}
-                  className="w-full h-11 rounded-xl border border-success/40 bg-success-light text-success text-sm font-semibold hover:bg-success/15 transition-colors cursor-pointer disabled:opacity-40"
+                  className="w-full h-11 rounded-xl border border-success/40 bg-success-light text-success-strong text-sm font-semibold hover:bg-success/15 transition-colors cursor-pointer disabled:opacity-40"
                 >
                   Mark resolved
                 </button>

@@ -73,7 +73,7 @@ function FaqEditor({
 
   const err = (k: keyof typeof errors, id: string) =>
     touched && errors[k] ? (
-      <p id={`${id}-err`} role="alert" className="text-xs text-danger">{errors[k]}</p>
+      <p id={`${id}-err`} role="alert" className="text-xs text-danger-strong">{errors[k]}</p>
     ) : null;
 
   return (
@@ -313,7 +313,7 @@ export function FaqManager() {
                   >
                     <Pencil size={16} aria-hidden />
                   </button>
-                  <button type="button" className={`${iconBtn} hover:!text-danger`} onClick={() => setDeleting(f)} aria-label={`Delete "${f.question}"`}>
+                  <button type="button" className={`${iconBtn} hover:!text-danger-strong`} onClick={() => setDeleting(f)} aria-label={`Delete "${f.question}"`}>
                     <Trash2 size={16} aria-hidden />
                   </button>
                 </div>

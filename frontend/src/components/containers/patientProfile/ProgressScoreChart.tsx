@@ -54,7 +54,7 @@ export default function ProgressScoreChart({ patientId }: Props) {
         <div className="text-right">
           <p className="text-2xl font-bold text-text-primary">{latest}<span className="text-sm font-normal text-text-secondary">/10</span></p>
           {trend !== 0 && (
-            <p className={`text-xs font-medium ${trend > 0 ? "text-success" : "text-danger"}`}>
+            <p className={`text-xs font-medium ${trend > 0 ? "text-success-strong" : "text-danger-strong"}`}>
               {trend > 0 ? "+" : ""}{trend} from last session
             </p>
           )}

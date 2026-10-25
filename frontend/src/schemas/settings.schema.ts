@@ -15,7 +15,8 @@ export const changePasswordSchema = z
       .string()
       .min(8, "Minimum 8 characters")
       .regex(/[A-Z]/, "Must contain an uppercase letter")
-      .regex(/[0-9]/, "Must contain a number"),
+      .regex(/[0-9]/, "Must contain a number")
+      .regex(/[!@#$%^&*]/, "Must contain a special character (!@#$%^&*)"),
     confirmPassword: z.string().min(1, "Please confirm your new password"),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {

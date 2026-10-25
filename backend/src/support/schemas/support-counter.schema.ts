@@ -11,4 +11,5 @@ export class SupportCounter extends Document<string> {
   seq: number;
 }
 
-export const SupportCounterSchema = SchemaFactory.createForClass(SupportCounter);
+export const SupportCounterSchema =
+  SchemaFactory.createForClass(SupportCounter);

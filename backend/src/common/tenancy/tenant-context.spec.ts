@@ -52,6 +52,7 @@ describe('tenant context', () => {
       runWithTenant(
         { practiceId: 'def', userId: 'u2', role: Role.PRACTITIONER },
         async () => {
+          await Promise.resolve();
           seen.push(getTenantContext()?.practiceId ?? null);
         },
       ),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Trash2, Loader2, AlertCircle, Clock, CheckCircle2, ClipboardList, XCircle, UserX } from "lucide-react";
+import { Trash2, AlertCircle, Clock, CheckCircle2, ClipboardList, XCircle, UserX } from "lucide-react";
 import { CalendarEvent } from "@/types/appointment";
 import Link from "next/link";
 import { api, type AppointmentType } from "@/lib/api";
@@ -9,6 +9,8 @@ import { DURATION_PRESETS, formatDuration } from "@/lib/appointmentTypes";
 import { Modal } from "@/components/common/Modal";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import { Badge, type BadgeTone } from "@/components/common/Badge";
+import { Field, FieldGroup, inputClass, textareaClass } from "@/components/common/Field";
+import { Button } from "@/components/ui/button";
 import SearchableSelect from "../../ui/SearchableSelect";
 import type { PracticeHours } from "./AppointmentsClient";
 
@@ -46,9 +48,6 @@ const DAY_KEYS = [
   "thursday", "friday", "saturday",
 ] as const;
 
-const fieldCls =
-  "w-full px-3.5 py-2.5 text-sm bg-bg-page border border-border rounded-xl text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition disabled:opacity-50 disabled:cursor-not-allowed";
-
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
@@ -77,6 +76,8 @@ export default function AddAppointmentDialog({
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [saving, setSaving] = useState(false);
+  // When the dialog opened — the reference for "in the past" below.
+  const [openedAt] = useState(() => Date.now());
   const [markingComplete, setMarkingComplete] = useState(false);
   const [markingNoShow, setMarkingNoShow] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -144,7 +145,12 @@ export default function AddAppointmentDialog({
   }, [date, practiceHours]);
 
   const hoursError = useMemo(() => {
-    if (!date || !time || !daySchedule) return null;
+    if (!date || !time) return null;
+    // New bookings, and moves of an existing one, can't start in the past.
+    const startAt = new Date(`${date}T${time}`).getTime();
+    const moved = !event || startAt !== new Date(event.start).getTime();
+    if (moved && startAt < openedAt) return "That time has already passed";
+    if (!daySchedule) return null;
     if (!daySchedule.isOpen) {
       const [y, m, d] = date.split("-").map(Number);
       const dayName = DAY_KEYS[new Date(y, m - 1, d).getDay()];
@@ -157,7 +163,7 @@ export default function AddAppointmentDialog({
     if (startMin < openMin) return `Practice opens at ${fmt12(daySchedule.openTime)}`;
     if (endMin > closeMin)  return `Appointment ends after closing time (${fmt12(daySchedule.closeTime)})`;
     return null;
-  }, [date, time, duration, daySchedule]);
+  }, [date, time, duration, daySchedule, event, openedAt]);
 
   const hoursHint = useMemo(() => {
     if (!daySchedule?.isOpen) return null;
@@ -265,220 +271,198 @@ export default function AddAppointmentDialog({
     }
   };
 
+  const status = STATUS_BADGE[event?.status ?? "scheduled"];
+
   return (
     <>
     <Modal
       open={open}
       onClose={onClose}
-      title={event ? "Edit Appointment" : "Schedule Appointment"}
+      title={event ? "Edit appointment" : "Schedule appointment"}
       footer={
         <div className="flex flex-wrap items-center gap-2 w-full">
-          {/* Destructive actions: quiet, on the left, and always confirmed.
-              Not offered once a session is closed out — that's the record. */}
+          {/* Destructive actions: quiet, on the left, apart from Save, and
+              always confirmed. Not offered once a session is closed out —
+              that's the record. */}
           {event && !isClosedOut && (
             <div className="flex items-center gap-1 -ml-2">
               {onStatusChange && (
-                <button
-                  type="button"
-                  onClick={() => setConfirm("cancel")}
-                  disabled={busy}
-                  className="h-10 inline-flex items-center gap-1.5 px-2.5 rounded-md text-sm text-danger hover:bg-danger/5 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <XCircle size={15} aria-hidden /> Cancel appointment
-                </button>
+                <Button variant="danger-ghost" size="sm" onClick={() => setConfirm("cancel")} disabled={busy}>
+                  <XCircle aria-hidden /> Cancel appointment
+                </Button>
               )}
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setConfirm("delete")}
                 disabled={busy}
-                className="h-10 inline-flex items-center gap-1.5 px-2.5 rounded-md text-sm text-text-secondary hover:text-danger hover:bg-danger/5 transition-colors cursor-pointer disabled:opacity-50"
+                className="hover:text-danger-strong hover:bg-danger/10"
                 aria-label="Delete appointment"
               >
-                <Trash2 size={15} aria-hidden /> Delete
-              </button>
+                <Trash2 aria-hidden /> Delete
+              </Button>
             </div>
           )}
           <div className="flex gap-2 ml-auto">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!canSave}
-              className="h-10 flex items-center gap-2 px-5 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              title={hoursError ?? undefined}
-            >
-              {saving && <Loader2 size={14} className="animate-spin" aria-hidden />}
+            <Button onClick={handleSubmit} disabled={!canSave} loading={saving} title={hoursError ?? undefined}>
               {saving ? "Saving…" : event ? "Save changes" : "Schedule"}
-            </button>
+            </Button>
           </div>
         </div>
       }
     >
           {/* Session status + the actions that make sense right now */}
           {event && (
-            <div className="rounded-md border border-border bg-bg-page p-3.5 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Status</span>
-                <Badge tone={STATUS_BADGE[event.status ?? "scheduled"]?.tone ?? "neutral"}>
-                  {STATUS_BADGE[event.status ?? "scheduled"]?.label ?? event.status}
+            <section aria-label="Session status" className="rounded-xl bg-bg-subtle border border-border-light">
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-eyebrow font-semibold uppercase text-text-secondary">Status</p>
+                  <p className="text-footnote text-text-secondary mt-0.5">
+                    {isClosedOut
+                      ? "Closed out — the time can't change, but you can still edit the notes."
+                      : hasStarted
+                        ? "The session has started. Record how it went."
+                        : "Completion and no-show can be recorded once the session has started."}
+                  </p>
+                </div>
+                <Badge tone={status?.tone ?? "neutral"} dot>
+                  {status?.label ?? event.status}
                 </Badge>
               </div>
-              {!isClosedOut && onStatusChange && hasStarted && (
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm text-text-primary">How did the session go?</p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleMarkNoShow}
-                      disabled={busy}
-                      className="h-10 inline-flex items-center gap-1.5 px-3 rounded-md border border-border bg-bg-card text-sm text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      {markingNoShow ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <UserX size={14} aria-hidden />}
-                      No-show
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleMarkCompleted}
-                      disabled={busy}
-                      className="h-10 inline-flex items-center gap-1.5 px-3 rounded-md bg-success text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
-                    >
-                      {markingComplete ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <CheckCircle2 size={14} aria-hidden />}
-                      Mark completed
-                    </button>
-                  </div>
+              {((!isClosedOut && onStatusChange && hasStarted) ||
+                (hasStarted && event.status !== "cancelled" && event.status !== "no_show")) && (
+                <div className="flex flex-wrap items-center gap-2 border-t border-border-light px-4 py-3">
+                  {!isClosedOut && onStatusChange && hasStarted && (
+                    <>
+                      <Button variant="secondary" size="sm" onClick={handleMarkCompleted} disabled={busy} loading={markingComplete}>
+                        {!markingComplete && <CheckCircle2 className="text-success-strong" aria-hidden />}
+                        Mark completed
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={handleMarkNoShow} disabled={busy} loading={markingNoShow}>
+                        {!markingNoShow && <UserX aria-hidden />}
+                        No-show
+                      </Button>
+                    </>
+                  )}
+                  {/* Assessable from the session's start, unless cancelled / no-show. */}
+                  {hasStarted && event.status !== "cancelled" && event.status !== "no_show" && (
+                    <Button asChild variant="tertiary" size="sm">
+                      <Link href={`/assessments?appointment=${event.id}`}>
+                        <ClipboardList aria-hidden /> Session assessment
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               )}
-              {!isClosedOut && !hasStarted && (
-                <p className="text-xs text-text-secondary">
-                  Completion and no-show can be recorded once the session has started.
-                </p>
-              )}
-              {/* Assessable from the session's start, unless cancelled / no-show. */}
-              {hasStarted && event.status !== "cancelled" && event.status !== "no_show" && (
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-                  <p className="text-sm text-text-primary">Record your observations of this session.</p>
-                  <Link
-                    href={`/assessments?appointment=${event.id}`}
-                    className="h-10 inline-flex items-center gap-1.5 px-3 rounded-md border border-primary/30 bg-bg-card text-sm font-medium text-primary hover:bg-primary/5 transition-colors cursor-pointer"
-                  >
-                    <ClipboardList size={14} aria-hidden /> Session assessment
-                  </Link>
-                </div>
-              )}
-              {isClosedOut && (
-                <p className="text-xs text-text-secondary">Closed out — the time can&apos;t change, but you can still edit the notes.</p>
-              )}
-            </div>
+            </section>
           )}
 
-          {/* Patient */}
-          <div className="space-y-1.5">
-            <label htmlFor="appt-patient" className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Patient</label>
-            <SearchableSelect
-              id="appt-patient"
-              options={patientOptions}
-              value={patientId}
-              onChange={setPatientId}
-              placeholder="Select patient"
-              disabled={!!event}
-              loading={loadingPatients}
-              loadingText="Loading patients…"
-            />
-          </div>
+          <FieldGroup legend="Session">
+            <Field label="Patient" htmlFor="appt-patient">
+              <SearchableSelect
+                id="appt-patient"
+                options={patientOptions}
+                value={patientId}
+                onChange={setPatientId}
+                placeholder="Select patient"
+                disabled={!!event}
+                loading={loadingPatients}
+                loadingText="Loading patients…"
+              />
+            </Field>
 
-          {/* Type */}
-          <div className="space-y-1.5">
-            <label htmlFor="appt-type" className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Appointment Type</label>
-            <SearchableSelect
-              id="appt-type"
-              options={typeOptions}
-              value={typeValue}
-              onChange={handleTypeChange}
-              placeholder="Select type"
-              loading={typesLoading}
-              loadingText="Loading types…"
-            />
-            {noActiveTypes && (
-              <p className="text-xs text-text-secondary">
-                No active appointment types.{" "}
-                <Link href="/settings" className="text-primary hover:underline">
-                  Add them in Settings → Appointment Types
-                </Link>
+            <Field
+              label="Appointment type"
+              htmlFor="appt-type"
+              hint={
+                noActiveTypes ? (
+                  <>
+                    No active appointment types.{" "}
+                    <Link href="/settings" className="text-primary-strong hover:underline">
+                      Add them in Settings → Appointment Types
+                    </Link>
+                  </>
+                ) : undefined
+              }
+            >
+              <SearchableSelect
+                id="appt-type"
+                options={typeOptions}
+                value={typeValue}
+                onChange={handleTypeChange}
+                placeholder="Select type"
+                loading={typesLoading}
+                loadingText="Loading types…"
+              />
+            </Field>
+          </FieldGroup>
+
+          <FieldGroup legend="When">
+            <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+              <Field label="Date" htmlFor="appt-date" className="col-span-2 sm:col-span-1">
+                <input
+                  id="appt-date"
+                  type="date"
+                  className={inputClass}
+                  value={date}
+                  disabled={isClosedOut}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </Field>
+              <Field label="Time" htmlFor="appt-time">
+                <input
+                  id="appt-time"
+                  type="time"
+                  className={inputClass}
+                  value={time}
+                  min={daySchedule?.isOpen ? daySchedule.openTime : undefined}
+                  max={daySchedule?.isOpen ? daySchedule.closeTime : undefined}
+                  disabled={isClosedOut}
+                  aria-invalid={!isClosedOut && !!hoursError}
+                  onChange={(e) => setTime(e.target.value)}
+                />
+              </Field>
+              <Field label="Duration" htmlFor="appt-duration">
+                <select id="appt-duration" className={inputClass} value={duration} disabled={isClosedOut} onChange={(e) => setDuration(Number(e.target.value))}>
+                  {durationOptions.map((m) => (
+                    <option key={m} value={m}>{formatDuration(m)}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            {hoursHint && !isClosedOut && !hoursError && (
+              <p className="flex items-center gap-1.5 text-caption text-text-secondary">
+                <Clock size={12} className="shrink-0" aria-hidden />
+                Practice hours that day: {hoursHint.replace(/^Open\s*/i, "")}
               </p>
             )}
-          </div>
 
-          {/* Date & Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between h-4">
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Date</label>
+            {isClosedOut && (
+              <p className="text-caption text-text-secondary">
+                This appointment is {event?.status === "completed" ? "completed" : event?.status === "no_show" ? "marked as no-show" : "cancelled"} and can no longer be rescheduled.
+              </p>
+            )}
+
+            {/* Practice hours error */}
+            {!isClosedOut && hoursError && (
+              <div role="alert" className="flex items-start gap-2 px-3 py-2.5 bg-danger-light rounded-lg">
+                <AlertCircle size={15} className="text-danger-strong shrink-0 mt-0.5" aria-hidden />
+                <p className="text-footnote text-danger-strong">{hoursError}</p>
               </div>
-              <input
-                type="date"
-                className={fieldCls}
-                value={date}
-                disabled={isClosedOut}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between h-4">
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Time</label>
-                {hoursHint && (
-                  <span className="flex items-center gap-1 whitespace-nowrap text-[10px] text-text-secondary shrink-0">
-                    <Clock size={10} className="shrink-0" />
-                    {hoursHint}
-                  </span>
-                )}
-              </div>
-              <input
-                type="time"
-                className={fieldCls}
-                value={time}
-                min={daySchedule?.isOpen ? daySchedule.openTime : undefined}
-                max={daySchedule?.isOpen ? daySchedule.closeTime : undefined}
-                disabled={isClosedOut}
-                onChange={(e) => setTime(e.target.value)}
-              />
-            </div>
-          </div>
+            )}
+          </FieldGroup>
 
-          {isClosedOut && (
-            <p className="text-xs text-text-secondary -mt-2">
-              This appointment is {event?.status === "completed" ? "completed" : event?.status === "no_show" ? "marked as no-show" : "cancelled"} and can no longer be rescheduled.
-            </p>
-          )}
-
-          {/* Practice hours error banner */}
-          {!isClosedOut && hoursError && (
-            <div className="flex items-start gap-2 px-3 py-2.5 bg-danger/8 border border-danger/20 rounded-xl">
-              <AlertCircle size={15} className="text-danger shrink-0 mt-0.5" />
-              <p className="text-xs text-danger">{hoursError}</p>
-            </div>
-          )}
-
-          {/* Duration */}
-          <div className="space-y-1.5">
-            <label htmlFor="appt-duration" className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Duration</label>
-            <select id="appt-duration" className={fieldCls} value={duration} disabled={isClosedOut} onChange={(e) => setDuration(Number(e.target.value))}>
-              {durationOptions.map((m) => (
-                <option key={m} value={m}>{formatDuration(m)}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <label htmlFor="appt-notes" className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Notes</label>
+          <Field label="Notes" htmlFor="appt-notes">
             <textarea
               id="appt-notes"
-              className={`${fieldCls} resize-none`}
+              className={textareaClass}
               placeholder="Session notes…"
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
-          </div>
+          </Field>
     </Modal>
 
     {event && (

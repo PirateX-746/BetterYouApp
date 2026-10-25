@@ -13,7 +13,6 @@ import { ChatService } from './chat.service';
 import { SseService } from '../sse/sse.service';
 import { WsAuthService, type SocketUser } from '../common/ws/ws-auth.service';
 import { socketCorsOptions } from '../common/cors';
-import { Role } from '../common/role.enum';
 
 interface ChatPayload {
   conversationId: string;
@@ -50,7 +49,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    client.data.user = user;
+    WsAuthService.attach(client, user);
     this.onlineUsers.set(user.userId, client.id);
     this.server.emit('onlineUsers', Array.from(this.onlineUsers.keys()));
   }
@@ -96,7 +95,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.participantOf(client, conversationId);
     if (!user) {
-      client.emit('error', { message: 'Not a participant in that conversation' });
+      client.emit('error', {
+        message: 'Not a participant in that conversation',
+      });
       return;
     }
     await client.join(conversationId);
@@ -109,7 +110,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.participantOf(client, payload?.conversationId);
     if (!user) {
-      client.emit('error', { message: 'Not a participant in that conversation' });
+      client.emit('error', {
+        message: 'Not a participant in that conversation',
+      });
       return;
     }
 
@@ -200,10 +203,5 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server
       .to(payload.conversationId)
       .emit('messageSeen', payload.messageId);
-  }
-
-  /** Exposed for the online-users list; role is unused today but kept for parity. */
-  isOnline(userId: string, _role?: Role): boolean {
-    return this.onlineUsers.has(userId);
   }
 }

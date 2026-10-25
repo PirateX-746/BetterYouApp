@@ -31,15 +31,14 @@ const EMPTY: PatientProfile = {
 };
 
 export function useProfile(userId: string | null) {
-  const [loading, setLoading] = useState(true);
+  // Which user the profile on screen belongs to; loading until it matches.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const loading = !!userId && loadedFor !== userId;
   const [patient, setPatient] = useState<PatientProfile>(EMPTY);
   const [draft, setDraft] = useState<PatientProfile>(EMPTY);
 
   useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
+    if (!userId) return;
 
     api
       .get(`/patients/${userId}`)
@@ -65,7 +64,7 @@ export function useProfile(userId: string | null) {
         setDraft(normalized);
       })
       .catch(() => toast.error("Failed to load profile"))
-      .finally(() => setLoading(false));
+      .finally(() => setLoadedFor(userId));
   }, [userId]);
 
   return { patient, setPatient, draft, setDraft, loading };

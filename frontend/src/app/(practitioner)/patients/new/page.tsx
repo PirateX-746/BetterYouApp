@@ -39,11 +39,11 @@ function Field({
     <div className={`space-y-1.5 ${className}`}>
       <label htmlFor={id} className="text-sm font-medium text-text-primary">
         {label}
-        {required ? <span className="text-danger" aria-hidden> *</span> : <span className="text-text-secondary font-normal"> (optional)</span>}
+        {required ? <span className="text-danger-strong" aria-hidden> *</span> : <span className="text-text-secondary font-normal"> (optional)</span>}
       </label>
       {children}
       {error ? (
-        <p id={`${id}-err`} role="alert" className="text-xs text-danger">{error}</p>
+        <p id={`${id}-err`} role="alert" className="text-xs text-danger-strong">{error}</p>
       ) : hint ? (
         <p id={`${id}-hint`} className="text-xs text-text-secondary">{hint}</p>
       ) : null}
@@ -96,7 +96,7 @@ export default function AddPatientPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5 pb-24">
         {serverError && (
-          <div role="alert" className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+          <div role="alert" className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger-strong">
             <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden />
             {serverError}
           </div>
@@ -181,7 +181,7 @@ export default function AddPatientPage() {
         </div>
 
         {/* Sticky actions: always reachable on long forms and small screens. */}
-        <div className="fixed bottom-16 lg:bottom-0 left-0 lg:left-64 right-0 z-20 border-t border-border bg-bg-card/95 backdrop-blur px-4 md:px-6 py-3 flex items-center justify-end gap-3">
+        <div className="fixed bottom-16 lg:bottom-0 left-0 lg:left-64 right-0 z-20 border-t border-border bg-bg-card px-4 md:px-6 py-3 flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={() => router.push("/patients")}
