@@ -112,7 +112,7 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
 
       <aside
         className={`
-          fixed top-0 left-0 z-40 h-screen w-64
+          fixed top-0 left-0 z-40 h-[100dvh] w-64 pt-safe-t pb-safe-b
           bg-bg-card border-r border-border
           transform transition-transform duration-300 ease-in-out
           flex flex-col

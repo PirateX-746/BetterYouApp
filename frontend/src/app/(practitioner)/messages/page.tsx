@@ -497,7 +497,7 @@ function MessagesPageImpl() {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-bg-card border-t border-border shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10">
+            <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-bg-card border-t border-border shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10">
               <div className="flex gap-3 max-w-4xl mx-auto items-end">
                 <textarea
                   value={input}

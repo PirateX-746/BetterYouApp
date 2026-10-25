@@ -231,6 +231,13 @@ optional **tertiary** action (the header keeps the primary "Add"). Use
 - **Sidebar**: grouped (Clinic / Practice), tinted selection
   (`bg-primary/10 text-primary-strong`) — never a solid accent block.
 
+- **Installed app (PWA) safe areas**: the app draws edge to edge
+  (`viewport-fit=cover`). Fixed chrome uses the safe-area spacing tokens:
+  `h-topbar pt-safe-t` for a top bar, `h-bottomnav pb-safe-b` for a bottom nav,
+  and `pt-topbar` / `pb-bottomnav` to offset scrolling content under them. Any
+  new bottom-pinned surface (sheet footer, composer) adds `pb-safe-b`. Use
+  `100dvh`, not `h-screen`, for full-height shells.
+
 ### Record / detail page (see `patientProfile/PatientProfile.tsx`)
 1. **Identity card**: avatar, name (`title-1`) + status badge, inline facts
    (`label` caption + `value` body-medium), actions on the right.

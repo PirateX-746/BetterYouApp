@@ -152,7 +152,7 @@ function ModalPanel({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`relative w-full ${maxWidth} bg-bg-card rounded-t-3xl sm:rounded-2xl shadow-lg overflow-hidden flex flex-col max-h-[92dvh]`}
+        className={`relative w-full ${maxWidth} bg-bg-card rounded-t-3xl sm:rounded-2xl shadow-lg overflow-hidden flex flex-col max-h-[92dvh] pb-safe-b sm:pb-0`}
         style={{ y }}
         initial={hidden}
         animate={shown}

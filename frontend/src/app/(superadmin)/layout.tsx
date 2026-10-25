@@ -25,8 +25,8 @@ export default function SuperAdminLayout({ children }: { children: ReactNode }) 
       <SupportLiveToaster side="support" />
       <SuperAdminSidebar open={open} setOpen={setOpen} />
 
-      <div className="lg:ml-64 min-h-screen bg-bg-page flex flex-col">
-        <header className="h-14 shrink-0 border-b border-border bg-bg-card flex items-center gap-3 px-4">
+      <div className="lg:ml-64 min-h-[100dvh] pb-safe-b bg-bg-page flex flex-col">
+        <header className="h-topbar pt-safe-t shrink-0 border-b border-border bg-bg-card flex items-center gap-3 px-4">
           <button
             onClick={() => setOpen((o) => !o)}
             className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-bg-hover text-text-secondary"

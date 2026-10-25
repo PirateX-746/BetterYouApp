@@ -652,6 +652,35 @@ body {
      matching how the system font renders natively. */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Native-app feel on touch devices: no grey flash on tap, and the shell
+     doesn't rubber-band or pull-to-refresh (scroll areas inside still scroll). */
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* iOS zooms the page when a field under 16px is focused, and the body size
+   is 14px. Touch devices get 16px fields instead of disabling pinch-zoom. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* Installed app (home-screen launch): no long-press link previews/callouts
+   on the app chrome, as in a native app. Content text stays selectable. */
+@media (display-mode: standalone) {
+  nav a,
+  header a,
+  aside a {
+    -webkit-touch-callout: none;
+  }
 }
 
 .input-style {

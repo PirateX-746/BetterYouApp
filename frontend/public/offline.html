@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Offline – BetterYou</title>
+  <!-- Served by the service worker when a page can't load. It can't use the
+       app's stylesheet, so the light/dark token values are copied from globals.css. -->
+  <style>
+    :root { --bg: #f3f5f9; --card: #ffffff; --text: #1d1d1f; --muted: #5f6368; --primary: #2563eb; --border: #e3e6ea; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0f0f0f; --card: #1a1a1a; --text: #e8eaed; --muted: #9aa0a6; --border: #2a2a2a; }
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .card { width: 100%; max-width: 360px; background: var(--card); border-radius: 16px; padding: 32px 24px; text-align: center; box-shadow: 0 1px 3px rgba(16,24,40,.08); }
+    .mark { width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 20px; display: block; }
+    h1 { font-size: 20px; font-weight: 600; margin: 0 0 8px; }
+    p { font-size: 15px; line-height: 1.5; color: var(--muted); margin: 0 0 24px; }
+    button {
+      appearance: none; border: 0; cursor: pointer; width: 100%; height: 44px; border-radius: 8px;
+      background: var(--primary); color: #fff; font: inherit; font-size: 15px; font-weight: 500;
+    }
+    button:active { transform: scale(0.97); }
+    button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img class="mark" src="/icons/icon-192.png" alt="" />
+    <h1>You're offline</h1>
+    <p>BetterYou needs an internet connection to load patient information. Check your connection and try again.</p>
+    <button type="button" onclick="location.reload()">Try again</button>
+  </main>
+  <script>window.addEventListener("online", function () { location.reload(); });</script>
+</body>
+</html>

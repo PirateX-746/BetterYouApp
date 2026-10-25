@@ -12,6 +12,19 @@ const nextConfig: NextConfig = {
         // leave headroom for multipart overhead; the backend enforces the cap.
         proxyClientMaxBodySize: "25mb",
     },
+    async headers() {
+        return [
+            {
+                // The browser must always re-check the service worker so a
+                // deploy's new version (cache bump) reaches installed apps.
+                source: "/sw.js",
+                headers: [
+                    { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+                    { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+                ],
+            },
+        ];
+    },
     async rewrites() {
         return [
             {

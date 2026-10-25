@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useSyncExternalStore } from "react";
 import { darken, isValidHex } from "@/lib/color";
+import { THEME_COLOR } from "@/lib/pwa";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -106,6 +107,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         mq.addEventListener("change", handler);
         return () => mq.removeEventListener("change", handler);
     }, [themeMode]);
+
+    // The status bar of the installed app takes its color from theme-color.
+    // The root layout ships one per OS scheme; point both at the chrome
+    // (--bg-card) of the theme in use, so a manual light/dark choice that
+    // differs from the OS doesn't leave a mismatched bar.
+    useEffect(() => {
+        const color = darkMode ? THEME_COLOR.dark : THEME_COLOR.light;
+        document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", color));
+    }, [darkMode]);
 
     const setThemeMode = useCallback((mode: ThemeMode) => {
         localStorage.setItem("theme", mode);

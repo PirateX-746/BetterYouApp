@@ -103,7 +103,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-40 h-screen w-64
+          fixed top-0 left-0 z-40 h-[100dvh] w-64 pt-safe-t pb-safe-b
           bg-bg-card border-r border-border
           transform transition-transform duration-300 ease-apple motion-reduce:transition-none
           flex flex-col
@@ -213,7 +213,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
       </aside>
 
       {/* Mobile bottom nav — hidden when a chat conversation is open */}
-      {!chatOpen && <nav aria-label="Main" className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-bg-card border-t border-border flex items-center justify-around px-1 overflow-x-auto scrollbar-hide">
+      {!chatOpen && <nav aria-label="Main" className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-bottomnav pb-safe-b bg-bg-card border-t border-border flex items-center justify-around px-1 overflow-x-auto scrollbar-hide">
         {NAV_ITEMS.map(({ label, href, icon: Icon, comingSoon }) => {
           if (comingSoon) {
             return (
