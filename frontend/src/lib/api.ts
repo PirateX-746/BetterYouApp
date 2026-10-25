@@ -1,5 +1,6 @@
 import axios from "axios";
 import { clearSessionStorage } from "./session";
+import { encryptObjectPasswords } from "./passwordTransport";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -43,15 +44,19 @@ api.get = function dedupedGet(this: unknown, url: string, config?: object) {
   return request;
 } as typeof api.get;
 
+// Password fields leave the browser encrypted (see passwordTransport.ts).
+api.interceptors.request.use(async (config) => {
+  if (config.data) config.data = await encryptObjectPasswords(config.data);
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== "undefined") {
       const path = window.location.pathname;
       const isAuthPage =
-        path.includes("Login") ||
-        path.includes("Signup") ||
-        path === "/";
+        path.includes("Login") || path.includes("Signup") || path === "/";
       if (!isAuthPage) {
         clearSessionStorage();
         document.cookie.split(";").forEach((c) => {
@@ -63,7 +68,7 @@ api.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 /* =====================================================
@@ -99,7 +104,8 @@ export const appointmentTypesApi = {
   update: (id: string, input: Partial<AppointmentTypeInput>) =>
     api.patch<AppointmentType>(`/appointment-types/${id}`, input),
 
-  delete: (id: string) => api.delete<{ deleted: true }>(`/appointment-types/${id}`),
+  delete: (id: string) =>
+    api.delete<{ deleted: true }>(`/appointment-types/${id}`),
 };
 
 /** The server's error message (validation, conflict, ...) or a fallback. */

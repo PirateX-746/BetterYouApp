@@ -112,6 +112,7 @@ export default function MedicationsPage() {
       setLoading(false);
       return;
     }
+    setLoading(true);
     fetchMedications().finally(() => setLoading(false));
   }, [practitionerId, fetchMedications]);
 
