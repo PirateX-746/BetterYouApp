@@ -9,6 +9,7 @@ import {
   Panel,
   StatusPill,
 } from "@/components/containers/superadmin/console-ui";
+import { ChangePasswordPanel } from "@/components/containers/superadmin/ChangePasswordPanel";
 
 const RESERVED_SUBDOMAINS = [
   "www", "api", "admin", "app", "mail", "static", "assets",
@@ -23,6 +24,8 @@ export default function PlatformSettingsPage() {
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <ChangePasswordPanel />
+
         {/* Domain */}
         <Panel title="Domain" padded>
           <div className="space-y-4">

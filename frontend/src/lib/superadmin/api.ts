@@ -311,6 +311,15 @@ export async function platformLogin(email: string, password: string) {
   return data;
 }
 
+/** Emails a temporary password; the answer is the same for unknown emails. */
+export async function platformForgotPassword(email: string) {
+  const { data } = await api.post<{ message: string }>(
+    "/auth/platform/forgot-password",
+    { email },
+  );
+  return data;
+}
+
 export async function platformLogout() {
   await api.post("/auth/logout");
 }

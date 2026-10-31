@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,8 +43,10 @@ export default function AdminLoginPage() {
         /* storage unavailable — non-fatal */
       }
       setDisplayCookie("name", res.name);
+      // Navigate before refreshing, or the refreshed login page is sent to
+      // the dashboard by the proxy and skips the forced password change.
+      router.replace(res.mustChangePassword ? "/change-password" : "/admin/dashboard");
       router.refresh();
-      router.replace("/admin/dashboard");
     } catch (err: unknown) {
       const e2 = err as {
         response?: { status?: number; data?: { message?: string } };
@@ -98,7 +101,15 @@ export default function AdminLoginPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="admin-password">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="admin-password">Password</Label>
+              <Link
+                href="/adminForgotPassword"
+                className="text-xs text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <div className="relative">
               <Input
                 id="admin-password"

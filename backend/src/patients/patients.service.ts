@@ -166,7 +166,7 @@ export class PatientsService {
           firstName: patient.firstName,
           tempPassword: temporaryPassword,
           validForMinutes: NEW_PATIENT_TEMP_PASSWORD_TTL_MS / 60_000,
-          signInUrl: portalSignInUrl(true),
+          signInUrl: portalSignInUrl('patient'),
           issuedByPractice: practice?.name ?? 'Your practice',
         }),
       });
