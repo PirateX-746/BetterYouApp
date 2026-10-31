@@ -84,6 +84,8 @@ design-system/
 !README.md
 # The UI design system is shared project documentation, not a local note.
 !frontend/DESIGN_SYSTEM.md
+# How production is deployed (Railway, or a VPS) — shared, no secrets.
+!DEPLOY.md
 
 # One-off local debugging scripts: hash.js hard-codes a password, and the
 # inspect/list scripts dump patient emails and password hashes.
