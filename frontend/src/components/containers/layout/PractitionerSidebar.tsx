@@ -8,7 +8,6 @@ import {
   CalendarCheck,
   Users,
   Settings,
-  Stethoscope,
   ChevronUp,
   User,
   LogOut,
@@ -36,6 +35,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 interface SidebarProps {
   open: boolean;
@@ -103,7 +103,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-40 h-screen w-64
+          fixed top-0 left-0 z-40 h-[100dvh] w-64 pt-safe-t pb-safe-b
           bg-bg-card border-r border-border
           transform transition-transform duration-300 ease-apple motion-reduce:transition-none
           flex flex-col
@@ -113,12 +113,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
       >
         {/* Brand */}
         <div className="h-14 px-5 flex items-center gap-2.5 shrink-0">
-          <span className="size-7 rounded-lg bg-brand text-white grid place-items-center shadow-brand">
-            <Stethoscope size={15} aria-hidden />
-          </span>
-          <span className="text-title-3 font-semibold text-text-primary">
-            <span className="text-primary">Better</span>You
-          </span>
+          <BrandLogo />
         </div>
 
         {/* Nav — flex-1 so it fills space and pushes profile to bottom */}
@@ -213,7 +208,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
       </aside>
 
       {/* Mobile bottom nav — hidden when a chat conversation is open */}
-      {!chatOpen && <nav aria-label="Main" className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-bg-card border-t border-border flex items-center justify-around px-1 overflow-x-auto scrollbar-hide">
+      {!chatOpen && <nav aria-label="Main" className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-bottomnav pb-safe-b bg-bg-card border-t border-border flex items-center justify-around px-1 overflow-x-auto scrollbar-hide">
         {NAV_ITEMS.map(({ label, href, icon: Icon, comingSoon }) => {
           if (comingSoon) {
             return (

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, AlertCircle, Brain, Loader2 } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { login } from "@/lib/auth";
 import { setDisplayCookie } from "@/lib/session";
 import { loginSchema, type LoginValues } from "@/schemas/auth.schema";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 interface LoginProps {
   role: "patient" | "practitioner";
@@ -74,12 +75,7 @@ export default function LoginContainer({ role }: LoginProps) {
 
       <div className="relative w-full max-w-md backdrop-blur-2xl bg-white/80 rounded-3xl shadow-[0_25px_60px_rgba(15,23,42,0.12)] border border-white/40 p-10 transition-all duration-500">
         <div className="text-center mb-8 space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-3">
-            <Brain className="w-7 h-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-800">
-            Better<span className="text-primary">You</span>
-          </h1>
+          <BrandLogo size="lg" stacked asHeading className="mb-1" />
           <p className="text-sm text-gray-500">
             {isPatient ? "Welcome back. Continue your wellness journey." : "Secure practitioner access portal"}
           </p>

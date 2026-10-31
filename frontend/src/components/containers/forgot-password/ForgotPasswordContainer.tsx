@@ -5,7 +5,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  Brain,
   Mail,
   ArrowLeft,
   AlertCircle,
@@ -23,6 +22,7 @@ import {
   forgotPasswordSchema,
   type ForgotPasswordValues,
 } from "@/schemas/auth.schema";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 interface ForgotPasswordProps {
   role: "patient" | "practitioner";
@@ -71,12 +71,7 @@ export default function ForgotPasswordContainer({ role }: ForgotPasswordProps) {
 
       <div className="relative w-full max-w-md backdrop-blur-2xl bg-white/80 rounded-3xl shadow-[0_25px_60px_rgba(15,23,42,0.12)] border border-white/40 p-10">
         <div className="text-center mb-8 space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-3">
-            <Brain className="w-7 h-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-800">
-            Better<span className="text-primary">You</span>
-          </h1>
+          <BrandLogo size="lg" stacked asHeading className="mb-1" />
         </div>
 
         {!result ? (
@@ -90,7 +85,7 @@ export default function ForgotPasswordContainer({ role }: ForgotPasswordProps) {
               </h2>
               <p className="text-sm text-gray-500 leading-relaxed">
                 Enter your {isPatient ? "patient" : "practitioner"} account
-                email and we&apos;ll generate a temporary password.
+                email and we&apos;ll email you a temporary password.
               </p>
             </div>
 

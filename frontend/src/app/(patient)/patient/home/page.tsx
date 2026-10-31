@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 
 type Appointment = {
   id: string;
@@ -30,8 +31,9 @@ type Appointment = {
 };
 
 const HOURS_24 = 24 * 60 * 60 * 1000;
-const HOURS_48 = 48 * 60 * 60 * 1000;
-const HOURS_2 = 2 * 60 * 60 * 1000;
+/** Mirrors PATIENT_CANCEL_CUTOFF_HOURS on the backend, which enforces it. */
+const CANCEL_CUTOFF_HOURS = 4;
+const CANCEL_CUTOFF = CANCEL_CUTOFF_HOURS * 60 * 60 * 1000;
 
 const QUOTES = [
   "Your health is your wealth. Every step forward counts.",
@@ -47,6 +49,7 @@ export default function HomePage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   // Stable random quote — computed once, not on every render
   const [quote] = useState(
@@ -116,58 +119,51 @@ export default function HomePage() {
         ...a,
         normalizedStatus: a.status.toLowerCase(),
         startTime: new Date(a.start).getTime(),
-        createdTime: a.createdAt ? new Date(a.createdAt).getTime() : 0,
       })),
     [appointments],
   );
 
   const upcoming = normalized
-    .filter((a) => a.startTime > now)
+    .filter(
+      (a) =>
+        a.startTime > now &&
+        a.normalizedStatus !== "cancelled" &&
+        a.normalizedStatus !== "no_show",
+    )
     .sort((a, b) => a.startTime - b.startTime);
   const next = upcoming[0];
   const completedCount = normalized.filter(
     (a) => a.startTime <= now && a.normalizedStatus === "confirmed",
   ).length;
   const timeUntilNext = next ? next.startTime - now : 0;
-  const timeSinceCreate = next ? now - next.createdTime : 0;
   const within24h = timeUntilNext > 0 && timeUntilNext <= HOURS_24;
   const canConfirm = next && within24h && next.normalizedStatus === "scheduled";
+  const canCancel = next && timeUntilNext >= CANCEL_CUTOFF;
 
   /* ── Update ── */
   const updateStatus = useCallback(
-    async (id: string, status: "CONFIRMED" | "CANCELLED") => {
+    async (id: string, action: "confirm" | "cancel") => {
       setUpdatingId(id);
       try {
-        await api.put(`/appointments/${id}`, { status });
+        const res = await api.patch<Appointment>(`/appointments/${id}/${action}`);
         setAppointments((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, status } : a)),
+          prev.map((a) => (a.id === id ? { ...a, status: res.data.status } : a)),
         );
         toast.success(
-          status === "CONFIRMED"
+          action === "confirm"
             ? "Appointment confirmed"
             : "Appointment cancelled",
         );
-      } catch {
-        toast.error("Failed to update appointment");
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string } } };
+        toast.error(e.response?.data?.message ?? "Failed to update appointment");
       } finally {
         setUpdatingId(null);
+        setConfirmCancel(false);
       }
     },
     [],
   );
-
-  /* ── Auto-cancel ── */
-  useEffect(() => {
-    if (!next) return;
-    const shouldAutoCancel =
-      next.normalizedStatus === "scheduled" &&
-      timeUntilNext <= HOURS_2 &&
-      timeSinceCreate >= HOURS_48;
-    if (shouldAutoCancel) {
-      updateStatus(next.id, "CANCELLED");
-      toast("Appointment auto-cancelled", { icon: "⚠️" });
-    }
-  }, [next, timeUntilNext, timeSinceCreate, updateStatus]);
 
   if (loading) {
     return (
@@ -292,24 +288,45 @@ export default function HomePage() {
               </div>
             </div>
 
-            {canConfirm && (
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  disabled={updatingId === next.id}
-                  onClick={() => updateStatus(next.id, "CONFIRMED")}
-                  className="py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition disabled:opacity-50"
-                >
-                  {updatingId === next.id ? "Confirming…" : "Confirm"}
-                </button>
-                <button
-                  disabled={updatingId === next.id}
-                  onClick={() => updateStatus(next.id, "CANCELLED")}
-                  className="py-2.5 border border-danger text-danger-strong text-sm font-medium rounded-xl hover:bg-danger/5 transition disabled:opacity-50"
-                >
-                  {updatingId === next.id ? "Cancelling…" : "Cancel"}
-                </button>
+            {(canConfirm || canCancel) && (
+              <div className={`grid gap-2 ${canConfirm && canCancel ? "grid-cols-2" : "grid-cols-1"}`}>
+                {canConfirm && (
+                  <button
+                    disabled={updatingId === next.id}
+                    onClick={() => updateStatus(next.id, "confirm")}
+                    className="py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition disabled:opacity-50"
+                  >
+                    {updatingId === next.id ? "Confirming…" : "Confirm"}
+                  </button>
+                )}
+                {canCancel && (
+                  <button
+                    disabled={updatingId === next.id}
+                    onClick={() => setConfirmCancel(true)}
+                    className="py-2.5 border border-danger text-danger-strong text-sm font-medium rounded-xl hover:bg-danger/5 transition disabled:opacity-50"
+                  >
+                    Cancel appointment
+                  </button>
+                )}
               </div>
             )}
+            {!canCancel && (
+              <p className="text-xs text-text-secondary">
+                It&apos;s less than {CANCEL_CUTOFF_HOURS} hours to your appointment, so it can no
+                longer be cancelled online. Please contact the practice.
+              </p>
+            )}
+            <ConfirmationDialog
+              open={confirmCancel}
+              onClose={() => setConfirmCancel(false)}
+              onConfirm={() => void updateStatus(next.id, "cancel")}
+              title="Cancel this appointment?"
+              description={`${next.title} on ${new Date(next.startTime).toLocaleString()} will be cancelled and you'll get an email confirming it.`}
+              confirmLabel="Cancel appointment"
+              cancelLabel="Keep it"
+              danger
+              loading={updatingId === next.id}
+            />
           </div>
         )}
       </div>

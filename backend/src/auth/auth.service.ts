@@ -9,6 +9,11 @@ import { Model, Document } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { generateTempPassword } from '../common/temp-password';
+import { EmailService } from '../email/email.service';
+import {
+  portalSignInUrl,
+  renderTempPasswordEmail,
+} from './password-reset-email';
 
 import { LoginDto } from './dto/login.dto';
 import { CreatePatientDto } from './dto/patient-signup.dto';
@@ -32,9 +37,15 @@ type UserDocument = (Patient | Practitioner) &
     lastName?: string;
     mustChangePassword: boolean;
     tempPasswordExpiresAt?: Date;
+    resetPasswordHash?: string;
+    resetPasswordExpiresAt?: Date;
   };
 
+/** The hidden reset fields, which login must select explicitly. */
+const RESET_FIELDS = '+resetPasswordHash +resetPasswordExpiresAt';
+
 const SALT_ROUNDS = 10;
+
 const TEMP_PASSWORD_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 @Injectable()
@@ -52,6 +63,8 @@ export class AuthService {
     private readonly platformAdminModel: Model<PlatformAdminDocument>,
 
     private readonly jwtService: JwtService,
+
+    private readonly email: EmailService,
   ) {}
 
   private getModelForRole(role: Role): Model<any> {
@@ -105,22 +118,30 @@ export class AuthService {
     let user: UserDocument | null;
 
     if (role === Role.PRACTITIONER) {
-      user = (await this.practitionerModel.findOne({
-        email: normalizedEmail,
-      })) as UserDocument | null;
+      user = (await this.practitionerModel
+        .findOne({ email: normalizedEmail })
+        .select(RESET_FIELDS)) as UserDocument | null;
     } else {
-      user = (await this.patientModel.findOne({
-        email: normalizedEmail,
-      })) as UserDocument | null;
+      user = (await this.patientModel
+        .findOne({ email: normalizedEmail })
+        .select(RESET_FIELDS)) as UserDocument | null;
     }
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Either the account's password or, after a forgot-password request,
+    // the emailed temporary one (while it's still valid).
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    const usedResetPassword =
+      !isPasswordValid &&
+      !!user.resetPasswordHash &&
+      !!user.resetPasswordExpiresAt &&
+      user.resetPasswordExpiresAt.getTime() > Date.now() &&
+      (await bcrypt.compare(password, user.resetPasswordHash));
 
-    if (!isPasswordValid) {
+    if (!isPasswordValid && !usedResetPassword) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -145,6 +166,24 @@ export class AuthService {
       throw new UnauthorizedException(
         'You are trying to access the wrong portal',
       );
+    }
+
+    if (usedResetPassword) {
+      // The emailed password was used, so it was the account owner: only now
+      // does it replace the old password, and they must choose a new one.
+      user.password = user.resetPasswordHash!;
+      user.mustChangePassword = true;
+      user.tempPasswordExpiresAt = user.resetPasswordExpiresAt;
+      user.resetPasswordHash = undefined;
+      user.resetPasswordExpiresAt = undefined;
+      await user.save();
+      this.logger.log(`Reset password used for ${String(user._id)}`);
+    } else if (user.resetPasswordHash) {
+      // Signed in with the real password, so the owner didn't need the
+      // reset (or didn't ask for it): cancel the emailed one.
+      user.resetPasswordHash = undefined;
+      user.resetPasswordExpiresAt = undefined;
+      await user.save();
     }
 
     if (
@@ -246,7 +285,7 @@ export class AuthService {
     // enumerate which emails have accounts.
     const genericResponse = {
       message:
-        'If an account exists for that email, a temporary password has been generated.',
+        "If an account exists for that email, we've emailed it a temporary password.",
     };
 
     if (!user) {
@@ -254,22 +293,49 @@ export class AuthService {
       return genericResponse;
     }
 
+    // Stored beside the current password, not over it: anyone can make this
+    // request for any email, so it must not lock the owner out. The current
+    // password keeps working; the emailed one only takes over when used.
     const tempPassword = generateTempPassword();
-    user.password = await bcrypt.hash(tempPassword, SALT_ROUNDS);
-    user.mustChangePassword = true;
-    user.tempPasswordExpiresAt = new Date(Date.now() + TEMP_PASSWORD_TTL_MS);
-    await user.save();
-
-    this.logger.log(
-      `Temporary password issued for ${role} ${user._id.toString()}`,
+    await model.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          resetPasswordHash: await bcrypt.hash(tempPassword, SALT_ROUNDS),
+          resetPasswordExpiresAt: new Date(Date.now() + TEMP_PASSWORD_TTL_MS),
+        },
+      },
     );
 
-    // Dev-only: since this app has no email/SMS provider wired up yet, the
-    // temp password is "simulated" by returning it directly in the response.
+    this.logger.log(`Reset password issued for ${role} ${user._id.toString()}`);
+
+    // Not awaited: the response must take the same time whether or not the
+    // account exists, or its latency would reveal which emails are registered.
+    const userId = user._id.toString();
+    this.email
+      .send({
+        to: normalizedEmail,
+        ...renderTempPasswordEmail({
+          firstName: user.firstName,
+          tempPassword,
+          validForMinutes: TEMP_PASSWORD_TTL_MS / 60_000,
+          signInUrl: portalSignInUrl(role === Role.PATIENT),
+        }),
+      })
+      .catch((err: unknown) =>
+        this.logger.error(
+          `Failed to email temporary password to ${role} ${userId}`,
+          err instanceof Error ? err.stack : String(err),
+        ),
+      );
+
+    // Dev-only fallback for when no email provider is configured: the temp
+    // password is "simulated" by returning it directly in the response.
     // Gated on two independent env vars, not just NODE_ENV — a production
     // deploy that forgets to set NODE_ENV is still safe unless someone has
     // *also* explicitly opted into the echo, which nobody does by accident.
     const devEchoAllowed =
+      !this.email.enabled &&
       process.env.NODE_ENV !== 'production' &&
       process.env.ALLOW_DEV_PASSWORD_RESET_ECHO === 'true';
 
@@ -308,6 +374,11 @@ export class AuthService {
     user.mustChangePassword = false;
     user.tempPasswordExpiresAt = undefined;
     await user.save();
+    // A reset requested earlier must not outlive a password the owner chose.
+    await model.updateOne(
+      { _id: user._id },
+      { $unset: { resetPasswordHash: 1, resetPasswordExpiresAt: 1 } },
+    );
 
     this.logger.log(`Password changed for ${role} ${user._id.toString()}`);
 

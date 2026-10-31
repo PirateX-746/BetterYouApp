@@ -1,0 +1,34 @@
+# Railway gateway: the app's one public domain. Railway terminates HTTPS
+# at its edge and forwards plain HTTP to $PORT; this routes to the other
+# services over Railway's private network, exactly like deploy/Caddyfile.
+{
+	auto_https off
+	admin off
+	servers {
+		# Only Railway's edge can reach this service, so keep the client IP
+		# it forwards (the backend runs with TRUST_PROXY=2: edge + Caddy).
+		trusted_proxies static 0.0.0.0/0 ::/0
+	}
+}
+
+:{$PORT:8080} {
+	encode zstd gzip
+
+	handle_path /api/* {
+		reverse_proxy {$BACKEND_HOST}
+	}
+
+	handle /socket.io/* {
+		reverse_proxy {$BACKEND_HOST}
+	}
+
+	handle /sse/* {
+		reverse_proxy {$BACKEND_HOST} {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy {$FRONTEND_HOST}
+	}
+}

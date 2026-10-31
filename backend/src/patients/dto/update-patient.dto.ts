@@ -14,4 +14,9 @@ export class UpdatePatientDto extends PartialType(CreatePatientDto) {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  /** Opt in/out of appointment confirmation and reminder emails. */
+  @IsOptional()
+  @IsBoolean()
+  emailNotifications?: boolean;
 }

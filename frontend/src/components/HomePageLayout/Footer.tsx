@@ -6,6 +6,7 @@ import {
     Mail,
     Clock,
 } from "lucide-react";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 export default function Footer() {
     return (
@@ -17,9 +18,7 @@ export default function Footer() {
 
                     {/* Brand */}
                     <div>
-                        <h2 className="text-2xl font-semibold text-white tracking-tight">
-                            Better<span className="text-blue-500">You</span>
-                        </h2>
+                        <BrandLogo size="md" inverse />
                         <p className="mt-4 text-sm leading-relaxed max-w-sm">
                             A modern integrative clinic focused on personalized care,
                             preventive health, and mental wellness.

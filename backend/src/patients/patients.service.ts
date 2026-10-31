@@ -2,6 +2,7 @@
 
 import {
   Injectable,
+  Logger,
   ConflictException,
   NotFoundException,
   UnauthorizedException,
@@ -19,6 +20,11 @@ import {
   practiceStamp,
 } from '../common/tenancy/practice-scope';
 import { generateTempPassword } from '../common/temp-password';
+import { EmailService } from '../email/email.service';
+import {
+  portalSignInUrl,
+  renderTempPasswordEmail,
+} from '../auth/password-reset-email';
 
 /**
  * How long a practitioner-issued temporary password stays valid. Longer than
@@ -29,9 +35,12 @@ const NEW_PATIENT_TEMP_PASSWORD_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class PatientsService {
+  private readonly logger = new Logger(PatientsService.name);
+
   constructor(
     @InjectModel(Patient.name)
     private readonly patientModel: Model<PatientDocument>,
+    private readonly email: EmailService,
   ) {}
 
   /* ===============================
@@ -120,7 +129,53 @@ export class PatientsService {
       },
     );
     if (!updated) throw new NotFoundException('Patient not found');
-    return { temporaryPassword, temporaryPasswordExpiresAt: expiresAt };
+
+    // Also email it, so the patient isn't relying on the practitioner to pass
+    // it on. Not awaited: an email outage mustn't fail the reset itself.
+    const emailed = this.email.enabled && !!updated.email;
+    if (emailed) {
+      void this.emailTemporaryPassword(updated, temporaryPassword);
+    }
+    return {
+      temporaryPassword,
+      temporaryPasswordExpiresAt: expiresAt,
+      emailed,
+    };
+  }
+
+  private async emailTemporaryPassword(
+    patient: {
+      _id: unknown;
+      firstName: string;
+      email: string;
+      practiceId?: unknown;
+    },
+    temporaryPassword: string,
+  ) {
+    try {
+      const practice = patient.practiceId
+        ? await this.patientModel.db
+            .model<{ name: string; email?: string }>('Practice')
+            .findById(patient.practiceId, { name: 1, email: 1 })
+            .lean()
+        : null;
+      await this.email.send({
+        to: patient.email,
+        replyTo: practice?.email,
+        ...renderTempPasswordEmail({
+          firstName: patient.firstName,
+          tempPassword: temporaryPassword,
+          validForMinutes: NEW_PATIENT_TEMP_PASSWORD_TTL_MS / 60_000,
+          signInUrl: portalSignInUrl(true),
+          issuedByPractice: practice?.name ?? 'Your practice',
+        }),
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to email temporary password to patient ${String(patient._id)}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
   }
 
   /* ===============================

@@ -8,6 +8,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { patientSignupSchema, type PatientSignupValues } from "@/schemas/auth.schema";
 import { api } from "@/lib/api";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 export default function PatientSignup() {
   const router = useRouter();
@@ -91,9 +92,7 @@ export default function PatientSignup() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100">
       <div className="w-full max-w-2xl bg-white/70 backdrop-blur-2xl p-12 rounded-3xl shadow-xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-semibold">
-            Better<span className="text-blue-500">You</span>
-          </h1>
+          <BrandLogo size="lg" stacked asHeading className="mb-2" />
           <p className="text-sm text-gray-500">
             Create your secure patient account
           </p>

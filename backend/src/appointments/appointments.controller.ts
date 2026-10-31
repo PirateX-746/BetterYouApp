@@ -11,10 +11,13 @@ import {
   HttpStatus,
   Query,
   Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AppointmentsService, AppointmentData } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { CLINICAL_ROLES } from '../common/role.enum';
 import {
   assertSelf,
@@ -26,6 +29,27 @@ import {
 @Controller('appointments')
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
+
+  /**
+   * One-click confirm/cancel links from reminder emails (no sign-in; the
+   * signed token is the credential). GET only describes — it never acts, so
+   * link-scanning mail filters can't confirm or cancel; the page POSTs when
+   * the patient taps.
+   */
+  @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Get('link/:token')
+  previewLink(@Param('token') token: string) {
+    return this.appointmentsService.previewLink(token);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Post('link/:token')
+  @HttpCode(HttpStatus.OK)
+  respondByLink(@Param('token') token: string) {
+    return this.appointmentsService.respondByLink(token);
+  }
 
   @Roles(...CLINICAL_ROLES)
   @Get('practitioner/:id')
@@ -110,6 +134,34 @@ export class AppointmentsController {
     const subject = isPractitioner(req.user) ? patientId : req.user.userId;
     await this.appointmentsService.assertParticipant(id, req.user.userId);
     return this.appointmentsService.checkIn(id, subject);
+  }
+
+  /**
+   * A patient confirming or cancelling their own appointment (the reminder
+   * email sends them here). Practitioners use PATCH :id/status instead.
+   */
+  @Patch(':id/confirm')
+  async confirm(@Param('id') id: string, @Req() req: AuthedRequest) {
+    if (isPractitioner(req.user)) {
+      throw new ForbiddenException('Use PATCH /appointments/:id/status');
+    }
+    return this.appointmentsService.respondAsPatient(
+      id,
+      req.user.userId,
+      'confirm',
+    );
+  }
+
+  @Patch(':id/cancel')
+  async cancel(@Param('id') id: string, @Req() req: AuthedRequest) {
+    if (isPractitioner(req.user)) {
+      throw new ForbiddenException('Use PATCH /appointments/:id/status');
+    }
+    return this.appointmentsService.respondAsPatient(
+      id,
+      req.user.userId,
+      'cancel',
+    );
   }
 
   @Roles(...CLINICAL_ROLES)

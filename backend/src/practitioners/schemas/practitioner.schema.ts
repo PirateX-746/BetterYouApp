@@ -55,6 +55,18 @@ export class Practitioner extends Document {
   @Prop({ type: Date })
   tempPasswordExpiresAt?: Date;
 
+  /**
+   * A pending self-service reset (forgot password). Kept apart from
+   * `password` so a reset request can't lock anyone out: the current
+   * password keeps working until this one is actually used. Never selected
+   * by default — only the login flow reads it.
+   */
+  @Prop({ select: false })
+  resetPasswordHash?: string;
+
+  @Prop({ type: Date, select: false })
+  resetPasswordExpiresAt?: Date;
+
   // Read by JwtStrategy and the admin console. Was missing from the schema,
   // so strict mode dropped it on create; only seeded records carried it.
   @Prop({ default: true })

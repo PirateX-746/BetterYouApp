@@ -12,7 +12,8 @@ import { PractitionerNotificationsProvider } from "@/contexts/PractitionerNotifi
 import { PractitionerBreadcrumbProvider } from "@/contexts/PractitionerBreadcrumbContext";
 import { SupportLiveToaster } from "@/components/containers/support/SupportLiveToaster";
 import { useLogout } from "@/hooks/useLogout";
-import { Lock, Stethoscope } from "lucide-react";
+import { Lock } from "lucide-react";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 const MAX_PIN_ATTEMPTS = 3;
 
@@ -142,12 +143,7 @@ function LockOverlay() {
 
   return (
     <div className="fixed inset-0 z-50 bg-bg-page flex flex-col items-center justify-center p-4">
-      <div className="flex items-center gap-2 mb-8">
-        <Stethoscope size={22} className="text-primary" />
-        <span className="text-xl font-semibold text-text-primary">
-          <span className="text-primary">Better</span>You
-        </span>
-      </div>
+      <BrandLogo size="md" className="mb-8" />
 
       <div className="w-full max-w-xs bg-bg-card border border-border rounded-2xl p-8 shadow-xl space-y-6">
         <div className="text-center">
@@ -188,18 +184,19 @@ function PractitionerLayoutInner({ children }: { children: ReactNode }) {
   const { chatOpen } = usePractitionerChat();
   const isMessages = pathname === "/messages";
 
-  // On mobile, when chat is open: no topbar/bottom-nav offset. On desktop always pt-14.
+  // On mobile, when chat is open: no topbar/bottom-nav offset. On desktop always pt-topbar.
+  // topbar/bottomnav spacing includes the device safe areas (tailwind.config.ts).
   const mainClass = isMessages
     ? chatOpen
-      ? "flex-1 min-h-0 flex flex-col overflow-hidden md:pt-14"
-      : "flex-1 min-h-0 flex flex-col overflow-hidden pt-14 pb-16 lg:pb-0"
-    : "flex-1 min-h-0 pt-14 pb-16 lg:pb-0 overflow-y-auto overflow-x-hidden";
+      ? "flex-1 min-h-0 flex flex-col overflow-hidden md:pt-topbar"
+      : "flex-1 min-h-0 flex flex-col overflow-hidden pt-topbar pb-bottomnav lg:pb-safe-b"
+    : "flex-1 min-h-0 pt-topbar pb-bottomnav lg:pb-safe-b overflow-y-auto overflow-x-hidden";
 
   return (
     <>
       <PractitionerSidebar open={open} setOpen={setOpen} />
 
-      <div className="lg:ml-64 h-screen bg-bg-page flex flex-col overflow-hidden">
+      <div className="lg:ml-64 h-[100dvh] bg-bg-page flex flex-col overflow-hidden">
         <PractitionerTopbar onToggle={() => setOpen((o) => !o)} />
 
         <main className={mainClass}>

@@ -67,7 +67,7 @@ export default function PractitionerTopbar({ onToggle }: TopbarProps) {
 
   return (
     <header
-      className={`fixed top-0 right-0 left-0 lg:left-64 z-30 h-14 bg-bg-card border-b border-border items-center justify-between px-4 md:px-6 ${
+      className={`fixed top-0 right-0 left-0 lg:left-64 z-30 h-topbar pt-safe-t bg-bg-card border-b border-border items-center justify-between px-4 md:px-6 ${
         chatOpen ? "hidden md:flex" : "flex"
       }`}
     >

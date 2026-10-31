@@ -16,6 +16,16 @@ const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      /* Device safe areas (notch, status bar, home indicator) for the installed
+         app; env() is 0 in a normal browser tab. Chrome sizes include them:
+         h-topbar / pt-topbar = 56px topbar, h-bottomnav / pb-bottomnav = 64px
+         bottom nav, each plus its inset. */
+      spacing: {
+        "safe-t": "env(safe-area-inset-top, 0px)",
+        "safe-b": "env(safe-area-inset-bottom, 0px)",
+        topbar: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+        bottomnav: "calc(4rem + env(safe-area-inset-bottom, 0px))",
+      },
       colors: {
         /* Shadcn-compatible */
         background: v("--background"),

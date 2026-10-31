@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { platformLogin } from "@/lib/superadmin/api";
 import { setDisplayCookie } from "@/lib/session";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 /**
  * Platform console sign-in.
@@ -64,12 +65,7 @@ export default function AdminLoginPage() {
 
       <div className="relative w-full max-w-md backdrop-blur-2xl bg-white/80 dark:bg-slate-900/80 rounded-3xl shadow-[0_25px_60px_rgba(15,23,42,0.12)] border border-white/40 dark:border-white/10 p-10">
         <div className="text-center mb-8 space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-purple-light mb-3">
-            <ShieldCheck className="w-7 h-7 text-purple" />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
-            Better<span className="text-primary">You</span>
-          </h1>
+          <BrandLogo size="lg" stacked asHeading className="mb-1" />
           <p className="text-sm text-text-secondary">
             Platform administration
           </p>
