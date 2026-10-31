@@ -33,7 +33,7 @@ export default function ChangePasswordContainer() {
       await changePassword({ newPassword: data.newPassword });
 
       const role = localStorage.getItem("role");
-      router.replace(role === "practitioner" ? "/dashboard" : "/patient/home");
+      router.replace(role === "patient" ? "/patient/home" : "/dashboard");
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
       setServerError(

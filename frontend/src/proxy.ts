@@ -13,12 +13,22 @@ const PRACTITIONER_ROUTES = [
   "/support",
 ];
 
-const AUTH_ROUTES = [
-  "/patientLogin",
-  "/patientSignup",
-  "/practitionerLogin",
-  "/adminLogin",
-];
+/** Everyone who signs in through /practitionerLogin. The API decides what
+ * each of them may do; the portal itself is open to all three. */
+const PRACTICE_ROLES = ["practice_admin", "practitioner", "staff"];
+
+/**
+ * Sign-in pages and the roles each one is for. A visitor already signed in
+ * with one of those roles goes to their home; anyone else sees the form, so
+ * a super admin (or a patient) on the same browser can still sign in to a
+ * different portal — the new session replaces the old cookie.
+ */
+const AUTH_ROUTES: Record<string, string[]> = {
+  "/patientLogin": ["patient"],
+  "/patientSignup": ["patient"],
+  "/practitionerLogin": PRACTICE_ROLES,
+  "/adminLogin": ["super_admin"],
+};
 
 /** Platform console. Only SUPER_ADMIN may enter. */
 const ADMIN_PREFIX = "/admin";
@@ -34,16 +44,24 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const role = request.cookies.get("role")?.value;
 
+  // Where a signed-in role belongs. Unknown roles have no home, so they are
+  // sent to sign in rather than bounced between portals.
   const homeFor = (r: string | undefined) =>
     r === "super_admin"
       ? "/admin/dashboard"
       : r === "patient"
         ? "/patient/home"
-        : "/dashboard";
+        : r && PRACTICE_ROLES.includes(r)
+          ? "/dashboard"
+          : "/practitionerLogin";
 
-  // Redirect already-logged-in users away from auth pages
-  if (AUTH_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"))) {
-    if (token && role) {
+  // A sign-in page skips its form only for someone already signed in to
+  // that same portal.
+  const authRoute = Object.keys(AUTH_ROUTES).find(
+    (r) => pathname === r || pathname.startsWith(r + "/"),
+  );
+  if (authRoute) {
+    if (token && role && AUTH_ROUTES[authRoute].includes(role)) {
       return NextResponse.redirect(new URL(homeFor(role), request.url));
     }
     return NextResponse.next();
@@ -75,8 +93,8 @@ export function proxy(request: NextRequest) {
         new URL("/practitionerLogin", request.url),
       );
     }
-    if (role !== "practitioner") {
-      return NextResponse.redirect(new URL("/patient/home", request.url));
+    if (!role || !PRACTICE_ROLES.includes(role)) {
+      return NextResponse.redirect(new URL(homeFor(role), request.url));
     }
     return NextResponse.next();
   }
@@ -87,7 +105,7 @@ export function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL("/patientLogin", request.url));
     }
     if (role !== "patient") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL(homeFor(role), request.url));
     }
     return NextResponse.next();
   }
