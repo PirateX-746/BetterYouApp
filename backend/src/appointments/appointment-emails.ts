@@ -13,6 +13,7 @@ import {
   emailParagraph,
   escapeHtml,
 } from '../email/email-layout';
+import { PATIENT_CANCEL_CUTOFF_HOURS } from './schemas/appointment.schema';
 
 export type AppointmentEmailKind =
   | 'booked'
@@ -33,6 +34,13 @@ export interface AppointmentEmailContext {
   end: Date;
   /** Rescheduled only: the time it was moved from. */
   previousStart?: Date;
+  /**
+   * Set when the patient should confirm: an unconfirmed appointment's
+   * reminder, or a booking/reschedule inside the reminder window (which
+   * skips that reminder). The email asks them to confirm or cancel in time
+   * with one-click links (no sign-in). Ignored on cancellations.
+   */
+  links?: { confirm: string; cancel: string };
 }
 
 export interface RenderedEmail {
@@ -108,12 +116,20 @@ export function renderAppointmentEmail(
       heading: 'Your appointment is cancelled',
       intro: `Your appointment with ${ctx.practice.name} on ${date} at ${shortTime} has been cancelled.`,
     },
-    reminder: {
-      subject: `Reminder: appointment ${relativeDay(ctx.start, now, tz)} at ${shortTime}`,
-      heading: `See you ${relativeDay(ctx.start, now, tz)}`,
-      intro: `This is a reminder of your upcoming appointment with ${ctx.practice.name}.`,
-    },
+    reminder: ctx.links
+      ? {
+          subject: `Please confirm: appointment ${relativeDay(ctx.start, now, tz)} at ${shortTime}`,
+          heading: 'Please confirm your appointment',
+          intro: `You have an upcoming appointment with ${ctx.practice.name}.`,
+        }
+      : {
+          subject: `Reminder: appointment ${relativeDay(ctx.start, now, tz)} at ${shortTime}`,
+          heading: `See you ${relativeDay(ctx.start, now, tz)}`,
+          intro: `This is a reminder of your upcoming appointment with ${ctx.practice.name}.`,
+        },
   }[kind];
+  const links = kind === 'cancelled' ? undefined : ctx.links;
+  const confirmAsk = `Please confirm you'll be there. If you can't make it, please cancel at least ${PATIENT_CANCEL_CUTOFF_HOURS} hours before it starts.`;
 
   const rows: [string, string][] = [
     ['When', `${date}\n${time}`],
@@ -133,7 +149,9 @@ export function renderAppointmentEmail(
   const help =
     kind === 'cancelled'
       ? 'To book a new time'
-      : 'If you need to reschedule or cancel';
+      : links
+        ? 'To reschedule'
+        : 'If you need to reschedule or cancel';
   const contactLine = contacts.length
     ? `${help}, contact ${ctx.practice.name} at ${contacts.join(' or ')}.`
     : `${help}, please contact ${ctx.practice.name}.`;
@@ -151,6 +169,14 @@ export function renderAppointmentEmail(
       ? rows.map(([label, value]) => `${label}: ${value.replace('\n', ', ')}`)
       : []),
     ...(showDetails ? [''] : []),
+    ...(links
+      ? [
+          confirmAsk,
+          `Confirm: ${links.confirm}`,
+          `Cancel: ${links.cancel}`,
+          '',
+        ]
+      : []),
     contactLine,
     '',
     footer,
@@ -176,6 +202,10 @@ export function renderAppointmentEmail(
       emailParagraph(copy.intro),
       showDetails
         ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${BORDER};border-bottom:1px solid ${BORDER};padding:10px 0;margin:8px 0 24px;">${detailRows}</table>`
+        : '',
+      links ? emailParagraph(confirmAsk) : '',
+      links
+        ? `<p style="margin:0 0 24px;"><a href="${e(links.confirm)}" style="display:inline-block;margin:0 8px 8px 0;padding:11px 20px;background:${EMAIL_COLORS.brand};border:1px solid ${EMAIL_COLORS.brand};border-radius:8px;color:#ffffff;font-size:15px;font-weight:500;text-decoration:none;">Confirm</a><a href="${e(links.cancel)}" style="display:inline-block;margin:0 0 8px;padding:11px 20px;background:#ffffff;border:1px solid ${BORDER};border-radius:8px;color:${TEXT};font-size:15px;font-weight:500;text-decoration:none;">Cancel appointment</a></p>`
         : '',
       emailParagraph(contactLine, true),
     ].join(''),

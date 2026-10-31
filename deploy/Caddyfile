@@ -1,0 +1,31 @@
+# HTTPS is automatic: Caddy gets and renews a Let's Encrypt certificate for
+# {$DOMAIN} once its DNS A record points at this server.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# REST API. The prefix is stripped, as the Next.js /api rewrite does.
+	handle_path /api/* {
+		reverse_proxy backend:3002
+	}
+
+	# Realtime: chat, appointments, support (WebSocket).
+	handle /socket.io/* {
+		reverse_proxy backend:3002
+	}
+
+	# Server-sent events: never buffer, or messages arrive late.
+	handle /sse/* {
+		reverse_proxy backend:3002 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
+
+# Optional: send www to the main domain. Uncomment and set your domain.
+# www.{$DOMAIN} {
+# 	redir https://{$DOMAIN}{uri} permanent
+# }

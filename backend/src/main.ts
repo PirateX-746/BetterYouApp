@@ -56,6 +56,10 @@ async function bootstrap() {
     }),
   );
 
+  // On a deploy the container gets SIGTERM: stop taking requests, let
+  // in-flight ones and the reminder job finish, close Mongo, then exit.
+  app.enableShutdownHooks();
+
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
   Logger.log(`Server running on http://localhost:${port}`, 'Bootstrap');

@@ -30,6 +30,17 @@ export function emailParagraph(text: string, muted = false) {
 }
 
 /**
+ * The app icon (stethoscope tile, served by the frontend's /icons route), so
+ * emails carry the same logo as the app. Only for a public https frontend:
+ * mail clients can't load images from localhost, and a broken image looks
+ * worse than the wordmark alone.
+ */
+export function emailLogoUrl(env = process.env) {
+  const base = (env.FRONTEND_URL || '').replace(/\/+$/, '');
+  return base.startsWith('https://') ? `${base}/icons/icon-192.png` : null;
+}
+
+/**
  * Wraps card content in the full document. `title` and `footer` are
  * escaped; `body` is trusted HTML built by the caller from escaped parts.
  */
@@ -41,6 +52,7 @@ export function emailLayout(opts: {
 }) {
   const c = EMAIL_COLORS;
   const e = escapeHtml;
+  const logo = emailLogoUrl();
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -56,7 +68,7 @@ export function emailLayout(opts: {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
         <tr>
           <td style="padding:0 4px 16px;font-size:17px;font-weight:600;color:${c.text};">
-            <span style="color:${c.brand};">Better</span>You
+            ${logo ? `<img src="${e(logo)}" width="28" height="28" alt="" style="display:inline-block;vertical-align:middle;border:0;border-radius:7px;margin-right:8px;">` : ''}<span style="vertical-align:middle;"><span style="color:${c.brand};">Better</span>You</span>
           </td>
         </tr>
         <tr>

@@ -8,7 +8,6 @@ import {
   CalendarCheck,
   Users,
   Settings,
-  Stethoscope,
   ChevronUp,
   User,
   LogOut,
@@ -36,6 +35,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 interface SidebarProps {
   open: boolean;
@@ -113,12 +113,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
       >
         {/* Brand */}
         <div className="h-14 px-5 flex items-center gap-2.5 shrink-0">
-          <span className="size-7 rounded-lg bg-brand text-white grid place-items-center shadow-brand">
-            <Stethoscope size={15} aria-hidden />
-          </span>
-          <span className="text-title-3 font-semibold text-text-primary">
-            <span className="text-primary">Better</span>You
-          </span>
+          <BrandLogo />
         </div>
 
         {/* Nav — flex-1 so it fills space and pushes profile to bottom */}

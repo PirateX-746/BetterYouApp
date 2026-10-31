@@ -17,6 +17,12 @@ export const LIVE_STATUSES: AppointmentStatus[] = [
   AppointmentStatus.CONFIRMED,
 ];
 
+/**
+ * Patients can cancel online until this many hours before the start; after
+ * that they have to contact the practice. Quoted in the reminder email.
+ */
+export const PATIENT_CANCEL_CUTOFF_HOURS = 4;
+
 export type AppointmentDocument = Appointment & Document;
 
 @Schema({ timestamps: true })

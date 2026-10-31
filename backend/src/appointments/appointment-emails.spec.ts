@@ -54,6 +54,52 @@ describe('renderAppointmentEmail', () => {
   });
 });
 
+describe('reminder asking to confirm', () => {
+  const now = new Date('2026-11-01T06:00:00Z');
+  const links = {
+    confirm: 'https://app.test/appointment-response?token=c',
+    cancel: 'https://app.test/appointment-response?token=x',
+  };
+
+  it('asks an unconfirmed patient to confirm or cancel 4 hours before', () => {
+    const { subject, text, html } = renderAppointmentEmail(
+      'reminder',
+      { ...ctx, links },
+      now,
+    );
+    expect(subject).toBe('Please confirm: appointment tomorrow at 10:00 AM');
+    expect(text).toContain("Please confirm you'll be there");
+    expect(text).toContain('cancel at least 4 hours before it starts');
+    expect(text).toContain(`Confirm: ${links.confirm}`);
+    expect(text).toContain(`Cancel: ${links.cancel}`);
+    expect(html).toContain(`href="${links.confirm}"`);
+    expect(html).toContain(`href="${links.cancel}"`);
+  });
+
+  it('is a plain reminder once confirmed', () => {
+    const { text, html } = renderAppointmentEmail('reminder', ctx, now);
+    expect(text).not.toContain('Confirm:');
+    expect(html).not.toContain('href=');
+  });
+
+  it('asks on a booking inside the reminder window', () => {
+    const { subject, text } = renderAppointmentEmail('booked', {
+      ...ctx,
+      links,
+    });
+    expect(subject).toMatch(/^Appointment confirmed:/);
+    expect(text).toContain(`Confirm: ${links.confirm}`);
+  });
+
+  it('never asks on a cancellation', () => {
+    const { text } = renderAppointmentEmail('cancelled', {
+      ...ctx,
+      links,
+    });
+    expect(text).not.toContain('Confirm:');
+  });
+});
+
 describe('relativeDay', () => {
   it('uses the practice calendar day, not UTC', () => {
     // 23:00 UTC on Nov 1 is already Nov 2 (04:30) in Kolkata.

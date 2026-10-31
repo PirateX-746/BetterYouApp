@@ -12,7 +12,6 @@ import {
   CreditCard,
   ScrollText,
   Settings,
-  ShieldCheck,
   ChevronUp,
   LogOut,
   LifeBuoy,
@@ -34,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { platformLogout } from "@/lib/superadmin/api";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 interface SidebarProps {
   open: boolean;
@@ -120,13 +120,10 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
           lg:translate-x-0
         `}
       >
-        {/* Brand — the shield and "Platform" label are what separate this
-            from the practitioner portal at a glance. */}
+        {/* Brand — the same logo as everywhere else; the "Platform" label is
+            what separates this from the practitioner portal at a glance. */}
         <div className="h-14 px-5 flex items-center gap-2.5 border-b border-border shrink-0">
-          <ShieldCheck size={18} className="text-purple" />
-          <span className="font-semibold text-text-primary">
-            <span className="text-primary">Better</span>You
-          </span>
+          <BrandLogo />
           <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-purple bg-purple-light px-2 py-0.5 rounded-md">
             Platform
           </span>

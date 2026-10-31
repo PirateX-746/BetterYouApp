@@ -125,6 +125,7 @@ Control heights: **32px** (`sm`), **40px** (default), **44px** (`lg`, touch-firs
 
 | Need | Use | File |
 | --- | --- | --- |
+| Logo | `<BrandLogo size stacked inverse asHeading>` — the only way to show the brand (stethoscope tile + **Better**You, same as the app icon). Never hand-build it | `components/common/BrandLogo.tsx` |
 | Page frame | `<Page>`, `<PageHeader>` | `components/common/PageLayout.tsx` |
 | Button | `<Button variant size loading>` | `components/ui/button.tsx` |
 | Card / surface | `<Card>`, `<CardHeader>`, `<CardBody>`, `<CardSection>` | `components/common/Card.tsx` |
@@ -137,6 +138,7 @@ Control heights: **32px** (`sm`), **40px** (default), **44px** (`lg`, touch-firs
 | Dialog | `<Modal>` (custom) or `ui/dialog` (Radix) | `components/common/Modal.tsx` |
 | Confirm destructive | `<ConfirmationDialog danger>` | `components/common/ConfirmationDialog.tsx` |
 | Table | `<DataTable>` — add `sortValue` to a column to make it sortable; `defaultSort` sets the initial order; pages 25 rows by default (`pageSize`, 0 = off) | `components/common/DataTable.tsx` |
+| Full-page message | `<StatusScreen icon title message actions>` (404, errors, outside any portal) | `components/common/StatusScreen.tsx` |
 | Loading / empty | `<LoadingState>`, `<Skeleton>`, `<EmptyState>` | `components/ui/` |
 
 **Lists of records are DataTables**, full height (`<Page fill>` + `<DataTable fill>`), not hand-built card lists. Toolbar: search on the left, then filters, the primary action on the right. Sortable

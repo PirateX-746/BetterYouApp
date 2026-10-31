@@ -9,15 +9,21 @@ import { isMultiTenancyEnabled, rootDomain } from './tenancy/tenancy.config';
  * incompatible with credentialed requests, so the browser refuses to send
  * the session cookie and socket authentication could never work.
  */
-export function allowedOrigins(): string[] {
-  return [
-    process.env.FRONTEND_URL,
-    'https://better-you-app-bay.vercel.app',
-    'http://192.168.1.41:3000',
-    // Local dev — required for SSE and direct socket connections.
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-  ].filter(Boolean) as string[];
+export function allowedOrigins(env = process.env): string[] {
+  const extra = (env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+  // Local dev only — required for SSE and direct socket connections. Never
+  // allowed in production, where a page on a developer machine must not be
+  // able to make credentialed calls to the live API.
+  const dev =
+    env.NODE_ENV === 'production'
+      ? []
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  return [env.FRONTEND_URL?.replace(/\/+$/, ''), ...extra, ...dev].filter(
+    Boolean,
+  ) as string[];
 }
 
 /**

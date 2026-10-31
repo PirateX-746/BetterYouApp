@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { PATIENT_NAV_ITEMS } from "@/lib/nav-config";
 import { useLogout } from "@/hooks/useLogout";
 import { usePatientUnread } from "@/contexts/PatientUnreadContext";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 export default function PatientSidebar() {
   const pathname = usePathname();
@@ -15,9 +16,7 @@ export default function PatientSidebar() {
   return (
     <div className="w-64 h-screen bg-bg-card border-r border-border p-6 hidden md:flex flex-col justify-between">
       <div>
-        <h1 className="text-lg font-semibold text-text-primary mb-8 flex items-center gap-2">
-          <span className="text-primary">Better</span>You
-        </h1>
+        <BrandLogo className="mb-8" />
 
         <nav className="space-y-2">
           {PATIENT_NAV_ITEMS.map((item) => {

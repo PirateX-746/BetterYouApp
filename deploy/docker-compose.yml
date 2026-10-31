@@ -1,0 +1,53 @@
+# Production stack for a single VPS (e.g. Hostinger KVM). See DEPLOY.md.
+#
+#   browser ──https──► caddy ─┬─ /api/*  /socket.io/*  /sse/* ─► backend:3002
+#                             └─ everything else ─────────────► frontend:3000
+#
+# One domain for everything, so the session cookie set by the API is also
+# sent with WebSocket and SSE connections. Only Caddy is exposed publicly.
+#
+#   cd deploy && cp .env.example .env   # fill it in
+#   docker compose up -d --build
+
+services:
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    env_file: ../backend/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: "3002"
+      # Caddy is the one proxy in front of the API.
+      TRUST_PROXY: "1"
+      FRONTEND_URL: https://${DOMAIN}
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        NEXT_PUBLIC_PASSWORD_ENCRYPTION_KEY: ${PASSWORD_ENCRYPTION_KEY:-}
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  # Holds the Let's Encrypt certificates — keep it across deploys.
+  caddy_data:
+  caddy_config:

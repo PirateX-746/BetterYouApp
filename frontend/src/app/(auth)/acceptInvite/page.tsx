@@ -9,8 +9,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Stethoscope,
-} from "lucide-react";
+  } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +19,7 @@ import {
   roleLabel,
   type InvitationLookup,
 } from "@/lib/invitations";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 /**
  * Public invitation acceptance.
@@ -190,12 +190,7 @@ function AcceptInviteInner() {
   return (
     <Shell>
       <div className="text-center mb-8 space-y-2">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-purple-light mb-3">
-          <Stethoscope className="w-7 h-7 text-purple" />
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
-          Better<span className="text-primary">You</span>
-        </h1>
+        <BrandLogo size="lg" stacked asHeading className="mb-1" />
         <p className="text-sm text-text-secondary leading-relaxed">
           {invite.name}, you&rsquo;ve been invited to join{" "}
           <span className="font-medium text-text-primary">

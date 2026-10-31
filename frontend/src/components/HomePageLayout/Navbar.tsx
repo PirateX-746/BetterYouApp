@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 export default function Navbar() {
     const [open, setOpen] = useState(false);
@@ -13,9 +14,7 @@ export default function Navbar() {
         <div className="sticky top-4 z-50 flex justify-center">
             <div className="w-[95%] max-w-[1200px] bg-white border border-blue-100/50 rounded-[24px] shadow-[0_15px_40px_rgba(15,23,42,0.12)] px-8 py-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-lg font-semibold">
-                        Better<span className="text-blue-500">You</span>
-                    </h1>
+                    <BrandLogo asHeading />
 
                     {/* Desktop Nav */}
                     <div className="hidden md:flex gap-8 text-sm text-gray-600">

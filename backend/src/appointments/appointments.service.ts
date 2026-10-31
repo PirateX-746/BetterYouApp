@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
   ForbiddenException,
+  GoneException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -13,8 +14,10 @@ import {
   AppointmentDocument,
   AppointmentStatus,
   LIVE_STATUSES,
+  PATIENT_CANCEL_CUTOFF_HOURS,
 } from './schemas/appointment.schema';
 import { AppointmentsGateway } from './appointments.gateway';
+import { linkKeyFromEnv, verifyAppointmentLink } from './appointment-links';
 import { AvailabilityService } from '../availability/availability.service';
 import { PractitionersService } from '../practitioners/practitioners.service';
 import {
@@ -597,6 +600,159 @@ export class AppointmentsService {
     );
 
     return formatted;
+  }
+
+  /* =====================================================
+     CONFIRM / CANCEL (patient side)
+     ===================================================== */
+
+  /**
+   * A patient confirming or cancelling their own appointment. Confirming is
+   * only for a scheduled appointment that hasn't started; cancelling closes
+   * PATIENT_CANCEL_CUTOFF_HOURS before the start, after which the patient
+   * has to contact the practice. The update is conditional, so a concurrent
+   * change (practitioner cancels, time moves) can't be overwritten.
+   */
+  async respondAsPatient(
+    appointmentId: string,
+    patientId: string,
+    action: 'confirm' | 'cancel',
+  ) {
+    if (!Types.ObjectId.isValid(appointmentId)) {
+      throw new BadRequestException('Invalid appointment ID');
+    }
+    const appt = await this.appointmentModel.findById(appointmentId);
+    if (!appt || String(appt.patientId) !== String(patientId)) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    const now = Date.now();
+    if (appt.start.getTime() <= now) {
+      throw new BadRequestException('This appointment has already started');
+    }
+    const allowed =
+      action === 'confirm' ? [AppointmentStatus.SCHEDULED] : LIVE_STATUSES;
+    if (!allowed.includes(appt.status)) {
+      throw new BadRequestException(
+        `Can't ${action} — appointment is already ${appt.status}`,
+      );
+    }
+    const cutoff = PATIENT_CANCEL_CUTOFF_HOURS * 60 * 60_000;
+    if (action === 'cancel' && appt.start.getTime() - now < cutoff) {
+      throw new BadRequestException(
+        `Appointments can only be cancelled online up to ${PATIENT_CANCEL_CUTOFF_HOURS} hours before they start. Please contact the practice.`,
+      );
+    }
+
+    const status =
+      action === 'confirm'
+        ? AppointmentStatus.CONFIRMED
+        : AppointmentStatus.CANCELLED;
+    const updated = await this.appointmentModel.findOneAndUpdate(
+      { _id: appt._id, status: appt.status, start: appt.start },
+      { status },
+      { new: true },
+    );
+    if (!updated) {
+      throw new ConflictException(
+        'This appointment just changed. Refresh and try again.',
+      );
+    }
+
+    const formatted = this.formatAppointment(updated);
+    this.notifyStatusChange(appt.status, updated);
+    this.gateway.emitAppointmentUpdate(
+      formatted.patientId,
+      formatted,
+      formatted.practitionerId,
+    );
+    return formatted;
+  }
+
+  /* =====================================================
+     ONE-CLICK EMAIL LINKS (no sign-in)
+     ===================================================== */
+
+  /**
+   * Resolves an emailed confirm/cancel link to its appointment. A link
+   * issued for a time the appointment no longer has (rescheduled) is dead,
+   * exactly like an expired one.
+   */
+  private async resolveLink(token: string) {
+    const payload = verifyAppointmentLink(token, linkKeyFromEnv());
+    if (!payload || !Types.ObjectId.isValid(payload.a)) {
+      throw new GoneException('This link has expired or is invalid');
+    }
+    const appt = await this.appointmentModel.findById(payload.a);
+    if (!appt || appt.start.getTime() !== payload.s) {
+      throw new GoneException('This link has expired or is invalid');
+    }
+    return { payload, appt };
+  }
+
+  /**
+   * What the link page shows before the patient taps: only what the email
+   * already contained (time, practitioner, practice) plus whether the
+   * action is still possible. Opening a link never changes anything, so
+   * mail scanners that prefetch links can't confirm or cancel.
+   */
+  async previewLink(token: string) {
+    const { payload, appt } = await this.resolveLink(token);
+    const db = this.appointmentModel.db;
+    const [practitioner, practice] = await Promise.all([
+      db
+        .model<{ firstName: string; lastName: string }>('Practitioner')
+        .findById(appt.practitionerId, { firstName: 1, lastName: 1 })
+        .lean(),
+      appt.practiceId
+        ? db
+            .model<{ name: string; phone?: string; email?: string; timezone?: string }>('Practice')
+            .findById(appt.practiceId, { name: 1, phone: 1, email: 1, timezone: 1 })
+            .lean()
+        : null,
+    ]);
+
+    let blockedReason: string | null = null;
+    const msLeft = appt.start.getTime() - Date.now();
+    if (payload.act === 'confirm' && appt.status === AppointmentStatus.CONFIRMED) {
+      blockedReason = 'already_confirmed';
+    } else if (!LIVE_STATUSES.includes(appt.status)) {
+      blockedReason = appt.status === AppointmentStatus.CANCELLED ? 'cancelled' : 'closed';
+    } else if (
+      payload.act === 'cancel' &&
+      msLeft < PATIENT_CANCEL_CUTOFF_HOURS * 60 * 60_000
+    ) {
+      blockedReason = 'cancel_cutoff';
+    }
+
+    return {
+      action: payload.act,
+      status: appt.status,
+      start: appt.start,
+      end: appt.end,
+      practitionerName: practitioner
+        ? `${practitioner.firstName} ${practitioner.lastName}`.trim()
+        : null,
+      practice: {
+        name: practice?.name ?? 'BetterYou',
+        phone: practice?.phone ?? null,
+        email: practice?.email ?? null,
+        timezone: practice?.timezone || 'Asia/Kolkata',
+      },
+      cancelCutoffHours: PATIENT_CANCEL_CUTOFF_HOURS,
+      blockedReason,
+    };
+  }
+
+  /** The patient tapped the button on the link page. */
+  async respondByLink(token: string) {
+    const { payload, appt } = await this.resolveLink(token);
+    const updated = await this.respondAsPatient(
+      String(appt._id),
+      String(appt.patientId),
+      payload.act,
+    );
+    return { action: payload.act, status: updated.status };
   }
 
   /* =====================================================

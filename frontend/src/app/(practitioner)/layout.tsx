@@ -12,7 +12,8 @@ import { PractitionerNotificationsProvider } from "@/contexts/PractitionerNotifi
 import { PractitionerBreadcrumbProvider } from "@/contexts/PractitionerBreadcrumbContext";
 import { SupportLiveToaster } from "@/components/containers/support/SupportLiveToaster";
 import { useLogout } from "@/hooks/useLogout";
-import { Lock, Stethoscope } from "lucide-react";
+import { Lock } from "lucide-react";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 const MAX_PIN_ATTEMPTS = 3;
 
@@ -142,12 +143,7 @@ function LockOverlay() {
 
   return (
     <div className="fixed inset-0 z-50 bg-bg-page flex flex-col items-center justify-center p-4">
-      <div className="flex items-center gap-2 mb-8">
-        <Stethoscope size={22} className="text-primary" />
-        <span className="text-xl font-semibold text-text-primary">
-          <span className="text-primary">Better</span>You
-        </span>
-      </div>
+      <BrandLogo size="md" className="mb-8" />
 
       <div className="w-full max-w-xs bg-bg-card border border-border rounded-2xl p-8 shadow-xl space-y-6">
         <div className="text-center">

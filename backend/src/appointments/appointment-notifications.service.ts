@@ -9,8 +9,15 @@ import { Model, Types } from 'mongoose';
 import {
   Appointment,
   AppointmentDocument,
+  AppointmentStatus,
   LIVE_STATUSES,
+  PATIENT_CANCEL_CUTOFF_HOURS,
 } from './schemas/appointment.schema';
+import {
+  appointmentLinkUrl,
+  linkKeyFromEnv,
+  signAppointmentLink,
+} from './appointment-links';
 import { EmailService } from '../email/email.service';
 import {
   AppointmentEmailKind,
@@ -24,16 +31,19 @@ import {
 } from './reminders';
 
 const DEFAULT_INTERVAL_MS = 5 * 60_000;
+/** The 24h reminder's lead: the one that asks the patient to confirm. */
+const CONFIRM_WINDOW_MS = REMINDERS[0].leadMs;
 const FALLBACK_TIMEZONE = 'Asia/Kolkata';
 
 type AppointmentLike = Pick<
   Appointment,
   'patientId' | 'practitionerId' | 'practiceId' | 'start' | 'end'
-> & { _id: Types.ObjectId };
+> & { _id: Types.ObjectId; status?: AppointmentStatus };
 
 /**
  * Emails patients about their appointments: a confirmation when booked,
- * notices when rescheduled or cancelled, and reminders 24h and 2h before.
+ * notices when rescheduled or cancelled, and reminders 24h and 2h before
+ * (asking the patient to confirm while the appointment is unconfirmed).
  *
  * Sending never blocks or fails the request that triggered it — an email
  * outage must not stop a practitioner booking an appointment — so the
@@ -151,6 +161,9 @@ export class AppointmentNotificationsService
         start: appt.start,
         end: appt.end,
         previousStart,
+        links: this.needsConfirmation(kind, appt, now)
+          ? this.responseLinks(appt)
+          : undefined,
       },
       now,
     );
@@ -163,6 +176,37 @@ export class AppointmentNotificationsService
     });
     this.logger.log(`Sent ${kind} email for appointment ${String(appt._id)}`);
     return true;
+  }
+
+  /**
+   * Ask the patient to confirm in an unconfirmed appointment's reminder, and
+   * in a booking/reschedule email sent inside the 24h window — that time's
+   * reminder is skipped, so this is the only email that could ask. Never
+   * once online cancellation has closed: the email says to cancel at least
+   * PATIENT_CANCEL_CUTOFF_HOURS before, which would be impossible by then.
+   */
+  private needsConfirmation(
+    kind: AppointmentEmailKind,
+    appt: AppointmentLike,
+    now: Date,
+  ) {
+    if (appt.status !== AppointmentStatus.SCHEDULED) return false;
+    const left = appt.start.getTime() - now.getTime();
+    if (left <= PATIENT_CANCEL_CUTOFF_HOURS * 60 * 60_000) return false;
+    return kind === 'reminder' || left <= CONFIRM_WINDOW_MS;
+  }
+
+  /** One-click confirm/cancel links, valid until this start time. */
+  private responseLinks(appt: AppointmentLike) {
+    const key = linkKeyFromEnv();
+    const link = (act: 'confirm' | 'cancel') =>
+      appointmentLinkUrl(
+        signAppointmentLink(
+          { a: String(appt._id), act, s: appt.start.getTime() },
+          key,
+        ),
+      );
+    return { confirm: link('confirm'), cancel: link('cancel') };
   }
 
   /* ---------------- reminders ---------------- */
@@ -218,6 +262,7 @@ export class AppointmentNotificationsService
             patientId: 1,
             practitionerId: 1,
             practiceId: 1,
+            status: 1,
             start: 1,
             end: 1,
             bookedAt: 1,
