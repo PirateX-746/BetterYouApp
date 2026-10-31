@@ -19,7 +19,10 @@ import { LoginDto } from './dto/login.dto';
 import { CreatePatientDto } from './dto/patient-signup.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { PlatformLoginDto } from './dto/platform-login.dto';
+import {
+  PlatformForgotPasswordDto,
+  PlatformLoginDto,
+} from './dto/platform-login.dto';
 
 import { Patient } from '../patients/schemas/patient.schema';
 import { Practitioner } from '../practitioners/schemas/practitioner.schema';
@@ -47,6 +50,7 @@ const RESET_FIELDS = '+resetPasswordHash +resetPasswordExpiresAt';
 const SALT_ROUNDS = 10;
 
 const TEMP_PASSWORD_TTL_MS = 60 * 60 * 1000; // 1 hour
+const PLATFORM_MIN_PASSWORD_LENGTH = 12;
 
 @Injectable()
 export class AuthService {
@@ -68,6 +72,7 @@ export class AuthService {
   ) {}
 
   private getModelForRole(role: Role): Model<any> {
+    if (role === Role.SUPER_ADMIN) return this.platformAdminModel;
     return role === Role.PRACTITIONER
       ? this.practitionerModel
       : this.patientModel;
@@ -230,7 +235,7 @@ export class AuthService {
 
     const admin = await this.platformAdminModel
       .findOne({ email: normalizedEmail })
-      .select('+password')
+      .select('+password +resetPasswordHash +resetPasswordExpiresAt')
       .exec();
 
     // Same generic message either way — this endpoint must not reveal
@@ -240,8 +245,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // The account's password or, after a forgot-password request, the
+    // emailed temporary one while it's still valid — as in login().
     const valid = await bcrypt.compare(dto.password, admin.password);
-    if (!valid) {
+    const usedResetPassword =
+      !valid &&
+      !!admin.resetPasswordHash &&
+      !!admin.resetPasswordExpiresAt &&
+      admin.resetPasswordExpiresAt.getTime() > Date.now() &&
+      (await bcrypt.compare(dto.password, admin.resetPasswordHash));
+
+    if (!valid && !usedResetPassword) {
       this.logger.warn(`Failed platform login for ${admin._id.toString()}`);
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -250,9 +264,35 @@ export class AuthService {
       throw new UnauthorizedException('This account has been disabled');
     }
 
-    await this.platformAdminModel
-      .updateOne({ _id: admin._id }, { lastLoginAt: new Date() })
-      .exec();
+    const update: Record<string, unknown> = { lastLoginAt: new Date() };
+    if (usedResetPassword) {
+      // Proven by the emailed password: only now does it replace the old
+      // one, and a new password must be chosen before anything else.
+      update.password = admin.resetPasswordHash;
+      update.mustChangePassword = true;
+      update.tempPasswordExpiresAt = admin.resetPasswordExpiresAt;
+      update.$unset = { resetPasswordHash: 1, resetPasswordExpiresAt: 1 };
+      admin.mustChangePassword = true;
+      this.logger.log(
+        `Reset password used for platform admin ${admin._id.toString()}`,
+      );
+    } else if (admin.resetPasswordHash) {
+      // Signed in with the real password: cancel the emailed one.
+      update.$unset = { resetPasswordHash: 1, resetPasswordExpiresAt: 1 };
+    }
+
+    if (
+      !usedResetPassword &&
+      admin.mustChangePassword &&
+      admin.tempPasswordExpiresAt &&
+      admin.tempPasswordExpiresAt.getTime() < Date.now()
+    ) {
+      throw new UnauthorizedException(
+        'Your temporary password has expired. Please request a new one.',
+      );
+    }
+
+    await this.platformAdminModel.updateOne({ _id: admin._id }, update).exec();
 
     const accessToken = this.jwtService.sign({
       sub: admin._id.toString(),
@@ -319,7 +359,9 @@ export class AuthService {
           firstName: user.firstName,
           tempPassword,
           validForMinutes: TEMP_PASSWORD_TTL_MS / 60_000,
-          signInUrl: portalSignInUrl(role === Role.PATIENT),
+          signInUrl: portalSignInUrl(
+            role === Role.PATIENT ? 'patient' : 'practitioner',
+          ),
         }),
       })
       .catch((err: unknown) =>
@@ -351,9 +393,81 @@ export class AuthService {
     };
   }
 
+  /**
+   * Platform console forgot-password. Same temporary-password flow as
+   * forgotPassword(), but only ever looks in `platformadmins` and links to
+   * the console sign-in. No dev echo: a platform account is too powerful.
+   */
+  async platformForgotPassword(dto: PlatformForgotPasswordDto) {
+    const normalizedEmail = dto.email.toLowerCase().trim();
+    const genericResponse = {
+      message:
+        "If an account exists for that email, we've emailed it a temporary password.",
+    };
+
+    const admin = await this.platformAdminModel
+      .findOne({ email: normalizedEmail })
+      .exec();
+    if (!admin || !admin.isActive) {
+      this.logger.warn(
+        'Platform forgot-password for unknown or disabled email',
+      );
+      return genericResponse;
+    }
+
+    const tempPassword = generateTempPassword();
+    await this.platformAdminModel
+      .updateOne(
+        { _id: admin._id },
+        {
+          $set: {
+            resetPasswordHash: await bcrypt.hash(tempPassword, SALT_ROUNDS),
+            resetPasswordExpiresAt: new Date(Date.now() + TEMP_PASSWORD_TTL_MS),
+          },
+        },
+      )
+      .exec();
+
+    const adminId = admin._id.toString();
+    this.logger.log(`Reset password issued for platform admin ${adminId}`);
+
+    // Not awaited, so response time doesn't reveal whether the account exists.
+    this.email
+      .send({
+        to: normalizedEmail,
+        ...renderTempPasswordEmail({
+          firstName: admin.name,
+          tempPassword,
+          validForMinutes: TEMP_PASSWORD_TTL_MS / 60_000,
+          signInUrl: portalSignInUrl('admin'),
+        }),
+      })
+      .catch((err: unknown) =>
+        this.logger.error(
+          `Failed to email temporary password to platform admin ${adminId}`,
+          err instanceof Error ? err.stack : String(err),
+        ),
+      );
+
+    return genericResponse;
+  }
+
   async changePassword(userId: string, role: Role, dto: ChangePasswordDto) {
+    // A platform account can see every practice, so it keeps the stricter
+    // minimum migration 002 applies when creating one.
+    if (
+      role === Role.SUPER_ADMIN &&
+      dto.newPassword.length < PLATFORM_MIN_PASSWORD_LENGTH
+    ) {
+      throw new BadRequestException(
+        `Platform admin passwords must be at least ${PLATFORM_MIN_PASSWORD_LENGTH} characters`,
+      );
+    }
+
     const model = this.getModelForRole(role);
-    const user = (await model.findById(userId)) as UserDocument | null;
+    const user = (await model
+      .findById(userId)
+      .select('+password')) as UserDocument | null;
 
     if (!user) {
       throw new UnauthorizedException('Account not found');

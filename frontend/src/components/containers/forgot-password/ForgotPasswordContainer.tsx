@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { forgotPassword, type ForgotPasswordResponse } from "@/lib/auth";
+import { platformForgotPassword } from "@/lib/superadmin/api";
 import {
   forgotPasswordSchema,
   type ForgotPasswordValues,
@@ -25,12 +26,17 @@ import {
 import { BrandLogo } from "@/components/common/BrandLogo";
 
 interface ForgotPasswordProps {
-  role: "patient" | "practitioner";
+  role: "patient" | "practitioner" | "super_admin";
 }
 
+const PORTALS = {
+  patient: { label: "patient", loginHref: "/patientLogin" },
+  practitioner: { label: "practitioner", loginHref: "/practitionerLogin" },
+  super_admin: { label: "platform admin", loginHref: "/adminLogin" },
+} as const;
+
 export default function ForgotPasswordContainer({ role }: ForgotPasswordProps) {
-  const isPatient = role === "patient";
-  const loginHref = isPatient ? "/patientLogin" : "/practitionerLogin";
+  const { label, loginHref } = PORTALS[role];
 
   const [serverError, setServerError] = useState("");
   const [result, setResult] = useState<ForgotPasswordResponse | null>(null);
@@ -45,7 +51,10 @@ export default function ForgotPasswordContainer({ role }: ForgotPasswordProps) {
   const onSubmit = async (data: ForgotPasswordValues) => {
     setServerError("");
     try {
-      const res = await forgotPassword({ ...data, role });
+      const res =
+        role === "super_admin"
+          ? await platformForgotPassword(data.email)
+          : await forgotPassword({ ...data, role });
       setResult(res);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
@@ -84,7 +93,7 @@ export default function ForgotPasswordContainer({ role }: ForgotPasswordProps) {
                 Reset your password
               </h2>
               <p className="text-sm text-gray-500 leading-relaxed">
-                Enter your {isPatient ? "patient" : "practitioner"} account
+                Enter your {label} account
                 email and we&apos;ll email you a temporary password.
               </p>
             </div>

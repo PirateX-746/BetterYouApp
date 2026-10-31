@@ -35,6 +35,20 @@ export class PlatformAdmin {
   @Prop({ default: false })
   mustChangePassword: boolean;
 
+  @Prop({ type: Date })
+  tempPasswordExpiresAt?: Date;
+
+  /**
+   * A pending forgot-password reset, kept apart from `password` like the
+   * practice accounts': anyone can request one for any email, so the
+   * current password keeps working until the emailed one is actually used.
+   */
+  @Prop({ select: false })
+  resetPasswordHash?: string;
+
+  @Prop({ type: Date, select: false })
+  resetPasswordExpiresAt?: Date;
+
   @Prop({ type: Date, default: null })
   lastLoginAt: Date | null;
 }

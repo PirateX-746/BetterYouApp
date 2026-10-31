@@ -21,12 +21,18 @@ export interface TempPasswordEmailContext {
 }
 
 /** The login page a temporary-password email links to. */
-export function portalSignInUrl(isPatient: boolean) {
+const SIGN_IN_PATHS = {
+  patient: '/patientLogin',
+  practitioner: '/practitionerLogin',
+  admin: '/adminLogin',
+} as const;
+
+export function portalSignInUrl(portal: keyof typeof SIGN_IN_PATHS) {
   const base = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(
     /\/+$/,
     '',
   );
-  return `${base}${isPatient ? '/patientLogin' : '/practitionerLogin'}`;
+  return `${base}${SIGN_IN_PATHS[portal]}`;
 }
 
 function validity(minutes: number) {

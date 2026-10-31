@@ -16,3 +16,9 @@ export class PlatformLoginDto {
   @MinLength(1)
   password: string;
 }
+
+/** Platform console forgot-password: email only, no role to name. */
+export class PlatformForgotPasswordDto {
+  @IsEmail()
+  email: string;
+}

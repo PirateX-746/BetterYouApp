@@ -29,11 +29,22 @@ export default function ChangePasswordContainer() {
 
   const onSubmit = async (data: ChangePasswordValues) => {
     setServerError("");
+    const role = localStorage.getItem("role");
+    // Platform accounts can see every practice: the API requires 12+.
+    if (role === "super_admin" && data.newPassword.length < 12) {
+      setServerError("Platform admin passwords must be at least 12 characters.");
+      return;
+    }
     try {
       await changePassword({ newPassword: data.newPassword });
 
-      const role = localStorage.getItem("role");
-      router.replace(role === "patient" ? "/patient/home" : "/dashboard");
+      router.replace(
+        role === "super_admin"
+          ? "/admin/dashboard"
+          : role === "patient"
+            ? "/patient/home"
+            : "/dashboard",
+      );
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
       setServerError(

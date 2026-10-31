@@ -14,7 +14,10 @@ import { LoginDto } from './dto/login.dto';
 import { CreatePatientDto } from './dto/patient-signup.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { PlatformLoginDto } from './dto/platform-login.dto';
+import {
+  PlatformForgotPasswordDto,
+  PlatformLoginDto,
+} from './dto/platform-login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Role } from '../common/role.enum';
 import { Public } from '../common/decorators/public.decorator';
@@ -97,6 +100,15 @@ export class AuthController {
   @HttpCode(200)
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
+  }
+
+  // Same strict bucket as the practice forgot-password.
+  @Public()
+  @Throttle({ default: { ttl: 15 * 60_000, limit: 4 } })
+  @Post('platform/forgot-password')
+  @HttpCode(200)
+  platformForgotPassword(@Body() dto: PlatformForgotPasswordDto) {
+    return this.authService.platformForgotPassword(dto);
   }
 
   @Throttle({ default: { ttl: 60_000, limit: 8 } })
