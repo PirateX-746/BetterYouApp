@@ -10,6 +10,7 @@ import { PortalLockProvider, usePortalLock } from "@/contexts/PortalLockContext"
 import { PractitionerChatProvider, usePractitionerChat } from "@/contexts/PractitionerChatContext";
 import { PractitionerNotificationsProvider } from "@/contexts/PractitionerNotificationsContext";
 import { PractitionerBreadcrumbProvider } from "@/contexts/PractitionerBreadcrumbContext";
+import { SupportInboxProvider } from "@/contexts/SupportInboxContext";
 import { SupportLiveToaster } from "@/components/containers/support/SupportLiveToaster";
 import { useLogout } from "@/hooks/useLogout";
 import { Lock } from "lucide-react";
@@ -220,8 +221,10 @@ export default function PractitionerLayout({ children }: { children: ReactNode }
         <PractitionerUnreadProvider>
           <PractitionerNotificationsProvider>
             <PractitionerBreadcrumbProvider>
-              <SupportLiveToaster side="requester" />
-              <PractitionerLayoutInner>{children}</PractitionerLayoutInner>
+              <SupportInboxProvider side="requester">
+                <SupportLiveToaster side="requester" />
+                <PractitionerLayoutInner>{children}</PractitionerLayoutInner>
+              </SupportInboxProvider>
             </PractitionerBreadcrumbProvider>
           </PractitionerNotificationsProvider>
         </PractitionerUnreadProvider>

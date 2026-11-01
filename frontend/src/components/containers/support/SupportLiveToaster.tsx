@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useSupportLive } from "@/hooks/useSupportLive";
@@ -14,6 +15,13 @@ export function SupportLiveToaster({ side }: { side: "requester" | "support" }) 
   const router = useRouter();
   const base = side === "support" ? "/admin/support" : "/support";
 
+  // Ask once so updates can reach you while the tab is in the background.
+  useEffect(() => {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
   useSupportLive((e) => {
     if (e.by === side) return;
     if (pathname === `${base}/${e.ticketId}`) return;
@@ -25,6 +33,19 @@ export function SupportLiveToaster({ side }: { side: "requester" | "support" }) 
             ? `BetterYou Support replied to ${e.ticketNo}`
             : `New reply on ${e.ticketNo}`
           : `${e.ticketNo} is now ${e.status.replace("_", " ")}`;
+    // Background tab: a system notification, since a toast would go unseen.
+    if (document.hidden && typeof Notification !== "undefined" && Notification.permission === "granted") {
+      try {
+        const n = new Notification(text, { body: "BetterYou Support", icon: "/icons/icon-192.png", tag: `support-${e.ticketId}` });
+        n.onclick = () => {
+          window.focus();
+          router.push(`${base}/${e.ticketId}`);
+          n.close();
+        };
+      } catch {
+        /* some mobile browsers only allow notifications from a service worker */
+      }
+    }
     toast(
       (t) => (
         <button

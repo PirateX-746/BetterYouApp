@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Lock, Bell, ChevronRight, X, Users, XCircle, CalendarClock, BellRing } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import { useSupportInbox } from "@/contexts/SupportInboxContext";
+import { SupportInboxRow } from "@/components/containers/support/SupportInbox";
 import { usePortalLock } from "@/contexts/PortalLockContext";
 import { usePractitionerChat } from "@/contexts/PractitionerChatContext";
 import { usePractitionerBreadcrumb } from "@/contexts/PractitionerBreadcrumbContext";
@@ -35,6 +37,8 @@ export default function PractitionerTopbar({ onToggle }: TopbarProps) {
     usePractitionerNotifications();
 
   const [bellOpen, setBellOpen] = useState(false);
+  const { tickets: supportTickets } = useSupportInbox();
+  const badgeCount = unreadCount + supportTickets.length;
   const bellRef = useRef<HTMLDivElement>(null);
 
   const breadcrumbs = useMemo(() => {
@@ -121,9 +125,9 @@ export default function PractitionerTopbar({ onToggle }: TopbarProps) {
             aria-label="Notifications"
           >
             <Bell size={18} />
-            {unreadCount > 0 && (
+            {badgeCount > 0 && (
               <span className="absolute top-1 right-1 min-w-[16px] h-4 px-0.5 bg-danger text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                {unreadCount > 9 ? "9+" : unreadCount}
+                {badgeCount > 9 ? "9+" : badgeCount}
               </span>
             )}
           </button>
@@ -151,7 +155,11 @@ export default function PractitionerTopbar({ onToggle }: TopbarProps) {
 
               {/* List */}
               <div className="max-h-80 overflow-y-auto">
-                {notifications.length === 0 ? (
+                {/* Support updates stay until the ticket is opened. */}
+                {supportTickets.map((t) => (
+                  <SupportInboxRow key={t._id} ticket={t} onOpen={() => setBellOpen(false)} />
+                ))}
+                {notifications.length === 0 && supportTickets.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-disabled">
                     <Bell size={24} />
                     <p className="text-sm">No notifications yet</p>

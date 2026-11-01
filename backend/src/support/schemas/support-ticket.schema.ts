@@ -83,6 +83,19 @@ export class SupportTicket extends Document {
 
   @Prop({ default: 0 })
   messageCount: number;
+
+  /**
+   * The latest change the other side should hear about — words the bell
+   * entry ("Support replied", "marked resolved") without loading the thread.
+   */
+  @Prop({ type: String, enum: ['created', 'reply', 'status'] })
+  lastEventKind?: 'created' | 'reply' | 'status';
+
+  @Prop({ type: String, enum: ['requester', 'support'] })
+  lastEventBy?: 'requester' | 'support';
+
+  @Prop({ type: Date })
+  lastEventAt?: Date;
 }
 
 export const SupportTicketSchema = SchemaFactory.createForClass(SupportTicket);

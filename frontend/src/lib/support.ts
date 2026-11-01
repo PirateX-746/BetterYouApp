@@ -21,6 +21,10 @@ export interface SupportTicket {
   messageCount: number;
   unreadForRequester: boolean;
   unreadForAdmin: boolean;
+  /** Latest change worth telling the other side about (words the bell). */
+  lastEventKind: "created" | "reply" | "status" | null;
+  lastEventBy: "requester" | "support" | null;
+  lastEventAt: string | null;
   createdAt: string;
 }
 
@@ -106,12 +110,20 @@ function form(fields: Record<string, string | undefined>, files: File[]) {
 const MULTIPART = { headers: { "Content-Type": "multipart/form-data" } };
 
 /** Same-origin URL (through the /api rewrite) — the session cookie rides along. */
-export const attachmentUrl = (messageId: string, attachmentId: string) =>
-  `/api/support/attachments/${messageId}/${attachmentId}${isAdminPortal() ? "?portal=admin" : ""}`;
+export const attachmentUrl = (messageId: string, attachmentId: string, opts: { inline?: boolean } = {}) => {
+  const q = new URLSearchParams();
+  if (isAdminPortal()) q.set("portal", "admin");
+  // inline = for previews in the chat; otherwise the file downloads.
+  if (opts.inline) q.set("view", "inline");
+  const qs = q.toString();
+  return `/api/support/attachments/${messageId}/${attachmentId}${qs ? `?${qs}` : ""}`;
+};
 
 export const supportApi = {
   faqs: () => api.get<Faq[]>("/support/faqs").then((r) => r.data),
   myTickets: () => api.get<SupportTicket[]>("/support/tickets").then((r) => r.data),
+  /** Own tickets with something new from support. */
+  unread: () => api.get<SupportTicket[]>("/support/tickets/unread").then((r) => r.data),
   ticket: (id: string) => api.get<SupportTicketDetail>(`/support/tickets/${id}`).then((r) => r.data),
   create: (
     input: { subject: string; category: TicketCategory; priority: TicketPriority; body: string },
@@ -129,6 +141,8 @@ export const supportAdminApi = {
         params: Object.fromEntries(Object.entries(params).filter(([, v]) => v)),
       })
       .then((r) => r.data),
+  /** Tickets with something new from practices. */
+  unread: () => api.get<SupportTicket[]>("/admin/support/tickets/unread").then((r) => r.data),
   ticket: (id: string) => api.get<SupportTicketDetail>(`/admin/support/tickets/${id}`).then((r) => r.data),
   reply: (id: string, body: string, files: File[]) =>
     api.post<SupportTicketDetail>(`/admin/support/tickets/${id}/messages`, form({ body }, files), MULTIPART).then((r) => r.data),

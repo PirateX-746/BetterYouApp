@@ -132,7 +132,7 @@ export class SupportService implements OnModuleInit {
       dto.body,
       attachments,
     );
-    this.notify(ticket, {
+    await this.notify(ticket, {
       kind: 'created',
       by: 'requester',
       status: ticket.status,
@@ -144,6 +144,19 @@ export class SupportService implements OnModuleInit {
     const tickets = await this.ticketModel
       .find({ requesterId: new Types.ObjectId(user.userId) })
       .sort({ lastMessageAt: -1 })
+      .lean();
+    return tickets.map((t) => this.toTicket(t));
+  }
+
+  /** The requester's tickets with something new from support — the bell. */
+  async unreadOwn(user: AuthUser) {
+    const tickets = await this.ticketModel
+      .find({
+        requesterId: new Types.ObjectId(user.userId),
+        unreadForRequester: true,
+      })
+      .sort({ updatedAt: -1 })
+      .limit(20)
       .lean();
     return tickets.map((t) => this.toTicket(t));
   }
@@ -184,7 +197,7 @@ export class SupportService implements OnModuleInit {
         ...(reopen ? { status: TicketStatus.OPEN } : {}),
       },
     );
-    this.notify(ticket, {
+    await this.notify(ticket, {
       kind: 'reply',
       by: 'requester',
       status: reopen ? TicketStatus.OPEN : ticket.status,
@@ -199,7 +212,7 @@ export class SupportService implements OnModuleInit {
       { _id: ticket._id },
       { $set: { status: TicketStatus.CLOSED } },
     );
-    this.notify(ticket, {
+    await this.notify(ticket, {
       kind: 'status',
       by: 'requester',
       status: TicketStatus.CLOSED,
@@ -246,6 +259,16 @@ export class SupportService implements OnModuleInit {
     };
   }
 
+  /** Tickets with something new from practices — the console's bell. */
+  async unreadAll() {
+    const tickets = await this.ticketModel
+      .find({ unreadForAdmin: true })
+      .sort({ updatedAt: -1 })
+      .limit(20)
+      .lean();
+    return tickets.map((t) => this.toTicket(t));
+  }
+
   async getAny(id: string) {
     const ticket = await this.findById(id);
     if (ticket.unreadForAdmin) {
@@ -282,7 +305,7 @@ export class SupportService implements OnModuleInit {
       attachments,
       advance,
     );
-    this.notify(doc, {
+    await this.notify(doc, {
       kind: 'reply',
       by: 'support',
       status: advance.status ?? doc.status,
@@ -298,11 +321,13 @@ export class SupportService implements OnModuleInit {
     if (!Object.keys(set).length)
       throw new BadRequestException('Nothing to update');
     await this.ticketModel.updateOne({ _id: before._id }, { $set: set });
-    this.notify(before, {
-      kind: 'status',
-      by: 'support',
-      status: dto.status ?? before.status,
-    });
+    // Only a status change is news to the practice; re-prioritising isn't.
+    const statusChanged = !!dto.status && dto.status !== before.status;
+    await this.notify(
+      before,
+      { kind: 'status', by: 'support', status: dto.status ?? before.status },
+      statusChanged,
+    );
     return { before, after: await this.getAny(id) };
   }
 
@@ -366,13 +391,40 @@ export class SupportService implements OnModuleInit {
   /* ═════════════ Internals ═════════════ */
 
   /**
-   * Live update for the other side (and the actor's other tabs). A failed
-   * emit must never fail the request that already succeeded.
+   * Tells the other side. Two parts:
+   *  - durable: records the event on the ticket and marks it unread for the
+   *    other side, so it shows in their bell even if they were offline;
+   *  - live: a socket event to both sides (and the actor's other tabs).
+   * The record is written first, so a client that re-fetches on the live
+   * event already sees it. Neither part may fail the request that already
+   * succeeded.
    */
-  private notify(
+  private async notify(
     ticket: Pick<SupportTicket, '_id' | 'ticketNo' | 'requesterId'>,
     e: Omit<SupportTicketEvent, 'ticketId' | 'ticketNo'>,
+    isNews = true,
   ) {
+    if (isNews) {
+      try {
+        await this.ticketModel.updateOne(
+          { _id: ticket._id },
+          {
+            $set: {
+              lastEventKind: e.kind,
+              lastEventBy: e.by,
+              lastEventAt: new Date(),
+              ...(e.by === 'requester'
+                ? { unreadForAdmin: true }
+                : { unreadForRequester: true }),
+            },
+          },
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Support notification record failed: ${(err as Error).message}`,
+        );
+      }
+    }
     const event: SupportTicketEvent = {
       ticketId: String(ticket._id),
       ticketNo: ticket.ticketNo,
@@ -530,6 +582,9 @@ export class SupportService implements OnModuleInit {
       messageCount: t.messageCount,
       unreadForRequester: t.unreadForRequester,
       unreadForAdmin: t.unreadForAdmin,
+      lastEventKind: t.lastEventKind ?? null,
+      lastEventBy: t.lastEventBy ?? null,
+      lastEventAt: t.lastEventAt ?? null,
       createdAt: (t as unknown as { createdAt: Date }).createdAt,
     };
   }
