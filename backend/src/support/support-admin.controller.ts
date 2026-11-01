@@ -44,6 +44,11 @@ export class SupportAdminController {
     return this.support.listAll(query);
   }
 
+  @Get('tickets/unread')
+  unread() {
+    return this.support.unreadAll();
+  }
+
   @Get('tickets/:id')
   get(@Param('id') id: string) {
     return this.support.getAny(id);

@@ -1,5 +1,6 @@
 "use client";
 
+import { SupportNavBadge } from "@/components/containers/support/SupportInbox";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -158,6 +159,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
               >
                 <Icon size={17} className={active ? "text-primary" : ""} aria-hidden />
                 <span className="flex-1">{label}</span>
+                {href === "/support" && <SupportNavBadge />}
               </Link>
             );
           })}
@@ -240,6 +242,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
               className="relative flex flex-col items-center gap-1 px-2 py-1 shrink-0"
             >
               <Icon size={22} className={active ? "text-primary" : "text-text-secondary"} aria-hidden />
+              {href === "/support" && <SupportNavBadge className="absolute top-0 right-1" />}
               <span className={`text-[10px] font-medium ${active ? "text-primary-strong" : "text-text-secondary"}`}>
                 {label}
               </span>

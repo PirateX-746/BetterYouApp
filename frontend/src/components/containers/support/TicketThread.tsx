@@ -1,8 +1,9 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { Download, FileText, Headset, Image as ImageIcon } from "lucide-react";
-import { attachmentUrl, formatBytes, type SupportMessage } from "@/lib/support";
+import { Download, ExternalLink, FileText, Headset, Image as ImageIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { attachmentUrl, formatBytes, type SupportAttachment, type SupportMessage } from "@/lib/support";
 
 const dayLabel = (iso: string) => {
   const d = new Date(iso);
@@ -82,30 +83,7 @@ export function TicketThread({ messages, viewer }: { messages: SupportMessage[];
                 >
                   <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{m.body}</p>
                 </div>
-                {m.attachments.length > 0 && (
-                  <ul className={`mt-1.5 flex flex-wrap gap-2 ${mine ? "justify-end" : ""}`} aria-label="Attachments">
-                    {m.attachments.map((a) => {
-                      const href = attachmentUrl(m._id, a._id);
-                      return (
-                        <li key={a._id}>
-                          <a
-                            href={href}
-                            download={a.fileName}
-                            className="flex items-center gap-2 rounded-md border border-border bg-bg-card p-1.5 pr-3 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
-                          >
-                            <AttachmentThumb href={href} fileName={a.fileName} isImage={a.contentType.startsWith("image/")} />
-                            <span className="min-w-0">
-                              <span className="block text-xs font-medium text-text-primary truncate max-w-[10rem]">{a.fileName}</span>
-                              <span className="flex items-center gap-1 text-[11px] text-text-secondary">
-                                <Download size={11} aria-hidden /> {formatBytes(a.size)}
-                              </span>
-                            </span>
-                          </a>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                {m.attachments.length > 0 && <MessageAttachments messageId={m._id} attachments={m.attachments} mine={mine} />}
               </article>
             </li>
           </Fragment>
@@ -115,26 +93,131 @@ export function TicketThread({ messages, viewer }: { messages: SupportMessage[];
   );
 }
 
-/** Image preview, falling back to a file tile when the image can't load
- *  (otherwise the browser draws a broken icon plus overflowing alt text). */
-function AttachmentThumb({ href, fileName, isImage }: { href: string; fileName: string; isImage: boolean }) {
+/**
+ * Attachments under a message, previewed in the chat: images show inline
+ * (click for full size), PDFs as a card that opens in the browser's viewer.
+ * Everything can still be downloaded.
+ */
+function MessageAttachments({
+  messageId,
+  attachments,
+  mine,
+}: {
+  messageId: string;
+  attachments: SupportAttachment[];
+  mine: boolean;
+}) {
+  const [viewing, setViewing] = useState<SupportAttachment | null>(null);
+  const images = attachments.filter((a) => a.contentType.startsWith("image/"));
+  const files = attachments.filter((a) => !a.contentType.startsWith("image/"));
+
+  return (
+    <>
+      {images.length > 0 && (
+        <ul className={`mt-1.5 flex flex-wrap gap-2 ${mine ? "justify-end" : ""}`} aria-label="Images">
+          {images.map((a) => (
+            <li key={a._id}>
+              <ImagePreview
+                src={attachmentUrl(messageId, a._id, { inline: true })}
+                fileName={a.fileName}
+                onOpen={() => setViewing(a)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      {files.length > 0 && (
+        <ul className={`mt-1.5 flex flex-col gap-2 ${mine ? "items-end" : "items-start"}`} aria-label="Files">
+          {files.map((a) => (
+            <li key={a._id} className="flex items-center gap-3 rounded-xl border border-border bg-bg-card p-2 pr-3 w-[min(18rem,100%)]">
+              <span className="size-10 shrink-0 rounded-lg grid place-items-center bg-danger-light text-danger-strong">
+                <FileText size={18} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium text-text-primary truncate">{a.fileName}</span>
+                <span className="block text-[11px] text-text-secondary">PDF · {formatBytes(a.size)}</span>
+              </span>
+              <a
+                href={attachmentUrl(messageId, a._id, { inline: true })}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="size-8 grid place-items-center rounded-lg text-text-secondary hover:bg-bg-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                aria-label={`Preview ${a.fileName}`}
+                title="Preview"
+              >
+                <ExternalLink size={15} aria-hidden />
+              </a>
+              <a
+                href={attachmentUrl(messageId, a._id)}
+                download={a.fileName}
+                className="size-8 grid place-items-center rounded-lg text-text-secondary hover:bg-bg-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                aria-label={`Download ${a.fileName}`}
+                title="Download"
+              >
+                <Download size={15} aria-hidden />
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent className="max-w-[min(64rem,calc(100vw-2rem))] p-3 sm:p-4 gap-3">
+          {viewing && (
+            <>
+              <div className="flex items-center gap-3 pr-8">
+                <DialogTitle className="text-sm font-medium truncate flex-1">{viewing.fileName}</DialogTitle>
+                <a
+                  href={attachmentUrl(messageId, viewing._id)}
+                  download={viewing.fileName}
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-xs font-medium text-text-primary hover:bg-bg-hover"
+                >
+                  <Download size={14} aria-hidden /> Download
+                </a>
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={attachmentUrl(messageId, viewing._id, { inline: true })}
+                alt={viewing.fileName}
+                className="max-h-[78vh] w-auto max-w-full mx-auto rounded-lg object-contain bg-bg-subtle"
+              />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/** Inline image in the chat; a file tile if it can't load (no broken icon). */
+function ImagePreview({ src, fileName, onOpen }: { src: string; fileName: string; onOpen: () => void }) {
   const [failed, setFailed] = useState(false);
-  if (isImage && !failed) {
+  if (failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={href}
-        alt={`Attached image ${fileName}`}
-        loading="lazy"
-        onError={() => setFailed(true)}
-        className="size-10 shrink-0 overflow-hidden rounded object-cover bg-bg-subtle text-[0px]"
-      />
+      <span className="flex items-center gap-2 rounded-xl border border-border bg-bg-card p-2 pr-3">
+        <span className="size-10 rounded-lg grid place-items-center bg-primary/10 text-primary-strong">
+          <ImageIcon size={18} aria-hidden />
+        </span>
+        <span className="text-xs text-text-secondary truncate max-w-[10rem]">{fileName}</span>
+      </span>
     );
   }
   return (
-    <span className={`size-10 shrink-0 rounded grid place-items-center ${isImage ? "bg-primary/10 text-primary-strong" : "bg-danger-light text-danger-strong"}`}>
-      {isImage ? <ImageIcon size={18} aria-hidden /> : <FileText size={18} aria-hidden />}
-    </span>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="block overflow-hidden rounded-xl border border-border bg-bg-subtle hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-opacity cursor-zoom-in"
+      aria-label={`View ${fileName}`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={`Attached image ${fileName}`}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="block max-h-56 max-w-[min(16rem,60vw)] w-auto h-auto object-cover"
+      />
+    </button>
   );
 }
 

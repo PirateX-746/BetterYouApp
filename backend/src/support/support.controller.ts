@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   Res,
   StreamableFile,
@@ -52,6 +53,12 @@ export class SupportController {
     return this.support.listOwn(req.user);
   }
 
+  /** Declared before tickets/:id so "unread" isn't taken for an id. */
+  @Get('tickets/unread')
+  unread(@Req() req: AuthedRequest) {
+    return this.support.unreadOwn(req.user);
+  }
+
   @Post('tickets')
   @UseInterceptors(attachmentsInterceptor())
   create(
@@ -94,6 +101,7 @@ export class SupportController {
     @Param('attachmentId') attachmentId: string,
     @Req() req: AuthedRequest,
     @Res({ passthrough: true }) res: Response,
+    @Query('view') view?: string,
   ) {
     const file = await this.support.openAttachment(
       messageId,
@@ -103,10 +111,22 @@ export class SupportController {
     res.set({
       'Content-Type': file.contentType,
       'Content-Length': String(file.size),
-      'Content-Disposition': `attachment; filename="${file.fileName}"`,
+      // Inline only for previews in the chat. Safe because the type was
+      // sniffed from the bytes on upload (PNG/JPEG/WebP, or a PDF with no
+      // scripts/actions) — never HTML or SVG. Images additionally get a
+      // sandbox CSP; PDFs don't, as it would stop the browser's viewer.
+      'Content-Disposition': `${view === 'inline' ? 'inline' : 'attachment'}; filename="${file.fileName}"`,
       'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
+      ...(view === 'inline' && file.contentType.startsWith('image/')
+        ? { 'Content-Security-Policy': "default-src 'none'; sandbox" }
+        : {}),
     });
+    if (view === 'inline' && file.contentType === 'application/pdf') {
+      // helmet's page CSP (object-src 'none') makes Chrome refuse to open the
+      // PDF in its viewer. The PDF was checked for scripts/actions on upload.
+      res.removeHeader('Content-Security-Policy');
+    }
     return new StreamableFile(file.stream);
   }
 }

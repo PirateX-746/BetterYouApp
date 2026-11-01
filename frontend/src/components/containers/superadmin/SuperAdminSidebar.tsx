@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { platformLogout } from "@/lib/superadmin/api";
+import { SupportNavBadge } from "@/components/containers/support/SupportInbox";
 import { BrandLogo } from "@/components/common/BrandLogo";
 
 interface SidebarProps {
@@ -147,6 +148,7 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
               >
                 <Icon size={17} />
                 <span className="flex-1">{label}</span>
+                {href === "/admin/support" && <SupportNavBadge />}
               </Link>
             );
           })}
