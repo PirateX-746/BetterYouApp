@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { toConsolePath } from "@/lib/portal";
 import { supportAdminApi, supportApi, type SupportTicket } from "@/lib/support";
 import { useSupportLive } from "@/hooks/useSupportLive";
 
@@ -50,7 +51,9 @@ export function SupportInboxProvider({ side, children }: { side: Side; children:
   // The ticket on screen is being read right now, even if the server flag
   // was set by an event a moment ago (the page re-fetch clears it).
   const base = side === "support" ? "/admin/support/" : "/support/";
-  const viewing = pathname.startsWith(base) ? pathname.slice(base.length) : null;
+  // On admin.<domain> the console shows "/support/<id>" for "/admin/support/<id>".
+  const path = side === "support" ? toConsolePath(pathname) : pathname;
+  const viewing = path.startsWith(base) ? path.slice(base.length) : null;
   const visible = viewing ? tickets.filter((t) => t._id !== viewing) : tickets;
 
   return <Ctx.Provider value={{ side, tickets: visible, refresh }}>{children}</Ctx.Provider>;

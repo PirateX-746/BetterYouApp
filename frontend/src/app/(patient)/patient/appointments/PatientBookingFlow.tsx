@@ -1,6 +1,6 @@
 "use client";
 
-import { drName } from "@/lib/names";
+import { practitionerName } from "@/lib/names";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -294,7 +294,7 @@ export default function PatientBookingFlow({
                               {p.lastName[0]}
                             </div>
                             <span className="font-medium text-sm">
-                              {drName(p.firstName, p.lastName)}
+                              {practitionerName(p.firstName, p.lastName)}
                             </span>
                             {active && (
                               <Check
@@ -436,7 +436,7 @@ export default function PatientBookingFlow({
                     {[
                       [
                         "Practitioner",
-                        drName(selectedPractitioner.firstName, selectedPractitioner.lastName),
+                        practitionerName(selectedPractitioner.firstName, selectedPractitioner.lastName),
                       ],
                       ["Session Type", selectedType],
                       ["Date & Time", formatDateTime(selectedSlot.start)],

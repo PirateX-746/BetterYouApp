@@ -117,7 +117,7 @@ describe("proxy route guard", () => {
     });
 
     it("sends someone signed in from the root to their dashboard", () => {
-      expect(where(at("https://admin.example.com/", "admin_token=a"))).toBe("https://admin.example.com/admin/dashboard");
+      expect(where(at("https://admin.example.com/", "admin_token=a"))).toBe("https://admin.example.com/dashboard");
       expect(where(at("https://practitioner.example.com/", "token=t; role=practitioner"))).toBe(
         "https://practitioner.example.com/dashboard",
       );
@@ -126,13 +126,14 @@ describe("proxy route guard", () => {
     it("moves a page opened on the wrong address", () => {
       expect(where(at("https://practitioner.example.com/adminLogin"))).toBe("https://admin.example.com/");
       expect(where(at("https://practitioner.example.com/admin/practices?x=1"))).toBe(
-        "https://admin.example.com/admin/practices?x=1",
+        "https://admin.example.com/practices?x=1",
       );
+      expect(where(at("https://practitioner.example.com/practices"))).toBe("https://admin.example.com/practices");
       expect(where(at("https://admin.example.com/practitionerLogin"))).toBe("https://practitioner.example.com/");
       expect(where(at("https://admin.example.com/acceptInvite?token=abc"))).toBe(
         "https://practitioner.example.com/acceptInvite?token=abc",
       );
-      expect(where(at("https://admin.example.com/dashboard"))).toBe("https://practitioner.example.com/dashboard");
+      expect(where(at("https://admin.example.com/patients/1"))).toBe("https://practitioner.example.com/patients/1");
     });
 
     it("keeps each sign-in at its clean root address", () => {
@@ -143,6 +144,28 @@ describe("proxy route guard", () => {
       expect(where(at("https://admin.example.com/"))).toBeNull();
       // Other hosts keep the paths.
       expect(where(at("https://app.example.com/practitionerLogin"))).toBeNull();
+    });
+
+    it("serves the console at clean paths on admin.<domain>", () => {
+      // Signed in: /practices is served by the /admin/practices page.
+      expect(new URL(rewrite(at("https://admin.example.com/practices", "admin_token=a"))!).pathname).toBe("/admin/practices");
+      expect(new URL(rewrite(at("https://admin.example.com/support/123", "admin_token=a"))!).pathname).toBe(
+        "/admin/support/123",
+      );
+      expect(new URL(rewrite(at("https://admin.example.com/dashboard", "admin_token=a"))!).pathname).toBe("/admin/dashboard");
+      // Signed out: the sign-in at the root.
+      expect(where(at("https://admin.example.com/practices"))).toBe("https://admin.example.com/");
+      // Old /admin/* links: the clean path.
+      expect(where(at("https://admin.example.com/admin/practices?q=x", "admin_token=a"))).toBe(
+        "https://admin.example.com/practices?q=x",
+      );
+      expect(where(at("https://admin.example.com/admin", "admin_token=a"))).toBe("https://admin.example.com/");
+    });
+
+    it("renames /appointmentsPractitioner to /appointments", () => {
+      expect(where(at("https://practitioner.example.com/appointmentsPractitioner?open=1"))).toBe(
+        "https://practitioner.example.com/appointments?open=1",
+      );
     });
 
     it("serves the shared password change on either address", () => {

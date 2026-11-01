@@ -146,7 +146,7 @@ export default function DashboardPage() {
   // Which practitioner the data on screen belongs to; loading until it matches.
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const loading = !!practitionerId && loadedFor !== practitionerId;
-  const doctorName = useClientValue(() => localStorage.getItem("name"), null) || "Doctor";
+  const doctorName = useClientValue(() => localStorage.getItem("name"), null) || "there";
 
   useEffect(() => {
     if (!practitionerId) return;
@@ -393,7 +393,7 @@ export default function DashboardPage() {
   return (
     <Page>
       <PageHeader
-        title={`${greeting}, Dr. ${doctorName}`}
+        title={`${greeting}, ${doctorName}`}
         subtitle={dateStr}
         actions={
           <div className="flex items-center gap-2 h-10 px-3.5 bg-bg-card border border-border rounded-md text-sm">
@@ -412,7 +412,7 @@ export default function DashboardPage() {
           icon={Calendar}
           tone="primary"
           sub={`${todayConfirmed} confirmed`}
-          href="/appointmentsPractitioner"
+          href="/appointments"
           featured
         />
         <StatCard
@@ -421,7 +421,7 @@ export default function DashboardPage() {
           icon={Clock}
           tone="teal"
           sub={`Avg. ${(weekAppointments.length / 5).toFixed(1)} per weekday`}
-          href="/appointmentsPractitioner"
+          href="/appointments"
         />
         <StatCard
           label="Active patients"
@@ -462,7 +462,7 @@ export default function DashboardPage() {
           className="lg:col-span-2"
           title="Today's schedule"
           subtitle={`${todayAppointments.length} appointment${todayAppointments.length === 1 ? "" : "s"} · ${todayConfirmed} confirmed`}
-          action={<CardLink href="/appointmentsPractitioner">Open calendar</CardLink>}
+          action={<CardLink href="/appointments">Open calendar</CardLink>}
         >
           {todayAppointments.length === 0 ? (
             <EmptyBlock icon={Calendar} title="No appointments today" hint="Your schedule is clear for today." />

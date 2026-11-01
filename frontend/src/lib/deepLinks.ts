@@ -9,7 +9,7 @@
  */
 export const OPEN_APPOINTMENT_EVENT = "betteryou:open-appointment";
 
-export const APPOINTMENTS_PATH = "/appointmentsPractitioner";
+export const APPOINTMENTS_PATH = "/appointments";
 
 export const appointmentHref = (id: string) => `${APPOINTMENTS_PATH}?appointment=${encodeURIComponent(id)}`;
 

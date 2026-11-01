@@ -1,6 +1,6 @@
 "use client";
 
-import { drName } from "@/lib/names";
+import { practitionerName } from "@/lib/names";
 import { SupportNavBadge } from "@/components/containers/support/SupportInbox";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -49,7 +49,7 @@ type NavItem = { label: string; href: string; icon: LucideIcon; comingSoon?: boo
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard",     href: "/dashboard",                icon: LayoutDashboard, group: "clinic" },
   // { label: "Waiting Room",  href: "/waiting-room",             icon: Clock,           comingSoon: true, group: "clinic" },
-  { label: "Appointments",  href: "/appointmentsPractitioner", icon: CalendarCheck,   group: "clinic" },
+  { label: "Appointments",  href: "/appointments", icon: CalendarCheck,   group: "clinic" },
   { label: "Patients",      href: "/patients",                 icon: Users,           group: "clinic" },
   { label: "Assessments",   href: "/assessments",              icon: ClipboardList,   group: "clinic" },
   { label: "Medications",   href: "/medications",              icon: Pill,            group: "clinic" },
@@ -89,7 +89,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
     pathname === href || pathname.startsWith(href + "/");
 
   const initials = getInitials(doctorName);
-  const displayName = drName(doctorName);
+  const displayName = practitionerName(doctorName);
 
   return (
     <>

@@ -32,7 +32,7 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       { name: "Dashboard", url: "/dashboard" },
-      { name: "Appointments", url: "/appointmentsPractitioner" },
+      { name: "Appointments", url: "/appointments" },
       { name: "Patients", url: "/patients" },
       { name: "Messages", url: "/messages" },
     ].map((s) => ({ ...s, icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] })),
