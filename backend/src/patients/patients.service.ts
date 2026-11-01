@@ -21,6 +21,7 @@ import {
 } from '../common/tenancy/practice-scope';
 import { generateTempPassword } from '../common/temp-password';
 import { EmailService } from '../email/email.service';
+import { renderWelcomeEmail } from './welcome-email';
 import {
   portalSignInUrl,
   renderTempPasswordEmail,
@@ -102,8 +103,13 @@ export class PatientsService {
       practiceId: practiceStamp(practiceId),
     });
 
-    // Returned exactly once, so the practitioner can hand it over (there is
-    // no email provider yet). Only the bcrypt hash is stored.
+    // Welcome email. Not awaited: an email outage mustn't fail registration.
+    if (this.email.enabled && patient.email) {
+      void this.emailWelcome(patient);
+    }
+
+    // Returned exactly once, so the practitioner can hand it over. Only the
+    // bcrypt hash is stored; the welcome email does not include it.
     return {
       ...(await this.findById(patient._id.toString(), practiceId)),
       temporaryPassword,
@@ -141,6 +147,38 @@ export class PatientsService {
       temporaryPasswordExpiresAt: expiresAt,
       emailed,
     };
+  }
+
+  private async emailWelcome(patient: {
+    _id: unknown;
+    firstName: string;
+    email?: string;
+    practiceId?: unknown;
+  }) {
+    try {
+      const practice = patient.practiceId
+        ? await this.patientModel.db
+            .model<{ name: string; email?: string; phone?: string }>('Practice')
+            .findById(patient.practiceId, { name: 1, email: 1, phone: 1 })
+            .lean()
+        : null;
+      await this.email.send({
+        to: patient.email!,
+        replyTo: practice?.email,
+        idempotencyKey: `welcome-${String(patient._id)}`,
+        ...renderWelcomeEmail({
+          firstName: patient.firstName,
+          practiceName: practice?.name ?? 'Your practice',
+          practicePhone: practice?.phone,
+          practiceEmail: practice?.email,
+        }),
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to send welcome email to patient ${String(patient._id)}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
   }
 
   private async emailTemporaryPassword(

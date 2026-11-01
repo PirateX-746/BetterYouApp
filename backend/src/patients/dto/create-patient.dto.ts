@@ -34,6 +34,11 @@ export const BLOOD_GROUPS = [
   'AB-',
 ] as const;
 
+/** Letters (any script), spaces, apostrophes, hyphens and dots. */
+export const NAME_RE = /^[\p{L}\p{M}][\p{L}\p{M}' .-]*$/u;
+const NAME_MSG = (label: string) =>
+  `${label} can only contain letters, spaces, apostrophes, hyphens and dots`;
+
 /** Not in the future, and not before 1900. */
 const IsRealisticBirthDate = () =>
   ValidateBy({
@@ -63,20 +68,23 @@ export class CreatePatientDto {
   @IsString()
   @IsNotEmpty({ message: 'First name is required' })
   @MaxLength(60)
+  @Matches(NAME_RE, { message: NAME_MSG('First name') })
   firstName: string;
 
   @Transform(trim)
   @IsString()
   @IsNotEmpty({ message: 'Last name is required' })
   @MaxLength(60)
+  @Matches(NAME_RE, { message: NAME_MSG('Last name') })
   lastName: string;
 
   @IsDateString()
   @IsRealisticBirthDate()
   dateOfBirth: string; // ISO string from frontend
 
-  @Transform(trim)
-  @IsEmail()
+  @Transform(lower)
+  @IsEmail({}, { message: 'Enter a valid email address' })
+  @MaxLength(254)
   email: string;
 
   @Transform(trim)
@@ -90,10 +98,13 @@ export class CreatePatientDto {
   @IsIn(GENDERS, { message: `gender must be one of: ${GENDERS.join(', ')}` })
   gender: string;
 
-  @IsIn(BLOOD_GROUPS, {
+  // Optional: blank means "not known" (and clears it on update).
+  @IsOptional()
+  @Transform(trim)
+  @IsIn(['', ...BLOOD_GROUPS], {
     message: `bloodGroup must be one of: ${BLOOD_GROUPS.join(', ')}`,
   })
-  bloodGroup: string;
+  bloodGroup?: string;
 
   @IsOptional()
   @IsDateString()
@@ -110,8 +121,13 @@ export class CreatePatientDto {
   allergies?: string;
 
   @IsOptional()
+  @Transform(trim)
   @IsString()
   @MaxLength(100)
+  // Empty clears it on update.
+  @Matches(/^([\p{L}\p{M}][\p{L}\p{M}' .-]*)?$/u, {
+    message: NAME_MSG('Emergency contact name'),
+  })
   emergencyContactName?: string;
 
   @IsOptional()

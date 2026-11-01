@@ -11,11 +11,11 @@ import { SectionCard } from "@/components/common/Dashboard";
 import { useDetailCrumb } from "@/contexts/PractitionerBreadcrumbContext";
 import { api, apiErrorMessage } from "@/lib/api";
 import { addPatientSchema, type AddPatientValues } from "@/schemas/patient.schema";
+import { BLOOD_GROUPS, onlyDigits, onlyPhoneChars } from "@/schemas/fields";
 
 const fieldCls =
   "w-full h-11 px-3.5 text-sm bg-bg-page border border-border rounded-md text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition aria-[invalid=true]:border-danger";
 
-const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"] as const;
 
 /** Label + control + error, wired for screen readers. */
 function Field({
@@ -109,10 +109,10 @@ export default function AddPatientPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="firstName" label="First name" required error={errors.firstName?.message}>
-                <input {...register("firstName")} {...a("firstName")} autoComplete="off" className={fieldCls} autoFocus />
+                <input {...register("firstName")} {...a("firstName")} autoComplete="off" maxLength={60} className={fieldCls} autoFocus />
               </Field>
               <Field id="lastName" label="Last name" required error={errors.lastName?.message}>
-                <input {...register("lastName")} {...a("lastName")} autoComplete="off" className={fieldCls} />
+                <input {...register("lastName")} {...a("lastName")} autoComplete="off" maxLength={60} className={fieldCls} />
               </Field>
               <Field id="dateOfBirth" label="Date of birth" required error={errors.dateOfBirth?.message}>
                 <input {...register("dateOfBirth")} {...a("dateOfBirth")} type="date" max={new Date().toISOString().slice(0, 10)} className={fieldCls} />
@@ -134,10 +134,10 @@ export default function AddPatientPage() {
             </div>
             <div className="grid gap-4">
               <Field id="email" label="Email" required error={errors.email?.message}>
-                <input {...register("email")} {...a("email")} type="email" autoComplete="off" placeholder="name@example.com" className={fieldCls} />
+                <input {...register("email")} {...a("email")} type="email" autoComplete="off" maxLength={254} placeholder="name@example.com" className={fieldCls} />
               </Field>
-              <Field id="phoneNo" label="Mobile number" required hint="10 digits, without the country code" error={errors.phoneNo?.message}>
-                <input {...register("phoneNo")} {...a("phoneNo", true)} type="tel" inputMode="numeric" placeholder="98765 43210" className={fieldCls} />
+              <Field id="phoneNo" label="Mobile number" required hint="10 digits starting with 6–9, without the country code" error={errors.phoneNo?.message}>
+                <input {...register("phoneNo")} {...a("phoneNo", true)} type="tel" inputMode="numeric" autoComplete="off" maxLength={10} onInput={onlyDigits(10)} placeholder="9876543210" className={fieldCls} />
               </Field>
             </div>
           </SectionCard>
@@ -150,9 +150,9 @@ export default function AddPatientPage() {
               <Field id="healthCondition" label="Health condition" className="sm:col-span-2" hint="e.g. Generalised Anxiety Disorder" error={errors.healthCondition?.message}>
                 <input {...register("healthCondition")} {...a("healthCondition", true)} className={fieldCls} />
               </Field>
-              <Field id="bloodGroup" label="Blood group" required error={errors.bloodGroup?.message}>
+              <Field id="bloodGroup" label="Blood group" error={errors.bloodGroup?.message}>
                 <select {...register("bloodGroup")} {...a("bloodGroup")} defaultValue="" className={fieldCls}>
-                  <option value="" disabled>Select…</option>
+                  <option value="">Not known</option>
                   {BLOOD_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </Field>
@@ -168,13 +168,13 @@ export default function AddPatientPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="emergencyContactName" label="Name" error={errors.emergencyContactName?.message}>
-                <input {...register("emergencyContactName")} {...a("emergencyContactName")} className={fieldCls} />
+                <input {...register("emergencyContactName")} {...a("emergencyContactName")} maxLength={100} className={fieldCls} />
               </Field>
               <Field id="emergencyContactRelation" label="Relationship" hint="e.g. Spouse, Parent" error={errors.emergencyContactRelation?.message}>
                 <input {...register("emergencyContactRelation")} {...a("emergencyContactRelation", true)} className={fieldCls} />
               </Field>
               <Field id="emergencyContactPhone" label="Phone" className="sm:col-span-2" error={errors.emergencyContactPhone?.message}>
-                <input {...register("emergencyContactPhone")} {...a("emergencyContactPhone")} type="tel" className={fieldCls} />
+                <input {...register("emergencyContactPhone")} {...a("emergencyContactPhone")} type="tel" inputMode="tel" maxLength={20} onInput={onlyPhoneChars} className={fieldCls} />
               </Field>
             </div>
           </SectionCard>

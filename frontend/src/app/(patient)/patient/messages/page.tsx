@@ -1,5 +1,6 @@
 "use client";
 
+import { drName } from "@/lib/names";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
 import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
@@ -52,7 +53,7 @@ export default function MessagesPage() {
         data.map((conv: Record<string, unknown> & { practitionerId?: { firstName?: string; lastName?: string } }) => ({
           _id: conv._id as string,
           name: conv.practitionerId?.firstName
-            ? `Dr. ${conv.practitionerId.firstName} ${conv.practitionerId.lastName}`
+            ? drName(conv.practitionerId.firstName, conv.practitionerId.lastName)
             : "Practitioner",
           unread: (conv.unreadForPatient as number) || 0,
         }))
@@ -79,7 +80,7 @@ export default function MessagesPage() {
       setSelected({
         _id: conv._id as string,
         name: conv.practitionerId?.firstName
-          ? `Dr. ${conv.practitionerId.firstName} ${conv.practitionerId.lastName}`
+          ? drName(conv.practitionerId.firstName, conv.practitionerId.lastName)
           : "Practitioner",
         unread: 0,
       });
@@ -375,7 +376,7 @@ export default function MessagesPage() {
                   {p.firstName[0]}{p.lastName[0]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-text-primary text-sm truncate">Dr. {p.firstName} {p.lastName}</p>
+                  <p className="font-semibold text-text-primary text-sm truncate">{drName(p.firstName, p.lastName)}</p>
                   {p.specialization && <p className="text-xs text-text-secondary truncate">{p.specialization}</p>}
                 </div>
               </button>

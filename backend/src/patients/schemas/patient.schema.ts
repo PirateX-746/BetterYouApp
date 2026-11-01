@@ -45,8 +45,9 @@ export class Patient {
   @Prop({ required: true })
   gender: string;
 
-  @Prop({ required: true })
-  bloodGroup: string;
+  /** Optional — not every patient knows it. */
+  @Prop()
+  bloodGroup?: string;
 
   @Prop({ type: Date })
   lastVisit?: Date;
