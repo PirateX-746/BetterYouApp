@@ -1,3 +1,4 @@
+import { usePathname } from "next/navigation";
 /**
  * The platform console and the practice/patient portals keep separate
  * sessions (the API sets `admin_token` vs `token`), so one browser profile
@@ -18,7 +19,9 @@ export const ADMIN_STORAGE = {
 /** True on console pages, its sign-in pages, and the console's password change. */
 export function isAdminPortal(): boolean {
   if (typeof window === "undefined") return false;
-  const { pathname, search } = window.location;
+  const { pathname, search, hostname } = window.location;
+  // admin.<domain> serves only the console, at clean paths ("/practices").
+  if (hostname.startsWith("admin.")) return true;
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return true;
   if (pathname.startsWith("/adminLogin") || pathname.startsWith("/adminForgotPassword")) return true;
   return pathname === "/change-password" && new URLSearchParams(search).get("portal") === "admin";
@@ -26,4 +29,20 @@ export function isAdminPortal(): boolean {
 
 export function clearAdminSessionStorage() {
   for (const key of Object.values(ADMIN_STORAGE)) localStorage.removeItem(key);
+}
+
+/**
+ * The console page's own path, whatever the address bar shows: on
+ * admin.<domain> the console is served at "/practices" (rewritten to
+ * "/admin/practices"), so normalise back for active-nav and breadcrumbs.
+ * Only for components rendered inside the console.
+ */
+export function useConsolePathname(): string {
+  const pathname = usePathname() ?? "/";
+  return pathname === "/admin" || pathname.startsWith("/admin/") ? pathname : `/admin${pathname === "/" ? "" : pathname}`;
+}
+
+/** Same as useConsolePathname, for a path you already have (support side only). */
+export function toConsolePath(pathname: string): string {
+  return pathname === "/admin" || pathname.startsWith("/admin/") ? pathname : `/admin${pathname === "/" ? "" : pathname}`;
 }

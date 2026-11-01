@@ -1,6 +1,6 @@
 "use client";
 
-import { drName } from "@/lib/names";
+import { practitionerName } from "@/lib/names";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
 import {
@@ -504,7 +504,7 @@ export default function MedicalDocuments({ patientId, openId }: Props) {
                         ? [
                               isCustom(selectedDoc) ? categoryLabel(selectedDoc.category) : null,
                               formatDate(selectedDoc.date),
-                              selectedDoc.doctor?.firstName ? drName(selectedDoc.doctor.firstName, selectedDoc.doctor.lastName) : null,
+                              selectedDoc.doctor?.firstName ? practitionerName(selectedDoc.doctor.firstName, selectedDoc.doctor.lastName) : null,
                           ]
                               .filter(Boolean)
                               .join(" · ")

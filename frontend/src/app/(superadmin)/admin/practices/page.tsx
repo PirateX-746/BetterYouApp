@@ -280,7 +280,7 @@ export default function PracticesPage() {
               <Label htmlFor="owner-name">Primary admin</Label>
               <Input
                 id="owner-name"
-                placeholder="Dr. John Smith"
+                placeholder="Meera Rao"
                 value={form.ownerName}
                 onChange={(e) =>
                   setForm({ ...form, ownerName: e.target.value })

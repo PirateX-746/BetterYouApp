@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useSupportLive } from "@/hooks/useSupportLive";
+import { toConsolePath } from "@/lib/portal";
 
 /**
  * Portal-wide toast when the other side updates a ticket. Mounted once per
@@ -24,7 +25,7 @@ export function SupportLiveToaster({ side }: { side: "requester" | "support" }) 
 
   useSupportLive((e) => {
     if (e.by === side) return;
-    if (pathname === `${base}/${e.ticketId}`) return;
+    if ((side === "support" ? toConsolePath(pathname) : pathname) === `${base}/${e.ticketId}`) return;
     const text =
       e.kind === "created"
         ? `New ticket ${e.ticketNo}`

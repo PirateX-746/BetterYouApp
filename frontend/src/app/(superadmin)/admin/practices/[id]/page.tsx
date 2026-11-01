@@ -790,7 +790,7 @@ export default function PracticeDetailPage({
                   <Label htmlFor="invite-name">Full name</Label>
                   <Input
                     id="invite-name"
-                    placeholder="Dr. John Smith"
+                    placeholder="Meera Rao"
                     value={inviteName}
                     onChange={(e) => setInviteName(e.target.value)}
                   />

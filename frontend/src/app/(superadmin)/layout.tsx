@@ -3,13 +3,13 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { ChevronRight, Menu } from "lucide-react";
 import SuperAdminSidebar from "@/components/containers/superadmin/SuperAdminSidebar";
 import ThemeToggle from "@/components/containers/layout/ThemeToggle";
 import { SupportLiveToaster } from "@/components/containers/support/SupportLiveToaster";
 import { SupportBell } from "@/components/containers/support/SupportInbox";
 import { SupportInboxProvider } from "@/contexts/SupportInboxContext";
+import { useConsolePathname } from "@/lib/portal";
 import { PractitionerBreadcrumbProvider, usePractitionerBreadcrumb } from "@/contexts/PractitionerBreadcrumbContext";
 
 /** Console sections, for the topbar title. Matches SuperAdminSidebar's nav. */
@@ -45,7 +45,7 @@ export default function SuperAdminLayout({ children }: { children: ReactNode }) 
 
 function ConsoleShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
+  const pathname = useConsolePathname();
   const { extraCrumb } = usePractitionerBreadcrumb();
 
   const crumbs = useMemo(() => {

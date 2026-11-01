@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useClientValue } from "@/hooks/useClientValue";
-import { ADMIN_STORAGE, clearAdminSessionStorage } from "@/lib/portal";
+import { ADMIN_STORAGE, clearAdminSessionStorage, useConsolePathname } from "@/lib/portal";
 import {
   LayoutDashboard,
   Building2,
@@ -52,7 +52,7 @@ const NAV_ITEMS = [
 ];
 
 export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
-  const pathname = usePathname();
+  const pathname = useConsolePathname();
   const router = useRouter();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);

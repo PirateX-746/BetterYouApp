@@ -1,6 +1,6 @@
 "use client";
 
-import { drName } from "@/lib/names";
+import { practitionerName } from "@/lib/names";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import {
@@ -161,7 +161,7 @@ export default function RecentActivity() {
             practitioner?: { firstName?: string; lastName?: string } | string | null;
             appointment?: { title?: string; start?: string } | null;
           }) => {
-            const by = typeof s.practitioner === "object" && s.practitioner ? drName(s.practitioner.firstName, s.practitioner.lastName) : null;
+            const by = typeof s.practitioner === "object" && s.practitioner ? practitionerName(s.practitioner.firstName, s.practitioner.lastName) : null;
             timeline.push({
               id: s._id,
               type: "session-assessment",
