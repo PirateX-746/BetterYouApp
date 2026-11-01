@@ -124,15 +124,25 @@ describe("proxy route guard", () => {
     });
 
     it("moves a page opened on the wrong address", () => {
-      expect(where(at("https://practitioner.example.com/adminLogin"))).toBe("https://admin.example.com/adminLogin");
+      expect(where(at("https://practitioner.example.com/adminLogin"))).toBe("https://admin.example.com/");
       expect(where(at("https://practitioner.example.com/admin/practices?x=1"))).toBe(
         "https://admin.example.com/admin/practices?x=1",
       );
-      expect(where(at("https://admin.example.com/practitionerLogin"))).toBe("https://practitioner.example.com/practitionerLogin");
+      expect(where(at("https://admin.example.com/practitionerLogin"))).toBe("https://practitioner.example.com/");
       expect(where(at("https://admin.example.com/acceptInvite?token=abc"))).toBe(
         "https://practitioner.example.com/acceptInvite?token=abc",
       );
       expect(where(at("https://admin.example.com/dashboard"))).toBe("https://practitioner.example.com/dashboard");
+    });
+
+    it("keeps each sign-in at its clean root address", () => {
+      expect(where(at("https://practitioner.example.com/practitionerLogin"))).toBe("https://practitioner.example.com/");
+      expect(where(at("https://admin.example.com/adminLogin"))).toBe("https://admin.example.com/");
+      // The root itself serves the form, so there is no loop.
+      expect(where(at("https://practitioner.example.com/"))).toBeNull();
+      expect(where(at("https://admin.example.com/"))).toBeNull();
+      // Other hosts keep the paths.
+      expect(where(at("https://app.example.com/practitionerLogin"))).toBeNull();
     });
 
     it("serves the shared password change on either address", () => {

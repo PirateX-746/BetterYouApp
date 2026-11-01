@@ -8,14 +8,26 @@ import ServiceWorkerRegister from "@/components/containers/layout/ServiceWorkerR
 import InstallAppPrompt from "@/components/containers/layout/InstallAppPrompt";
 import { THEME_COLOR } from "@/lib/pwa";
 import type { Metadata, Viewport } from "next";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "BetterYou – Psychology & Wellness Portal",
-  description: "Appointment booking and patient management for psychology practitioners.",
-  applicationName: "BetterYou",
+  metadataBase: new URL(BRAND.siteUrl),
+  title: { default: BRAND.title, template: `%s · ${BRAND.name}` },
+  description: BRAND.description,
+  applicationName: BRAND.name,
+  openGraph: {
+    type: "website",
+    siteName: BRAND.name,
+    title: BRAND.title,
+    description: BRAND.description,
+    url: "/",
+    locale: "en_IN",
+  },
+  twitter: { card: "summary_large_image", title: BRAND.title, description: BRAND.description },
   // Home-screen launch on iOS/iPadOS: full screen, no Safari chrome. The
   // "default" status bar keeps content below it, so the topbar needs no offset.
-  appleWebApp: { capable: true, title: "BetterYou", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: BRAND.shortName, statusBarStyle: "default" },
+  // The favicon comes from app/icon.tsx; this adds the iOS home-screen icon.
   icons: { apple: "/icons/apple-touch-icon.png" },
   // Stop iOS turning phone-number-like IDs and dates into tap-to-call links.
   formatDetection: { telephone: false, date: false, address: false, email: false },

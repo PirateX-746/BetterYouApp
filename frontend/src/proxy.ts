@@ -53,12 +53,19 @@ function portalOfHost(host: string): "admin" | "practitioner" | null {
   return null;
 }
 
+/** Each portal address's sign-in lives at its root; this path redirects there. */
+const PORTAL_LOGIN: Record<"admin" | "practitioner", string> = {
+  admin: "/adminLogin",
+  practitioner: "/practitionerLogin",
+};
+
 function swapPortalHost(request: NextRequest, host: string, to: "admin" | "practitioner") {
   // Built from the Host header: behind the proxy, request.nextUrl carries
   // the server's bind address ("[::]"), not the public domain.
   const target = host.replace(/:\d+$/, "").replace(/^(admin|practitioner)\./, `${to}.`);
   const { pathname, search } = request.nextUrl;
-  return NextResponse.redirect(`https://${target}${pathname}${search}`);
+  const path = pathname === PORTAL_LOGIN[to] ? "/" : pathname;
+  return NextResponse.redirect(`https://${target}${path}${search}`);
 }
 
 function isPractitionerRoute(pathname: string) {
@@ -78,6 +85,11 @@ export function proxy(request: NextRequest) {
     const isAdminPage = startsWithAny(pathname, ADMIN_PAGES);
     if (portal === "admin" && !isAdminPage) return swapPortalHost(request, host, "practitioner");
     if (portal === "practitioner" && isAdminPage) return swapPortalHost(request, host, "admin");
+    // The sign-in's own path: show it at the clean root address instead.
+    if (pathname === PORTAL_LOGIN[portal]) {
+      const { search } = request.nextUrl;
+      return NextResponse.redirect(`https://${host.replace(/:\d+$/, "")}/${search}`);
+    }
   }
   // Console session: its own HttpOnly cookie, set only by the platform
   // sign-in. The API verifies it on every call; here it only routes.

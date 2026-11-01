@@ -1,4 +1,6 @@
 import { ImageResponse } from "next/og";
+import { BRAND } from "@/lib/brand";
+import { StethoscopeGlyph } from "@/components/brand/StethoscopeGlyph";
 
 /**
  * App icons for the manifest and iOS home screen, drawn from the sidebar's
@@ -8,7 +10,7 @@ import { ImageResponse } from "next/og";
  * Image generation can't read CSS variables, so the gradient stops below are
  * the default --gradient-brand (globals.css) resolved for --primary #2563eb.
  */
-const BRAND_GRADIENT = "linear-gradient(135deg, #3f76ed 0%, #2563eb 45%, #1d4fc0 100%)";
+const BRAND_GRADIENT = BRAND.gradient;
 
 type IconSpec = {
   size: number;
@@ -52,23 +54,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ name: s
           borderRadius: Math.round(size * radius),
         }}
       >
-        {/* lucide-react "Stethoscope", the same glyph as the sidebar brand mark */}
-        <svg
-          width={glyphSize}
-          height={glyphSize}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M11 2v2" />
-          <path d="M5 2v2" />
-          <path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1" />
-          <path d="M8 15a6 6 0 0 0 12 0v-3" />
-          <circle cx="20" cy="10" r="2" />
-        </svg>
+        <StethoscopeGlyph size={glyphSize} />
       </div>
     ),
     { width: size, height: size },
