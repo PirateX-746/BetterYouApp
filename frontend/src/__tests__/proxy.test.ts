@@ -102,11 +102,42 @@ describe("proxy route guard", () => {
     expect(land("/", "practitioner")).toBe("/dashboard");
   });
 
-  it("opens admin.<domain> on the console sign-in", () => {
-    const res = proxy(new NextRequest(new URL("/", "https://admin.example.com")));
-    expect(new URL(res.headers.get("location")!).pathname).toBe("/adminLogin");
-    const prac = proxy(new NextRequest(new URL("/", "https://practitioner.example.com")));
-    expect(new URL(prac.headers.get("location")!).pathname).toBe("/practitionerLogin");
+  describe("portal addresses", () => {
+    const at = (url: string, cookie?: string) => {
+      const headers = new Headers({ host: new URL(url).host });
+      if (cookie) headers.set("cookie", cookie);
+      return proxy(new NextRequest(new URL(url), { headers }));
+    };
+    const where = (res: Response) => res.headers.get("location");
+    const rewrite = (res: Response) => res.headers.get("x-middleware-rewrite");
+
+    it("serves each sign-in at the root of its address", () => {
+      expect(new URL(rewrite(at("https://admin.example.com/"))!).pathname).toBe("/adminLogin");
+      expect(new URL(rewrite(at("https://practitioner.example.com/"))!).pathname).toBe("/practitionerLogin");
+    });
+
+    it("sends someone signed in from the root to their dashboard", () => {
+      expect(where(at("https://admin.example.com/", "admin_token=a"))).toBe("https://admin.example.com/admin/dashboard");
+      expect(where(at("https://practitioner.example.com/", "token=t; role=practitioner"))).toBe(
+        "https://practitioner.example.com/dashboard",
+      );
+    });
+
+    it("moves a page opened on the wrong address", () => {
+      expect(where(at("https://practitioner.example.com/adminLogin"))).toBe("https://admin.example.com/adminLogin");
+      expect(where(at("https://practitioner.example.com/admin/practices?x=1"))).toBe(
+        "https://admin.example.com/admin/practices?x=1",
+      );
+      expect(where(at("https://admin.example.com/practitionerLogin"))).toBe("https://practitioner.example.com/practitionerLogin");
+      expect(where(at("https://admin.example.com/acceptInvite?token=abc"))).toBe(
+        "https://practitioner.example.com/acceptInvite?token=abc",
+      );
+      expect(where(at("https://admin.example.com/dashboard"))).toBe("https://practitioner.example.com/dashboard");
+    });
+
+    it("serves the shared password change on either address", () => {
+      expect(where(at("https://admin.example.com/change-password?portal=admin"))).toBeNull();
+    });
   });
 
   it("sends signed-out visitors to the matching sign-in page", () => {
