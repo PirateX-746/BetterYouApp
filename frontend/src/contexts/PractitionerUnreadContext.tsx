@@ -38,7 +38,7 @@ function fireDesktopNotification(body: string) {
   if (Notification.permission !== "granted") return;
   new Notification("BetterYou — New Message", {
     body,
-    icon: "/favicon.ico",
+    icon: "/icons/icon-192.png",
     tag: "new-message",
   });
 }

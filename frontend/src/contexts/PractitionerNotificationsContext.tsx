@@ -93,7 +93,7 @@ export function PractitionerNotificationsProvider({
       };
       setNotifications((prev) => [notification, ...prev].slice(0, 50));
       if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-        new Notification(desktopTitle, { body: desktopBody, icon: "/favicon.ico", tag: notification.id });
+        new Notification(desktopTitle, { body: desktopBody, icon: "/icons/icon-192.png", tag: notification.id });
       }
     },
     [],
