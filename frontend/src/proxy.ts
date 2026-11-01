@@ -53,12 +53,12 @@ function portalOfHost(host: string): "admin" | "practitioner" | null {
   return null;
 }
 
-function swapPortalHost(request: NextRequest, to: "admin" | "practitioner") {
-  const url = request.nextUrl.clone();
-  url.hostname = url.hostname.replace(/^(admin|practitioner)\./, `${to}.`);
-  url.port = "";
-  url.protocol = "https:";
-  return NextResponse.redirect(url);
+function swapPortalHost(request: NextRequest, host: string, to: "admin" | "practitioner") {
+  // Built from the Host header: behind the proxy, request.nextUrl carries
+  // the server's bind address ("[::]"), not the public domain.
+  const target = host.replace(/:\d+$/, "").replace(/^(admin|practitioner)\./, `${to}.`);
+  const { pathname, search } = request.nextUrl;
+  return NextResponse.redirect(`https://${target}${pathname}${search}`);
 }
 
 function isPractitionerRoute(pathname: string) {
@@ -76,8 +76,8 @@ export function proxy(request: NextRequest) {
   // Wrong address for this page: same path on the right one.
   if (portal && !startsWithAny(pathname, SHARED_PAGES) && pathname !== "/") {
     const isAdminPage = startsWithAny(pathname, ADMIN_PAGES);
-    if (portal === "admin" && !isAdminPage) return swapPortalHost(request, "practitioner");
-    if (portal === "practitioner" && isAdminPage) return swapPortalHost(request, "admin");
+    if (portal === "admin" && !isAdminPage) return swapPortalHost(request, host, "practitioner");
+    if (portal === "practitioner" && isAdminPage) return swapPortalHost(request, host, "admin");
   }
   // Console session: its own HttpOnly cookie, set only by the platform
   // sign-in. The API verifies it on every call; here it only routes.
