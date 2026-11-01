@@ -102,6 +102,13 @@ describe("proxy route guard", () => {
     expect(land("/", "practitioner")).toBe("/dashboard");
   });
 
+  it("opens admin.<domain> on the console sign-in", () => {
+    const res = proxy(new NextRequest(new URL("/", "https://admin.example.com")));
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/adminLogin");
+    const prac = proxy(new NextRequest(new URL("/", "https://practitioner.example.com")));
+    expect(new URL(prac.headers.get("location")!).pathname).toBe("/practitionerLogin");
+  });
+
   it("sends signed-out visitors to the matching sign-in page", () => {
     expect(visit("/dashboard")).toBe("/practitionerLogin");
     expect(visit("/patient/home")).toBe("/patientLogin");

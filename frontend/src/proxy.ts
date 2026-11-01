@@ -43,11 +43,14 @@ function isPractitionerRoute(pathname: string) {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // No public homepage yet: the site opens on the practitioner sign-in
+  // No public homepage yet: each address opens on its own sign-in —
+  // admin.<domain> on the console's, anything else on the practitioner's
   // (which sends anyone already signed in on to their dashboard).
   // Temporary (307) so browsers don't cache it once a homepage exists.
   if (pathname === "/") {
-    return NextResponse.redirect(new URL("/practitionerLogin", request.url));
+    const host = (request.headers.get("host") ?? request.nextUrl.hostname).toLowerCase();
+    const target = host.startsWith("admin.") ? "/adminLogin" : "/practitionerLogin";
+    return NextResponse.redirect(new URL(target, request.url));
   }
   // Console session: its own HttpOnly cookie, set only by the platform
   // sign-in. The API verifies it on every call; here it only routes.
