@@ -1,5 +1,6 @@
 // src/patients/patients.service.ts
 
+import { patientEmailsAllowed } from '../practices/patient-email-policy';
 import {
   Injectable,
   Logger,
@@ -156,6 +157,14 @@ export class PatientsService {
     practiceId?: unknown;
   }) {
     try {
+      if (
+        !(await patientEmailsAllowed(this.patientModel.db, patient.practiceId))
+      ) {
+        this.logger.log(
+          `Skipped welcome email for patient ${String(patient._id)}: patient emails are off for the practice`,
+        );
+        return;
+      }
       const practice = patient.practiceId
         ? await this.patientModel.db
             .model<{ name: string; email?: string; phone?: string }>('Practice')
@@ -191,6 +200,14 @@ export class PatientsService {
     temporaryPassword: string,
   ) {
     try {
+      if (
+        !(await patientEmailsAllowed(this.patientModel.db, patient.practiceId))
+      ) {
+        this.logger.log(
+          `Skipped temporary-password email for patient ${String(patient._id)}: patient emails are off for the practice`,
+        );
+        return;
+      }
       const practice = patient.practiceId
         ? await this.patientModel.db
             .model<{ name: string; email?: string }>('Practice')

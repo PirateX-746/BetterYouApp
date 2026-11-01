@@ -79,7 +79,10 @@ describe('reminder asking to confirm', () => {
   it('is a plain reminder once confirmed', () => {
     const { text, html } = renderAppointmentEmail('reminder', ctx, now);
     expect(text).not.toContain('Confirm:');
-    expect(html).not.toContain('href=');
+    // No Confirm/Cancel buttons (contact links are fine).
+    expect(html).not.toContain(links.confirm);
+    expect(html).not.toContain(links.cancel);
+    expect(html).not.toContain("I'll be there");
   });
 
   it('asks on a booking inside the reminder window', () => {

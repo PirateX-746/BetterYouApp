@@ -1,5 +1,6 @@
 import {
   EMAIL_COLORS,
+  emailButton,
   emailLayout,
   emailParagraph,
   escapeHtml,
@@ -91,12 +92,14 @@ export function renderTempPasswordEmail(ctx: TempPasswordEmailContext) {
     title: subject,
     heading,
     footer,
+    preheader: `Your temporary password works for ${valid}.`,
+    badge: { label: 'Account security', tone: 'info' },
     body: [
       emailParagraph(`Hi ${ctx.firstName},`),
       emailParagraph(intro),
-      `<div style="margin:0 0 16px;padding:14px 16px;background:${c.subtle};border-radius:10px;text-align:center;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:20px;letter-spacing:1px;color:${c.text};">${e(ctx.tempPassword)}</div>`,
+      `<div style="margin:0 0 18px;padding:16px;background:${c.subtle};border:1px dashed ${c.border};border-radius:12px;text-align:center;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:22px;font-weight:600;letter-spacing:1.5px;color:${c.text};">${e(ctx.tempPassword)}</div>`,
       emailParagraph(next),
-      `<p style="margin:0 0 24px;"><a href="${e(ctx.signInUrl)}" style="display:inline-block;padding:11px 20px;background:${c.brand};border-radius:8px;color:#ffffff;font-size:15px;font-weight:500;text-decoration:none;">Sign in</a></p>`,
+      `<div style="margin:0 0 18px;">${emailButton('Sign in', ctx.signInUrl)}</div>`,
       emailParagraph(notYou, true),
     ].join(''),
   });

@@ -4,6 +4,7 @@ import {
   OnApplicationBootstrap,
   OnModuleDestroy,
 } from '@nestjs/common';
+import { patientEmailsAllowed } from '../practices/patient-email-policy';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -144,6 +145,13 @@ export class AppointmentNotificationsService
     ]);
 
     if (!patient?.email || patient.emailNotifications === false) return false;
+    // Practice-wide switch (Settings → Notifications).
+    if (!(await patientEmailsAllowed(db, appt.practiceId))) {
+      this.logger.log(
+        `Skipped ${kind} email for appointment ${String(appt._id)}: patient emails are off for the practice`,
+      );
+      return false;
+    }
 
     const rendered = renderAppointmentEmail(
       kind,
