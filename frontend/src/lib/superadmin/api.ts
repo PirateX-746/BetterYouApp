@@ -290,7 +290,9 @@ export async function setPractitionerStatus(
  * the host against the invite's practice.
  */
 export function invitationLink(token: string): string {
-  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  // The invitee is a practitioner: on admin.<domain>, point them at
+  // practitioner.<domain> rather than the console's address.
+  const origin = typeof window === "undefined" ? "" : window.location.origin.replace("://admin.", "://practitioner.");
   return `${origin}/acceptInvite?token=${encodeURIComponent(token)}`;
 }
 

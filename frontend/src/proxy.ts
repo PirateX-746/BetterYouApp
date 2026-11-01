@@ -34,6 +34,33 @@ const ADMIN_LOGIN = "/adminLogin";
 /** Platform console. Only SUPER_ADMIN may enter. */
 const ADMIN_PREFIX = "/admin";
 
+/**
+ * Each portal has its own address: admin.<domain> for the console,
+ * practitioner.<domain> for everything else. A page opened on the wrong one
+ * is sent to the same path on the right one. Other hosts (the Railway URL,
+ * localhost) serve every page, as before.
+ */
+const ADMIN_PAGES = ["/admin", "/adminLogin", "/adminForgotPassword"];
+/** Served on either address (the console's forced password change). */
+const SHARED_PAGES = ["/change-password"];
+
+const startsWithAny = (pathname: string, list: string[]) =>
+  list.some((r) => pathname === r || pathname.startsWith(r + "/"));
+
+function portalOfHost(host: string): "admin" | "practitioner" | null {
+  if (host.startsWith("admin.")) return "admin";
+  if (host.startsWith("practitioner.")) return "practitioner";
+  return null;
+}
+
+function swapPortalHost(request: NextRequest, to: "admin" | "practitioner") {
+  const url = request.nextUrl.clone();
+  url.hostname = url.hostname.replace(/^(admin|practitioner)\./, `${to}.`);
+  url.port = "";
+  url.protocol = "https:";
+  return NextResponse.redirect(url);
+}
+
 function isPractitionerRoute(pathname: string) {
   return PRACTITIONER_ROUTES.some(
     (r) => pathname === r || pathname.startsWith(r + "/"),
@@ -43,14 +70,14 @@ function isPractitionerRoute(pathname: string) {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // No public homepage yet: each address opens on its own sign-in —
-  // admin.<domain> on the console's, anything else on the practitioner's
-  // (which sends anyone already signed in on to their dashboard).
-  // Temporary (307) so browsers don't cache it once a homepage exists.
-  if (pathname === "/") {
-    const host = (request.headers.get("host") ?? request.nextUrl.hostname).toLowerCase();
-    const target = host.startsWith("admin.") ? "/adminLogin" : "/practitionerLogin";
-    return NextResponse.redirect(new URL(target, request.url));
+  const host = (request.headers.get("host") ?? request.nextUrl.hostname).toLowerCase();
+  const portal = portalOfHost(host);
+
+  // Wrong address for this page: same path on the right one.
+  if (portal && !startsWithAny(pathname, SHARED_PAGES) && pathname !== "/") {
+    const isAdminPage = startsWithAny(pathname, ADMIN_PAGES);
+    if (portal === "admin" && !isAdminPage) return swapPortalHost(request, "practitioner");
+    if (portal === "practitioner" && isAdminPage) return swapPortalHost(request, "admin");
   }
   // Console session: its own HttpOnly cookie, set only by the platform
   // sign-in. The API verifies it on every call; here it only routes.
@@ -78,6 +105,23 @@ export function proxy(request: NextRequest) {
 
   // A sign-in page skips its form only for someone already signed in to
   // that same portal.
+  // No public homepage yet. On a portal address the root *is* its sign-in
+  // (served in place, so the address stays clean) — or the dashboard for
+  // someone already signed in. Elsewhere it redirects to the practitioner
+  // sign-in; temporary (307) so nothing is cached once a homepage exists.
+  if (pathname === "/") {
+    if (portal === "admin") {
+      return adminToken
+        ? NextResponse.redirect(new URL("/admin/dashboard", request.url))
+        : NextResponse.rewrite(new URL(ADMIN_LOGIN, request.url));
+    }
+    if (portal === "practitioner") {
+      if (token && role) return NextResponse.redirect(new URL(homeFor(role), request.url));
+      return NextResponse.rewrite(new URL("/practitionerLogin", request.url));
+    }
+    return NextResponse.redirect(new URL("/practitionerLogin", request.url));
+  }
+
   const authRoute = Object.keys(AUTH_ROUTES).find(
     (r) => pathname === r || pathname.startsWith(r + "/"),
   );
@@ -152,5 +196,9 @@ export const config = {
     "/patientLogin",
     "/patientSignup",
     "/practitionerLogin",
+    "/adminForgotPassword",
+    "/acceptInvite",
+    "/patientForgotPassword",
+    "/practitioner/:path*",
   ],
 };
