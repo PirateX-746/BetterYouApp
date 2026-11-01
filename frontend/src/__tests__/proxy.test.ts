@@ -97,6 +97,11 @@ describe("proxy route guard", () => {
     expect(land("/patient/home", "practice_admin")).toBe("/dashboard");
   });
 
+  it("opens the site on the practitioner sign-in (no homepage yet)", () => {
+    expect(visit("/")).toBe("/practitionerLogin");
+    expect(land("/", "practitioner")).toBe("/dashboard");
+  });
+
   it("sends signed-out visitors to the matching sign-in page", () => {
     expect(visit("/dashboard")).toBe("/practitionerLogin");
     expect(visit("/patient/home")).toBe("/patientLogin");
