@@ -299,12 +299,33 @@ export class PatientsService implements OnModuleInit {
   /* ===============================
      UPDATE PATIENT
      =============================== */
-  async update(id: string, dto: UpdatePatientDto, practiceId: string | null) {
-    // Email is immutable — silently strip it if sent
-    const { email: _email, ...safeDto } = dto as UpdatePatientDto & {
+  async update(
+    id: string,
+    dto: UpdatePatientDto,
+    practiceId: string | null,
+    { allowEmailChange = false }: { allowEmailChange?: boolean } = {},
+  ) {
+    // Email is the patient's sign-in and where appointment emails go. The
+    // practice can add or correct it (patients may be added without one);
+    // a patient can't change it from their own profile. Blank = no change.
+    const { email: requestedEmail, ...safeDto } = dto as UpdatePatientDto & {
       email?: string;
     };
     dto = safeDto as UpdatePatientDto;
+    const newEmail = allowEmailChange ? requestedEmail || undefined : undefined;
+
+    const before = await this.patientModel
+      .findOne({ _id: id, ...practiceScopeFilter(practiceId) }, { email: 1 })
+      .lean();
+    if (!before) throw new NotFoundException('Patient not found');
+
+    if (newEmail && newEmail !== before.email) {
+      const taken = await this.patientModel.exists({
+        _id: { $ne: id },
+        email: newEmail,
+      });
+      if (taken) throw new ConflictException('Email already registered');
+    }
 
     if (dto.phoneNo) {
       const existing = await this.patientModel.findOne({
@@ -317,6 +338,7 @@ export class PatientsService implements OnModuleInit {
     }
 
     const updateData: Record<string, unknown> = { ...dto };
+    if (newEmail) updateData.email = newEmail;
     if (dto.dateOfBirth) updateData.dateOfBirth = new Date(dto.dateOfBirth);
     if (dto.lastVisit) updateData.lastVisit = new Date(dto.lastVisit);
 
@@ -343,6 +365,12 @@ export class PatientsService implements OnModuleInit {
 
     if (!updated) {
       throw new NotFoundException('Patient not found');
+    }
+
+    // First email address on file: same welcome email as adding the
+    // patient with one. Not awaited — an outage mustn't fail the save.
+    if (newEmail && !before.email && this.email.enabled) {
+      void this.emailWelcome(updated);
     }
 
     return this.findById(id, practiceId);

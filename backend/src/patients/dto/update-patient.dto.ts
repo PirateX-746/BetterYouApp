@@ -7,7 +7,8 @@ import { CreatePatientDto } from './create-patient.dto';
  * anyone: the JWT strategy reads the role from this record on every request,
  * so a writable role was a privilege escalation (a patient could PATCH
  * themselves to practitioner). Passwords change via the change-password
- * routes. Email is accepted for client compatibility but ignored.
+ * routes. Email can be set or changed by the practice only (the service
+ * ignores it when a patient edits their own profile).
  */
 export class UpdatePatientDto extends PartialType(CreatePatientDto) {
   /** Practitioners only — the controller drops it for a patient editing themselves. */

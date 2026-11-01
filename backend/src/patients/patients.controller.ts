@@ -55,7 +55,9 @@ export class PatientsController {
     // Deactivation is the practice's decision; a patient can't reactivate
     // (or deactivate) their own record.
     if (!isPractitioner(req.user)) delete dto.isActive;
-    return this.patientsService.update(id, dto, req.user.practiceId ?? null);
+    return this.patientsService.update(id, dto, req.user.practiceId ?? null, {
+      allowEmailChange: isPractitioner(req.user),
+    });
   }
 
   /** Lost or expired temporary password: issue a new one to hand over. */
