@@ -22,6 +22,7 @@ import {
   InvitePractitionerDto,
   SetPracticeStatusDto,
   SetPractitionerStatusDto,
+  UpdateAdminProfileDto,
   UpdatePracticeDto,
 } from './dto/create-practice.dto';
 
@@ -43,6 +44,18 @@ export class AdminController {
 
   private ip(req: Request): string | undefined {
     return req.ip ?? undefined;
+  }
+
+  /* -------------------------- own profile -------------------------- */
+
+  @Get('me')
+  me(@Req() req: AuthedRequest) {
+    return this.admin.getOwnProfile(req.user);
+  }
+
+  @Patch('me')
+  updateMe(@Req() req: AuthedRequest, @Body() dto: UpdateAdminProfileDto) {
+    return this.admin.updateOwnProfile(req.user, dto);
   }
 
   @Get('metrics')

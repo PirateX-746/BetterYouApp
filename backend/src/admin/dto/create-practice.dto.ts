@@ -94,3 +94,18 @@ export class InvitePractitionerDto {
   @IsIn([Role.PRACTICE_ADMIN, Role.PRACTITIONER, Role.STAFF])
   role: Role;
 }
+
+/** The signed-in platform admin's own name (Settings → Your profile). */
+export class UpdateAdminProfileDto {
+  @Transform(trimmed)
+  @IsString()
+  @MinLength(1, { message: 'First name is required' })
+  @MaxLength(60)
+  firstName: string;
+
+  @Transform(trimmed)
+  @IsString()
+  @MinLength(1, { message: 'Last name is required' })
+  @MaxLength(60)
+  lastName: string;
+}

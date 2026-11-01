@@ -17,6 +17,7 @@ import {
 import { Patient } from '../patients/schemas/patient.schema';
 import { Practitioner } from '../practitioners/schemas/practitioner.schema';
 import { Appointment } from '../appointments/schemas/appointment.schema';
+import { PlatformAdmin } from '../platform-admins/schemas/platform-admin.schema';
 import { AuditService } from '../audit/audit.service';
 import { Role } from '../common/role.enum';
 import type { AuthUser } from '../common/auth-user';
@@ -40,6 +41,20 @@ import { PlanKey } from '../subscriptions/schemas/plan.schema';
 
 /** One row of a `$group` by practice. */
 type PracticeCount = { _id: unknown; n: number };
+/** What the signed-in admin sees about their own account. */
+function toOwnProfile(admin: PlatformAdmin & { createdAt?: Date }) {
+  return {
+    name: admin.name,
+    firstName: admin.firstName ?? '',
+    lastName: admin.lastName ?? '',
+    email: admin.email,
+    role: admin.role,
+    isActive: admin.isActive,
+    lastLoginAt: admin.lastLoginAt ?? null,
+    createdAt: admin.createdAt ?? null,
+  };
+}
+
 @Injectable()
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
@@ -53,11 +68,43 @@ export class AdminService {
     private readonly practitionerModel: Model<Practitioner>,
     @InjectModel(Appointment.name)
     private readonly appointmentModel: Model<Appointment>,
+    @InjectModel(PlatformAdmin.name)
+    private readonly platformAdminModel: Model<PlatformAdmin>,
     private readonly practices: PracticesService,
     private readonly audit: AuditService,
     private readonly subscriptions: SubscriptionsService,
     private readonly invitations: InvitationsService,
   ) {}
+
+  /* ========================== own profile ========================== */
+
+  async getOwnProfile(user: AuthUser) {
+    const admin = await this.platformAdminModel
+      .findById(user.userId)
+      .select('name firstName lastName email role isActive lastLoginAt createdAt')
+      .lean()
+      .exec();
+    if (!admin) throw new NotFoundException('Account not found');
+    return toOwnProfile(admin);
+  }
+
+  async updateOwnProfile(
+    user: AuthUser,
+    input: { firstName: string; lastName: string },
+  ) {
+    const name = `${input.firstName} ${input.lastName}`;
+    const admin = await this.platformAdminModel
+      .findByIdAndUpdate(
+        user.userId,
+        { $set: { firstName: input.firstName, lastName: input.lastName, name } },
+        { new: true },
+      )
+      .select('name firstName lastName email role isActive lastLoginAt createdAt')
+      .lean()
+      .exec();
+    if (!admin) throw new NotFoundException('Account not found');
+    return toOwnProfile(admin);
+  }
 
   /* ============================ metrics ============================ */
 

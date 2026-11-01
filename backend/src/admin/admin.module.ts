@@ -11,6 +11,10 @@ import {
   Appointment,
   AppointmentSchema,
 } from '../appointments/schemas/appointment.schema';
+import {
+  PlatformAdmin,
+  PlatformAdminSchema,
+} from '../platform-admins/schemas/platform-admin.schema';
 
 /**
  * PracticesModule and AuditModule are @Global, so their services are
@@ -22,6 +26,7 @@ import {
       { name: Patient.name, schema: PatientSchema },
       { name: Practitioner.name, schema: PractitionerSchema },
       { name: Appointment.name, schema: AppointmentSchema },
+      { name: PlatformAdmin.name, schema: PlatformAdminSchema },
     ]),
   ],
   controllers: [AdminController],
