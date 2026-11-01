@@ -21,8 +21,12 @@ export class Patient {
   @Prop({ required: true })
   dateOfBirth: Date;
 
-  @Prop({ required: true, unique: true })
-  email: string;
+  /**
+   * Optional. Unique only when present — see the partial index below (a
+   * plain unique index would let just one patient have no email).
+   */
+  @Prop({ lowercase: true, trim: true })
+  email?: string;
 
   @Prop({
     required: true,
@@ -37,8 +41,10 @@ export class Patient {
   @Prop({
     unique: true,
     sparse: true,
-    minlength: 10,
-    maxlength: 15,
+    // E.164 ("+919876543210", up to 16 chars); older records hold bare
+    // 10-digit Indian numbers.
+    minlength: 7,
+    maxlength: 16,
   })
   phoneNo?: string;
 
@@ -103,3 +109,14 @@ export class Patient {
 }
 
 export const PatientSchema = SchemaFactory.createForClass(Patient);
+
+/** Email unique when present; any number of patients may have none. */
+export const PATIENT_EMAIL_INDEX = 'email_unique_when_present';
+PatientSchema.index(
+  { email: 1 },
+  {
+    unique: true,
+    name: PATIENT_EMAIL_INDEX,
+    partialFilterExpression: { email: { $type: 'string' } },
+  },
+);

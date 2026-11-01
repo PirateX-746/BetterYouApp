@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { FormEvent } from "react";
+import { isValidPhoneNumber } from "libphonenumber-js";
 
 /**
  * Field rules shared by every patient form (add, edit) so they agree with
@@ -30,18 +31,29 @@ export const emailField = z
   .max(254, "Email is too long")
   .email("Enter a valid email address");
 
-export const mobileField = z
+/**
+ * A phone number in any country, as PhoneInput reports it ("+919876543210").
+ * Checked against that country's numbering rules.
+ */
+export const phoneField = z
   .string()
   .trim()
-  .min(1, "Mobile number is required")
-  .regex(/^\d+$/, "Use digits only")
-  .length(10, "Mobile number must be exactly 10 digits")
-  .regex(MOBILE_RE, "Mobile number must start with 6, 7, 8 or 9");
+  .min(1, "Phone number is required")
+  .refine((v) => isValidPhoneNumber(v, "IN"), "Enter a valid phone number for the selected country");
 
 export const optionalPhoneField = z
   .string()
   .trim()
-  .regex(PHONE_RE, "Enter a valid phone number (7–20 digits)")
+  .refine((v) => !v || isValidPhoneNumber(v, "IN"), "Enter a valid phone number for the selected country")
+  .optional()
+  .or(z.literal(""));
+
+/** Optional email: blank is fine, anything typed must be a real address. */
+export const optionalEmailField = z
+  .string()
+  .trim()
+  .max(254, "Email is too long")
+  .email("Enter a valid email address")
   .optional()
   .or(z.literal(""));
 

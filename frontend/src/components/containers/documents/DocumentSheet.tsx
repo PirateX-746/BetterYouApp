@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPhone } from "@/lib/phone";
 import { practitionerName } from "@/lib/names";
 import { forwardRef, type ReactNode } from "react";
 import { DOCUMENT_TYPES } from "@/lib/documentTypes";
@@ -358,7 +359,7 @@ export const DocumentSheet = forwardRef<HTMLDivElement, { doc: SheetDocument; pa
         </div>
         <div>
           <div className="k">Contact</div>
-          <div className="v">{patient?.phoneNo || "—"}</div>
+          <div className="v">{formatPhone(patient?.phoneNo) || "—"}</div>
         </div>
         <div>
           <div className="k">Practitioner</div>

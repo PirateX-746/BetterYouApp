@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPhone } from "@/lib/phone";
 import { AlertTriangle } from "lucide-react";
 import { Card, CardBody, CardHeader, InfoList, InfoRow, NotRecorded } from "@/components/common/Card";
 import { Button } from "@/components/ui/button";
@@ -68,7 +69,7 @@ export default function PatientOverview({
           <CardHeader title="Contact" />
           <CardBody>
             <InfoList>
-              <InfoRow label="Phone">{patient.phoneNo || <NotRecorded />}</InfoRow>
+              <InfoRow label="Phone">{formatPhone(patient.phoneNo) || <NotRecorded />}</InfoRow>
               <InfoRow label="Email">{patient.email || <NotRecorded />}</InfoRow>
               <InfoRow label="Emergency">
                 {ecName ? (
