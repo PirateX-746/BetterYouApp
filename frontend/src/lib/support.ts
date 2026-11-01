@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { isAdminPortal } from "./portal";
 
 /* ─── Types (mirror backend/src/support) ─── */
 
@@ -106,7 +107,7 @@ const MULTIPART = { headers: { "Content-Type": "multipart/form-data" } };
 
 /** Same-origin URL (through the /api rewrite) — the session cookie rides along. */
 export const attachmentUrl = (messageId: string, attachmentId: string) =>
-  `/api/support/attachments/${messageId}/${attachmentId}`;
+  `/api/support/attachments/${messageId}/${attachmentId}${isAdminPortal() ? "?portal=admin" : ""}`;
 
 export const supportApi = {
   faqs: () => api.get<Faq[]>("/support/faqs").then((r) => r.data),

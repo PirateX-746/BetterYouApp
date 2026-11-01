@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useClientValue } from "@/hooks/useClientValue";
-import { clearSessionStorage } from "@/lib/session";
+import { ADMIN_STORAGE, clearAdminSessionStorage } from "@/lib/portal";
 import {
   LayoutDashboard,
   Building2,
@@ -57,7 +57,7 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
   const [signingOut, setSigningOut] = useState(false);
   const hydrated = useClientValue(() => true, false);
   const adminName =
-    useClientValue(() => localStorage.getItem("name"), null) ||
+    useClientValue(() => localStorage.getItem(ADMIN_STORAGE.name), null) ||
     "Platform Admin";
 
   async function handleSignOut() {
@@ -68,7 +68,7 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
       /* clearing the cookie is best-effort; still leave the console */
     }
     try {
-      clearSessionStorage();
+      clearAdminSessionStorage();
     } catch {
       /* storage unavailable */
     }

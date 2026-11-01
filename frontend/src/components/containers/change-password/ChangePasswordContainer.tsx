@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { changePassword } from "@/lib/auth";
+import { isAdminPortal } from "@/lib/portal";
 import {
   changePasswordSchema,
   type ChangePasswordValues,
@@ -29,7 +30,7 @@ export default function ChangePasswordContainer() {
 
   const onSubmit = async (data: ChangePasswordValues) => {
     setServerError("");
-    const role = localStorage.getItem("role");
+    const role = isAdminPortal() ? "super_admin" : localStorage.getItem("role");
     // Platform accounts can see every practice: the API requires 12+.
     if (role === "super_admin" && data.newPassword.length < 12) {
       setServerError("Platform admin passwords must be at least 12 characters.");

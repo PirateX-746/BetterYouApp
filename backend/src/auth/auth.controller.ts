@@ -7,7 +7,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -21,7 +21,13 @@ import {
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Role } from '../common/role.enum';
 import { Public } from '../common/decorators/public.decorator';
-import { AUTH_COOKIE, ROLE_COOKIE, authCookieOptions } from './auth.cookies';
+import {
+  ADMIN_AUTH_COOKIE,
+  AUTH_COOKIE,
+  ROLE_COOKIE,
+  authCookieOptions,
+  isAdminPortalRequest,
+} from './auth.cookies';
 
 @Controller('auth')
 export class AuthController {
@@ -60,11 +66,17 @@ export class AuthController {
   @Public()
   @Post('logout')
   @HttpCode(200)
-  logout(@Res({ passthrough: true }) res: Response) {
+  logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { maxAge: _maxAge, ...clearOptions } = authCookieOptions();
     void _maxAge;
-    res.clearCookie(AUTH_COOKIE, clearOptions);
-    res.clearCookie(ROLE_COOKIE, clearOptions);
+    // Sign out of one portal only; the other portal's session (if any) in
+    // this browser stays signed in.
+    if (isAdminPortalRequest(req)) {
+      res.clearCookie(ADMIN_AUTH_COOKIE, clearOptions);
+    } else {
+      res.clearCookie(AUTH_COOKIE, clearOptions);
+      res.clearCookie(ROLE_COOKIE, clearOptions);
+    }
     return { message: 'Logged out' };
   }
 
@@ -77,14 +89,26 @@ export class AuthController {
   @Post('platform/login')
   @HttpCode(200)
   async platformLogin(
+    @Req() req: Request,
     @Body() dto: PlatformLoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.platformLogin(dto);
 
+    // Its own cookie, so a practice session in the same browser survives.
     const options = authCookieOptions();
-    res.cookie(AUTH_COOKIE, result.access_token, options);
-    res.cookie(ROLE_COOKIE, result.role, options);
+    res.cookie(ADMIN_AUTH_COOKIE, result.access_token, options);
+
+    // Before the split, the console session lived in the shared cookie.
+    // Drop such a leftover so it can't be mistaken for a practice session.
+    const cookies = (req as Request & { cookies?: Record<string, string> })
+      .cookies;
+    if (cookies?.[ROLE_COOKIE] === 'super_admin') {
+      const { maxAge: _m, ...clearOptions } = options;
+      void _m;
+      res.clearCookie(AUTH_COOKIE, clearOptions);
+      res.clearCookie(ROLE_COOKIE, clearOptions);
+    }
 
     const { access_token: _token, ...safe } = result;
     void _token;

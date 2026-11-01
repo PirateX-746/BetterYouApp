@@ -27,7 +27,7 @@ browser ──https──► gateway (Caddy) ─┬─ /api  /socket.io  /sse �
   `JWT_SECRET`, `APPOINTMENT_LINK_SECRET`, `PASSWORD_ENCRYPTION_KEY`,
   `NODE_ENV=production`, `PORT=3002`, `TRUST_PROXY=2` (Railway edge + gateway),
   `FRONTEND_URL=https://${{gateway.RAILWAY_PUBLIC_DOMAIN}}`,
-  `MULTI_TENANCY_ENABLED=false`, `RESEND_API_KEY`, `EMAIL_FROM`
+  `MULTI_TENANCY_ENABLED=false`, `BREVO_API_KEY`, `EMAIL_FROM`
 - frontend: `PORT=3000`, `HOSTNAME=::`, `NEXT_PUBLIC_API_URL=/api`,
   `NEXT_PUBLIC_SOCKET_URL=` (empty = same origin),
   `NEXT_PUBLIC_PASSWORD_ENCRYPTION_KEY=${{backend.PASSWORD_ENCRYPTION_KEY}}`,
@@ -36,8 +36,12 @@ browser ──https──► gateway (Caddy) ─┬─ /api  /socket.io  /sse �
 - gateway: `PORT=8080`, `BACKEND_HOST=${{backend.RAILWAY_PRIVATE_DOMAIN}}:3002`,
   `FRONTEND_HOST=${{frontend.RAILWAY_PRIVATE_DOMAIN}}:3000`
 
-**Email:** Railway's Hobby plan blocks SMTP, so production uses Resend.
-`EMAIL_FROM` must be on a domain verified in Resend; until then Resend
+**Email:** Railway's Hobby plan blocks SMTP, so production uses an HTTPS
+API. With no domain, use **Brevo**: verify one sender address in Brevo
+(Senders), set `BREVO_API_KEY` and `EMAIL_FROM=BetterYou <that-address>`.
+A gmail.com sender can land in spam until a domain is added. `BREVO_API_KEY`
+takes priority over `RESEND_API_KEY`; `EMAIL_PROVIDER` forces one. Resend
+also works, but only from a domain verified in Resend — before that it
 delivers only to the account owner's address.
 
 **Custom domain:** add it to the **gateway** service (Settings → Networking),

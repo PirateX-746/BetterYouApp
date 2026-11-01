@@ -19,16 +19,17 @@ const PRACTICE_ROLES = ["practice_admin", "practitioner", "staff"];
 
 /**
  * Sign-in pages and the roles each one is for. A visitor already signed in
- * with one of those roles goes to their home; anyone else sees the form, so
- * a super admin (or a patient) on the same browser can still sign in to a
- * different portal — the new session replaces the old cookie.
+ * with one of those roles goes to their home; anyone else sees the form.
+ * The console has its own session (`admin_token`), so a super admin and a
+ * practice user can be signed in side by side in one browser profile.
  */
 const AUTH_ROUTES: Record<string, string[]> = {
   "/patientLogin": ["patient"],
   "/patientSignup": ["patient"],
   "/practitionerLogin": PRACTICE_ROLES,
-  "/adminLogin": ["super_admin"],
 };
+
+const ADMIN_LOGIN = "/adminLogin";
 
 /** Platform console. Only SUPER_ADMIN may enter. */
 const ADMIN_PREFIX = "/admin";
@@ -41,19 +42,29 @@ function isPractitionerRoute(pathname: string) {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get("token")?.value;
-  const role = request.cookies.get("role")?.value;
+  // Console session: its own HttpOnly cookie, set only by the platform
+  // sign-in. The API verifies it on every call; here it only routes.
+  const adminToken = request.cookies.get("admin_token")?.value;
+  const legacyAdmin = request.cookies.get("role")?.value === "super_admin";
+  // Practice/patient session. A super-admin session left in this cookie
+  // from before the split is not a practice session.
+  const token = legacyAdmin ? undefined : request.cookies.get("token")?.value;
+  const role = legacyAdmin ? undefined : request.cookies.get("role")?.value;
 
   // Where a signed-in role belongs. Unknown roles have no home, so they are
   // sent to sign in rather than bounced between portals.
   const homeFor = (r: string | undefined) =>
-    r === "super_admin"
-      ? "/admin/dashboard"
-      : r === "patient"
-        ? "/patient/home"
-        : r && PRACTICE_ROLES.includes(r)
-          ? "/dashboard"
-          : "/practitionerLogin";
+    r === "patient"
+      ? "/patient/home"
+      : r && PRACTICE_ROLES.includes(r)
+        ? "/dashboard"
+        : "/practitionerLogin";
+
+  if (pathname === ADMIN_LOGIN || pathname.startsWith(ADMIN_LOGIN + "/")) {
+    return adminToken
+      ? NextResponse.redirect(new URL("/admin/dashboard", request.url))
+      : NextResponse.next();
+  }
 
   // A sign-in page skips its form only for someone already signed in to
   // that same portal.
@@ -67,23 +78,13 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Platform console. The role cookie is HttpOnly and set by the API, so a
-  // signed-in practice user cannot grant themselves access by editing it.
+  // Platform console. Needs the console's own session; a practice session
+  // alone doesn't count (and the API would refuse it anyway).
   if (pathname === ADMIN_PREFIX || pathname.startsWith(ADMIN_PREFIX + "/")) {
-    if (!token) {
-      return NextResponse.redirect(new URL("/adminLogin", request.url));
-    }
-    if (role !== "super_admin") {
-      // A practice user who lands here goes back to their own portal
-      // rather than being told the console exists.
-      return NextResponse.redirect(new URL(homeFor(role), request.url));
+    if (!adminToken) {
+      return NextResponse.redirect(new URL(ADMIN_LOGIN, request.url));
     }
     return NextResponse.next();
-  }
-
-  // A platform admin has no practice portal to be in.
-  if (role === "super_admin") {
-    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
   // Protect practitioner portal routes

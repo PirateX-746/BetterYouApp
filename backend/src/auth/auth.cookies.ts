@@ -1,4 +1,4 @@
-import type { CookieOptions } from 'express';
+import type { CookieOptions, Request } from 'express';
 
 /** JWT session cookie. HttpOnly — never readable by page scripts. */
 export const AUTH_COOKIE = 'token';
@@ -10,6 +10,42 @@ export const AUTH_COOKIE = 'token';
  * screens. It is a routing hint only — the API authorises off the JWT.
  */
 export const ROLE_COOKIE = 'role';
+
+/**
+ * Platform console session. Kept apart from AUTH_COOKIE so a super admin and
+ * a practice user can be signed in side by side in one browser profile —
+ * signing in to one portal no longer replaces the other's session.
+ * Its presence alone means "super admin"; there is no separate role cookie.
+ */
+export const ADMIN_AUTH_COOKIE = 'admin_token';
+
+/**
+ * Header (or `?portal=` for plain links such as attachment downloads) the
+ * console sends so shared endpoints — change-password, logout, support
+ * attachments — read the admin session rather than the practice one.
+ */
+export const PORTAL_HEADER = 'x-portal';
+
+type CookieRequest = Pick<Request, 'headers' | 'path' | 'query'> & {
+  cookies?: Record<string, string>;
+};
+
+/** Whether this request belongs to the platform console. */
+export function isAdminPortalRequest(req: CookieRequest): boolean {
+  if (req.path === '/admin' || req.path?.startsWith('/admin/')) return true;
+  if (req.headers?.[PORTAL_HEADER] === 'admin') return true;
+  return req.query?.portal === 'admin';
+}
+
+/** The session token for the portal this request belongs to. */
+export function sessionTokenFrom(req: CookieRequest): string | null {
+  const cookies = req.cookies ?? {};
+  return (
+    (isAdminPortalRequest(req)
+      ? cookies[ADMIN_AUTH_COOKIE]
+      : cookies[AUTH_COOKIE]) ?? null
+  );
+}
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
