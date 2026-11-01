@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import axios from "axios";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import {
   AlertTriangle,
   CheckCircle2,

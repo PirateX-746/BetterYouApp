@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Eye, EyeOff, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import { Badge } from "@/components/common/Badge";

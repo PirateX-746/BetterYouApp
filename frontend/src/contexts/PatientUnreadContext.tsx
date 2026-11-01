@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useClientValue } from "@/hooks/useClientValue";
 import { fetchUnreadTotal } from "@/lib/chatUnread";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { useSSE, type SseEvent } from "@/hooks/useSSE";
 import { usePatientChat } from "./PatientChatContext";
 

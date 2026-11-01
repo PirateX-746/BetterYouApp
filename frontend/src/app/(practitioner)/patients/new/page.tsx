@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, HeartPulse, Loader2, Phone, ShieldPlus, User } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { Page, PageHeader } from "@/components/common/PageLayout";
 import { SectionCard } from "@/components/common/Dashboard";
 import { useDetailCrumb } from "@/contexts/PractitionerBreadcrumbContext";

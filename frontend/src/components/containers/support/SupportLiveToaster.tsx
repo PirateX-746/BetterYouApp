@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { useSupportLive } from "@/hooks/useSupportLive";
 import { toConsolePath } from "@/lib/portal";
 
@@ -47,22 +47,12 @@ export function SupportLiveToaster({ side }: { side: "requester" | "support" }) 
         /* some mobile browsers only allow notifications from a service worker */
       }
     }
-    toast(
-      (t) => (
-        <button
-          type="button"
-          onClick={() => {
-            toast.dismiss(t.id);
-            router.push(`${base}/${e.ticketId}`);
-          }}
-          className="text-left text-sm cursor-pointer"
-        >
-          <span className="font-medium">{text}</span>
-          <span className="block text-xs opacity-70">Click to open</span>
-        </button>
-      ),
-      { icon: "💬", duration: 6000 },
-    );
+    toast(text, {
+      description: "BetterYou Support",
+      icon: "💬",
+      duration: 6000,
+      action: { label: "Open", onClick: () => router.push(`${base}/${e.ticketId}`) },
+    });
   });
 
   return null;

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import { CalendarClock, Check, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import {
   apiErrorMessage,
   appointmentTypesApi,

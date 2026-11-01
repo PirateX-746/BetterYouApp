@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Role } from '../common/role.enum';
+import { currentRequestIp } from '../common/request-ip';
 import { AuditLog, AuditLogDocument } from './schemas/audit-log.schema';
 
 export interface AuditInput {
@@ -45,7 +46,7 @@ export class AuditService {
         entityType: input.entityType,
         entityId: input.entityId,
         metadata: input.metadata ?? {},
-        ipAddress: input.ipAddress,
+        ipAddress: input.ipAddress ?? currentRequestIp(),
       });
     } catch (err) {
       this.logger.error(

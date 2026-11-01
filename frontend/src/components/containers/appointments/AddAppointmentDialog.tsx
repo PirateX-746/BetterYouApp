@@ -12,6 +12,7 @@ import { Badge, type BadgeTone } from "@/components/common/Badge";
 import { Field, FieldGroup, inputClass, textareaClass } from "@/components/common/Field";
 import { Button } from "@/components/ui/button";
 import SearchableSelect from "../../ui/SearchableSelect";
+import QuickAddPatientDialog from "../patients/QuickAddPatientDialog";
 import type { PracticeHours } from "./AppointmentsClient";
 
 type Patient = { _id: string; firstName: string; lastName?: string };
@@ -90,6 +91,8 @@ export default function AddAppointmentDialog({
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState(30);
   const [notes, setNotes] = useState("");
+  // "Add new patient" from the patient picker: the search text, or null when closed.
+  const [newPatientName, setNewPatientName] = useState<string | null>(null);
 
   /* Prefill for edit */
   useEffect(() => {
@@ -368,6 +371,7 @@ export default function AddAppointmentDialog({
                 disabled={!!event}
                 loading={loadingPatients}
                 loadingText="Loading patients…"
+                createAction={event ? undefined : { label: "Add new patient", onCreate: setNewPatientName }}
               />
             </Field>
 
@@ -464,6 +468,17 @@ export default function AddAppointmentDialog({
             />
           </Field>
     </Modal>
+
+    <QuickAddPatientDialog
+        open={newPatientName !== null}
+        initialName={newPatientName ?? ""}
+        onClose={() => setNewPatientName(null)}
+        onCreated={(p) => {
+          setPatients((list) => [...list, p]);
+          setPatientId(p._id);
+          setNewPatientName(null);
+        }}
+      />
 
     {event && (
       <>

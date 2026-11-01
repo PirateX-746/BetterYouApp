@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
 import { Page } from "@/components/common/PageLayout";
 import { Badge } from "@/components/common/Badge";
@@ -14,7 +14,7 @@ import { Segmented, TabBar, tabPanelProps, type TabItem } from "@/components/com
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import { Button } from "@/components/ui/button";
 import { TemporaryPasswordDialog, type IssuedPassword } from "@/components/containers/patients/TemporaryPasswordDialog";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { useDetailCrumb } from "@/contexts/PractitionerBreadcrumbContext";
 import {
   User,
@@ -86,6 +86,15 @@ export default function PatientProfilePage() {
       setEmrView("documents");
     }
   };
+  // ?doc=<id> (e.g. right after saving a document): open it in EMR → Documents.
+  const docParam = useSearchParams().get("doc");
+  useEffect(() => {
+    if (!docParam) return;
+    setActiveTab("emr");
+    setEmrView("documents");
+    setFocusDoc(docParam);
+    router.replace(`/patients/${id}`, { scroll: false });
+  }, [docParam, id, router]);
   const [careView, setCareView] = useState<"plans" | "medications">("plans");
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);

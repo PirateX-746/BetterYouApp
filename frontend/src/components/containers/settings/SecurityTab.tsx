@@ -17,7 +17,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { changePasswordSchema, type ChangePasswordValues } from "@/schemas/settings.schema";
 
 const fieldCls =

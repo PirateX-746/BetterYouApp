@@ -1,4 +1,10 @@
-import { IsEnum, IsMongoId, IsDateString, IsObject } from 'class-validator';
+import {
+  IsEnum,
+  IsMongoId,
+  IsDateString,
+  IsObject,
+  IsOptional,
+} from 'class-validator';
 import { DocumentType } from '../enums/document-type.enum';
 
 export class CreateDocumentDto {
@@ -8,8 +14,10 @@ export class CreateDocumentDto {
   @IsDateString()
   date: string;
 
+  /** Ignored: the controller always sets the signed-in clinician as author. */
+  @IsOptional()
   @IsMongoId()
-  doctor: string;
+  doctor?: string;
 
   @IsMongoId()
   patient: string;

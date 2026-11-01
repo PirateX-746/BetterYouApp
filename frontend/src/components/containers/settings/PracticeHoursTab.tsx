@@ -5,7 +5,7 @@ import { Clock, Save, Loader2, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 /* ─── Types ─── */
 

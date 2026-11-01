@@ -15,7 +15,7 @@ import type {
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { api, appointmentTypesApi, type AppointmentType } from "@/lib/api";
 import { CalendarEvent } from "@/types/appointment";
 import { useLocalStorage } from "@/hooks/useLocalStorage";

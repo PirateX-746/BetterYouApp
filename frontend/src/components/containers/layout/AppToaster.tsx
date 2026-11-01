@@ -1,44 +1,32 @@
 "use client";
 
-import { X } from "lucide-react";
-import toast, { Toaster, ToastBar } from "react-hot-toast";
+import { Toaster } from "sonner";
+import type { CSSProperties } from "react";
 
 /**
- * Wraps react-hot-toast's default renderer to add a manual dismiss (X)
- * button to every toast in the app — every existing `toast.success(...)` /
- * `toast.error(...)` call site keeps working unchanged.
+ * App-wide toasts (Sonner). Every toast gets a close (×) button, top-right;
+ * colours come from the theme tokens, so light/dark follow the app's own
+ * theme toggle. See the `[data-sonner-toast]` rules in globals.css.
  */
 export default function AppToaster() {
   return (
     <Toaster
       position="top-right"
-      toastOptions={{
-        duration: 4000,
-        style: {
-          borderRadius: "12px",
-          fontSize: "14px",
-        },
-      }}
-    >
-      {(t) => (
-        <ToastBar toast={t}>
-          {({ icon, message }) => (
-            <div className="flex items-center gap-2">
-              {icon}
-              {message}
-              {t.type !== "loading" && (
-                <button
-                  onClick={() => toast.dismiss(t.id)}
-                  aria-label="Dismiss notification"
-                  className="shrink-0 p-0.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          )}
-        </ToastBar>
-      )}
-    </Toaster>
+      closeButton
+      duration={4000}
+      visibleToasts={4}
+      gap={10}
+      offset={{ top: "calc(env(safe-area-inset-top) + 16px)", right: 16 }}
+      mobileOffset={{ top: "calc(env(safe-area-inset-top) + 12px)", left: 12, right: 12 }}
+      style={
+        {
+          "--normal-bg": "var(--bg-card)",
+          "--normal-text": "var(--text-primary)",
+          "--normal-border": "var(--border)",
+          "--border-radius": "14px",
+        } as CSSProperties
+      }
+      toastOptions={{ classNames: { toast: "app-toast" } }}
+    />
   );
 }

@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import {
   Users,
   Clock,

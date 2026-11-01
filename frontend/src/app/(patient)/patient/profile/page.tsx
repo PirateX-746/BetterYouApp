@@ -10,7 +10,7 @@ import {
   Eye, EyeOff,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useProfile } from "@/hooks/useProfile";
 import { useTheme } from "@/components/containers/layout/ThemeProvider";

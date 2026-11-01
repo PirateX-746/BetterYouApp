@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import { LoadingState } from "@/components/ui/loading-state";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 interface MedicationOption {
   _id: string;

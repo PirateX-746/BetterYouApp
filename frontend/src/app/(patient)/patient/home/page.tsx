@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { acquireSocket, releaseSocket } from "@/lib/useAppSocket";
 import { api } from "@/lib/api";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import {
   Calendar,
   Plus,

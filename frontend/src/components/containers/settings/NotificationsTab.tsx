@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import { api, apiErrorMessage } from "@/lib/api";
 import { useClientValue } from "@/hooks/useClientValue";

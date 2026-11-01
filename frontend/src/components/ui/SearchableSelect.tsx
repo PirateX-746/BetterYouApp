@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, Plus, Search, X } from "lucide-react";
 
 type Option = {
   value: string;
@@ -18,6 +18,11 @@ type Props = {
   loadingText?: string;
   /** Lets a <label htmlFor> point at the trigger. */
   id?: string;
+  /**
+   * A last row that creates what isn't in the list ("Add new patient").
+   * Gets the current search text, e.g. to prefill a name.
+   */
+  createAction?: { label: string; onCreate: (query: string) => void };
 };
 
 /**
@@ -34,6 +39,7 @@ export default function SearchableSelect({
   loading = false,
   loadingText = "Loading…",
   id,
+  createAction,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -95,6 +101,12 @@ export default function SearchableSelect({
     close();
   };
 
+  const runCreate = () => {
+    const q = query.trim();
+    close(false);
+    createAction?.onCreate(q);
+  };
+
   const handleClear = () => {
     onChange("");
     setQuery("");
@@ -104,7 +116,7 @@ export default function SearchableSelect({
   const onListKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((i) => Math.min(i + 1, filtered.length - 1));
+      setActive((i) => Math.min(i + 1, filtered.length - (createAction ? 0 : 1)));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((i) => Math.max(i - 1, 0));
@@ -112,6 +124,7 @@ export default function SearchableSelect({
       e.preventDefault();
       const opt = filtered[active];
       if (opt) handleSelect(opt.value);
+      else if (createAction && active === filtered.length) runCreate();
     } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation(); // don't also close an enclosing modal
@@ -192,7 +205,7 @@ export default function SearchableSelect({
               placeholder="Search…"
               aria-label="Search options"
               aria-controls={listboxId}
-              aria-activedescendant={filtered[active] ? optionId(active) : undefined}
+              aria-activedescendant={filtered[active] || (createAction && active === filtered.length) ? optionId(active) : undefined}
               className="flex-1 text-sm bg-transparent text-text-primary placeholder:text-text-disabled focus:outline-none"
             />
             {query && (
@@ -237,6 +250,21 @@ export default function SearchableSelect({
                   {opt.label}
                 </li>
               ))
+            )}
+            {createAction && (
+              <li
+                id={optionId(filtered.length)}
+                role="option"
+                aria-selected={false}
+                onClick={runCreate}
+                onMouseEnter={() => setActive(filtered.length)}
+                className={`mt-1 flex items-center gap-2 px-3.5 py-2.5 text-sm font-medium text-primary cursor-pointer border-t border-border-light transition ${
+                  active === filtered.length ? "bg-bg-hover" : ""
+                }`}
+              >
+                <Plus size={14} aria-hidden />
+                {query.trim() ? `${createAction.label} “${query.trim()}”` : createAction.label}
+              </li>
             )}
           </ul>
         </div>

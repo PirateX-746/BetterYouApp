@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAppointments } from "@/hooks/useAppointments";
 import PatientBookingFlow from "./PatientBookingFlow";
 import { api } from "@/lib/api";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import {
   Calendar,
   Plus,

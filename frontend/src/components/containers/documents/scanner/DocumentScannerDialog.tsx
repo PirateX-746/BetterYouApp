@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent } from "react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import {
     AlertTriangle,
     Camera,

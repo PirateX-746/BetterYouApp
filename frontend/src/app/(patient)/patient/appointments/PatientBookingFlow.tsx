@@ -3,7 +3,7 @@
 import { practitionerName } from "@/lib/names";
 import { useState } from "react";
 import { api } from "@/lib/api";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, ChevronLeft, ChevronRight, CalendarX } from "lucide-react";
 import { useEscapeToClose } from "@/hooks/useEscapeToClose";

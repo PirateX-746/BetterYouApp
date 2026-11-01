@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { practitionerProfileSchema, type PractitionerProfileValues } from "@/schemas/settings.schema";
 
 function getInitials(first: string, last: string) {
