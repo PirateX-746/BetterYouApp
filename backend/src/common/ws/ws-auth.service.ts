@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { Socket } from 'socket.io';
 import { Role } from '../role.enum';
-import { AUTH_COOKIE } from '../../auth/auth.cookies';
+import { ADMIN_AUTH_COOKIE, AUTH_COOKIE } from '../../auth/auth.cookies';
 import { isAllowedOrigin } from '../cors';
 import { Patient } from '../../patients/schemas/patient.schema';
 import { Practitioner } from '../../practitioners/schemas/practitioner.schema';
@@ -76,8 +76,14 @@ export class WsAuthService {
       return null;
     }
 
+    // The console asks for its own session (portal=admin); everyone else
+    // uses the practice/patient one. Both may exist in one browser.
+    const cookieName =
+      client.handshake.query?.portal === 'admin'
+        ? ADMIN_AUTH_COOKIE
+        : AUTH_COOKIE;
     const token =
-      readCookie(client.handshake.headers.cookie, AUTH_COOKIE) ??
+      readCookie(client.handshake.headers.cookie, cookieName) ??
       // Non-browser clients (tests, a future mobile app) may pass it here.
       (typeof client.handshake.auth?.token === 'string'
         ? client.handshake.auth.token

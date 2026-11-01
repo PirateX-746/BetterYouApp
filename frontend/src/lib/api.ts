@@ -1,5 +1,6 @@
 import axios from "axios";
 import { clearSessionStorage } from "./session";
+import { PORTAL_HEADER, clearAdminSessionStorage, isAdminPortal } from "./portal";
 import { encryptObjectPasswords } from "./passwordTransport";
 
 export const api = axios.create({
@@ -47,6 +48,8 @@ api.get = function dedupedGet(this: unknown, url: string, config?: object) {
 // Password fields leave the browser encrypted (see passwordTransport.ts).
 api.interceptors.request.use(async (config) => {
   if (config.data) config.data = await encryptObjectPasswords(config.data);
+  // Console pages use their own session cookie; tell the API which one.
+  if (isAdminPortal()) config.headers.set(PORTAL_HEADER, "admin");
   return config;
 });
 
@@ -58,12 +61,16 @@ api.interceptors.response.use(
       const isAuthPage =
         path.includes("Login") || path.includes("Signup") || path === "/";
       if (!isAuthPage) {
+        // Only this portal's session ended; leave the other one alone.
+        if (isAdminPortal()) {
+          clearAdminSessionStorage();
+          window.location.href = "/adminLogin";
+          return Promise.reject(error);
+        }
         clearSessionStorage();
-        document.cookie.split(";").forEach((c) => {
-          document.cookie = c
-            .replace(/^ +/, "")
-            .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
-        });
+        for (const name of ["name", "userId"]) {
+          document.cookie = `${name}=;expires=${new Date(0).toUTCString()};path=/`;
+        }
         window.location.href = "/";
       }
     }

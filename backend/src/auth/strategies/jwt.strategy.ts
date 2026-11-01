@@ -1,3 +1,4 @@
+import type { Request } from 'express';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -8,7 +9,7 @@ import { Patient } from '../../patients/schemas/patient.schema';
 import { Practitioner } from '../../practitioners/schemas/practitioner.schema';
 import { PlatformAdmin } from '../../platform-admins/schemas/platform-admin.schema';
 import { Role } from '../../common/role.enum';
-import { AUTH_COOKIE } from '../auth.cookies';
+import { sessionTokenFrom } from '../auth.cookies';
 
 /** Claims we sign into the session token (see AuthService). */
 interface JwtPayload {
@@ -46,8 +47,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // web app uses. The Bearer header is kept as a fallback so non-browser
       // clients (curl, tests, future mobile app) still work.
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (req: { cookies?: Record<string, string> }) =>
-          req?.cookies?.[AUTH_COOKIE] ?? null,
+        // Console requests read admin_token, everything else token — so
+        // the two portals can be signed in at once in one browser.
+        (req: Request) => (req ? sessionTokenFrom(req) : null),
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,

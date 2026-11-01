@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { platformLogin } from "@/lib/superadmin/api";
-import { setDisplayCookie } from "@/lib/session";
+import { ADMIN_STORAGE } from "@/lib/portal";
 import { BrandLogo } from "@/components/common/BrandLogo";
 
 /**
@@ -34,18 +34,17 @@ export default function AdminLoginPage() {
     try {
       const res = await platformLogin(email, password);
       // Display data only — the session itself is an HttpOnly cookie the
-      // backend set, which page scripts cannot read.
+      // backend set, which page scripts cannot read. Console keys are kept
+      // apart from the practice portal's so both can be signed in at once.
       try {
-        localStorage.setItem("name", res.name);
-        localStorage.setItem("role", res.role);
-        localStorage.setItem("userId", res.id);
+        localStorage.setItem(ADMIN_STORAGE.name, res.name);
+        localStorage.setItem(ADMIN_STORAGE.userId, res.id);
       } catch {
         /* storage unavailable — non-fatal */
       }
-      setDisplayCookie("name", res.name);
       // Navigate before refreshing, or the refreshed login page is sent to
       // the dashboard by the proxy and skips the forced password change.
-      router.replace(res.mustChangePassword ? "/change-password" : "/admin/dashboard");
+      router.replace(res.mustChangePassword ? "/change-password?portal=admin" : "/admin/dashboard");
       router.refresh();
     } catch (err: unknown) {
       const e2 = err as {

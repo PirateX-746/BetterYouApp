@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { proxy } from "@/proxy";
 
 const ORIGIN = "https://app.example.com";
-const ROLES = ["super_admin", "practice_admin", "practitioner", "staff", "patient"] as const;
+const ROLES = ["practice_admin", "practitioner", "staff", "patient"] as const;
 const PAGES = [
   "/practitionerLogin",
   "/patientLogin",
@@ -14,10 +14,23 @@ const PAGES = [
   "/admin/dashboard",
 ];
 
-/** Where the guard sends this visitor: the path it redirects to, or null to show the page. */
+/**
+ * Where the guard sends this visitor: the path it redirects to, or null to
+ * show the page. `role` is the practice/patient session; "super_admin" means
+ * the console's own session, and "both:<role>" means signed in to both.
+ */
+function cookieFor(role?: string): string | null {
+  if (!role) return null;
+  if (role === "super_admin") return "admin_token=a";
+  if (role.startsWith("both:")) return `admin_token=a; token=t; role=${role.slice(5)}`;
+  if (role === "legacy_admin") return "token=t; role=super_admin";
+  return `token=t; role=${role}`;
+}
+
 function visit(path: string, role?: string): string | null {
   const headers = new Headers();
-  if (role) headers.set("cookie", `token=t; role=${role}`);
+  const cookie = cookieFor(role);
+  if (cookie) headers.set("cookie", cookie);
   const res = proxy(new NextRequest(new URL(path, ORIGIN), { headers }));
   const location = res.headers.get("location");
   return location ? new URL(location).pathname : null;
@@ -37,7 +50,11 @@ function land(path: string, role?: string): string {
 }
 
 describe("proxy route guard", () => {
-  it.each(ROLES.flatMap((role) => PAGES.map((page) => [role, page])))(
+  it.each(
+    [...ROLES, "super_admin", "legacy_admin", ...ROLES.map((r) => `both:${r}`)].flatMap((role) =>
+      PAGES.map((page) => [role, page]),
+    ),
+  )(
     "%s visiting %s never loops",
     (role, page) => {
       expect(() => land(page, role)).not.toThrow();
@@ -60,9 +77,22 @@ describe("proxy route guard", () => {
     expect(land("/dashboard", role)).toBe("/dashboard");
   });
 
+  it("keeps both portals signed in side by side", () => {
+    expect(land("/admin/dashboard", "both:practitioner")).toBe("/admin/dashboard");
+    expect(land("/dashboard", "both:practitioner")).toBe("/dashboard");
+    expect(land("/dashboard", "both:practice_admin")).toBe("/dashboard");
+    expect(visit("/adminLogin", "both:practitioner")).toBe("/admin/dashboard");
+    expect(visit("/practitionerLogin", "both:practitioner")).toBe("/dashboard");
+  });
+
+  it("treats a pre-split super-admin session as signed out of both", () => {
+    expect(land("/dashboard", "legacy_admin")).toBe("/practitionerLogin");
+    expect(land("/admin/dashboard", "legacy_admin")).toBe("/adminLogin");
+  });
+
   it("keeps each portal to its own roles", () => {
-    expect(land("/admin/dashboard", "practitioner")).toBe("/dashboard");
-    expect(land("/dashboard", "super_admin")).toBe("/admin/dashboard");
+    expect(land("/admin/dashboard", "practitioner")).toBe("/adminLogin");
+    expect(land("/dashboard", "super_admin")).toBe("/practitionerLogin");
     expect(land("/dashboard", "patient")).toBe("/patient/home");
     expect(land("/patient/home", "practice_admin")).toBe("/dashboard");
   });
