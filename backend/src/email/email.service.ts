@@ -11,21 +11,26 @@ export interface EmailMessage {
   /**
    * Stable key for this logical email. Resend drops a repeat with the same
    * key for 24h, so a retry or a second server instance can't double-send.
+   * Brevo has no equivalent; there it is only attached as a trace header.
    */
   idempotencyKey?: string;
 }
 
-type Provider = 'resend' | 'smtp' | 'log';
+type Provider = 'brevo' | 'resend' | 'smtp' | 'log';
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
+const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 
 /**
  * Outgoing email. The provider is chosen from the environment:
  *
- *   resend  RESEND_API_KEY set (production) — Resend's HTTP API
+ *   brevo   BREVO_API_KEY set — Brevo's HTTPS API. Works with a single
+ *           verified sender address (no domain needed); EMAIL_FROM must be
+ *           that address. HTTPS, so it works where SMTP is blocked (Railway)
+ *   resend  RESEND_API_KEY set — Resend's HTTP API (needs a verified domain)
  *   smtp    SMTP_HOST set (local dev) — e.g. Mailpit on localhost:1025,
  *           which catches every message in a web inbox instead of sending
- *   log     neither set — nothing is sent; a line is logged instead
+ *   log     none set — nothing is sent; a line is logged instead
  *
  * EMAIL_PROVIDER forces one explicitly. Missing settings for the chosen
  * provider stop the server at startup rather than failing silently later.
@@ -41,6 +46,17 @@ export class EmailService {
     const env = process.env;
     this.provider = resolveProvider(env);
     this.from = env.EMAIL_FROM || 'BetterYou <no-reply@localhost>';
+
+    if (this.provider === 'brevo') {
+      if (!env.BREVO_API_KEY) {
+        throw new Error('EMAIL_PROVIDER=brevo requires BREVO_API_KEY');
+      }
+      if (!env.EMAIL_FROM) {
+        throw new Error(
+          'EMAIL_FROM is required with Brevo (a sender verified in Brevo)',
+        );
+      }
+    }
 
     if (this.provider === 'resend') {
       if (!env.RESEND_API_KEY) {
@@ -70,7 +86,7 @@ export class EmailService {
 
     if (this.provider === 'log' && env.NODE_ENV === 'production') {
       this.logger.warn(
-        'No email provider configured — patient emails will NOT be sent. Set RESEND_API_KEY and EMAIL_FROM.',
+        'No email provider configured — patient emails will NOT be sent. Set BREVO_API_KEY (or RESEND_API_KEY) and EMAIL_FROM.',
       );
     } else {
       this.logger.log(`Email provider: ${this.provider}`);
@@ -83,6 +99,8 @@ export class EmailService {
 
   async send(message: EmailMessage): Promise<void> {
     switch (this.provider) {
+      case 'brevo':
+        return this.sendWithBrevo(message);
       case 'resend':
         return this.sendWithResend(message);
       case 'smtp':
@@ -98,6 +116,34 @@ export class EmailService {
       default:
         // The address and body can identify a patient; log only the subject.
         this.logger.log(`[email not sent: no provider] ${message.subject}`);
+    }
+  }
+
+  private async sendWithBrevo(message: EmailMessage) {
+    const res = await fetch(BREVO_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'api-key': process.env.BREVO_API_KEY!,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: parseAddress(this.from),
+        to: [{ email: message.to }],
+        ...(message.replyTo && { replyTo: parseAddress(message.replyTo) }),
+        subject: message.subject,
+        htmlContent: message.html,
+        textContent: message.text,
+        // Brevo has no send-side idempotency; tag the message so a duplicate
+        // can at least be traced in Brevo's logs.
+        ...(message.idempotencyKey && {
+          headers: { 'X-Mailin-custom': message.idempotencyKey },
+        }),
+      }),
+    });
+    if (!res.ok) {
+      // Brevo's error body names the problem (unverified sender, bad key…).
+      throw new Error(`Brevo ${res.status}: ${await res.text()}`);
     }
   }
 
@@ -130,11 +176,25 @@ export class EmailService {
 
 function resolveProvider(env: NodeJS.ProcessEnv): Provider {
   const forced = env.EMAIL_PROVIDER?.toLowerCase();
-  if (forced === 'resend' || forced === 'smtp' || forced === 'log') {
+  if (
+    forced === 'brevo' ||
+    forced === 'resend' ||
+    forced === 'smtp' ||
+    forced === 'log'
+  ) {
     return forced;
   }
   if (forced) throw new Error(`Unknown EMAIL_PROVIDER "${forced}"`);
+  if (env.BREVO_API_KEY) return 'brevo';
   if (env.RESEND_API_KEY) return 'resend';
   if (env.SMTP_HOST) return 'smtp';
   return 'log';
+}
+
+/** "BetterYou <a@b.com>" or "a@b.com" → Brevo's { name?, email }. */
+export function parseAddress(value: string): { name?: string; email: string } {
+  const m = value.match(/^\s*(.*?)\s*<\s*([^>]+?)\s*>\s*$/);
+  if (!m) return { email: value.trim() };
+  const name = m[1].replace(/^"|"$/g, '').trim();
+  return name ? { name, email: m[2] } : { email: m[2] };
 }
