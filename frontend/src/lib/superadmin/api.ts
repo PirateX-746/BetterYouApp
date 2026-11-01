@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { ADMIN_STORAGE } from "@/lib/portal";
 import { api } from "@/lib/api";
 
 /**
@@ -320,6 +321,91 @@ export async function platformForgotPassword(email: string) {
     { email },
   );
   return data;
+}
+
+/* --------------------------- own profile --------------------------- */
+
+export interface AdminProfile {
+  name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  createdAt: string | null;
+}
+
+export async function fetchAdminProfile(): Promise<AdminProfile> {
+  const { data } = await api.get<AdminProfile>("/admin/me");
+  return data;
+}
+
+export async function updateAdminProfile(input: {
+  firstName: string;
+  lastName: string;
+}): Promise<AdminProfile> {
+  const { data } = await api.patch<AdminProfile>("/admin/me", input);
+  return data;
+}
+
+/** Fired on window after the admin renames themselves; detail is the new name. */
+export const ADMIN_NAME_EVENT = "admin:name-changed";
+
+/** "Keyur Thakkar" → "KT"; one word → its first two letters. */
+export function nameInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function subscribeAdminName(onChange: () => void) {
+  window.addEventListener(ADMIN_NAME_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(ADMIN_NAME_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function readAdminName(): string | null {
+  try {
+    return localStorage.getItem(ADMIN_STORAGE.name);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The signed-in admin's display name. Reads the copy stored at sign-in,
+ * refreshes it from the server once (so a rename on another device shows up),
+ * and follows renames made in Settings.
+ */
+export function useAdminName(): string | null {
+  const name = useSyncExternalStore(subscribeAdminName, readAdminName, () => null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAdminProfile()
+      .then((p) => {
+        if (cancelled || p.name === readAdminName()) return;
+        try {
+          localStorage.setItem(ADMIN_STORAGE.name, p.name);
+        } catch {
+          /* storage unavailable */
+        }
+        window.dispatchEvent(new CustomEvent(ADMIN_NAME_EVENT, { detail: p.name }));
+      })
+      .catch(() => {
+        /* keep the stored name */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return name;
 }
 
 export async function platformLogout() {

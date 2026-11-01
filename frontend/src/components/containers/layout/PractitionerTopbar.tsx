@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Lock, Bell, ChevronRight, X, Users, XCircle, CalendarClock, BellRing } from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen, Lock, Bell, ChevronRight, X, Users, XCircle, CalendarClock, BellRing } from "lucide-react";
+import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import ThemeToggle from "./ThemeToggle";
 import { useSupportInbox } from "@/contexts/SupportInboxContext";
 import { SupportInboxRow } from "@/components/containers/support/SupportInbox";
@@ -29,6 +30,7 @@ function timeAgo(iso: string): string {
 }
 
 export default function PractitionerTopbar({ onToggle }: TopbarProps) {
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const pathname = usePathname();
   const { isLocked, lock } = usePortalLock();
   const { chatOpen } = usePractitionerChat();
@@ -71,7 +73,7 @@ export default function PractitionerTopbar({ onToggle }: TopbarProps) {
 
   return (
     <header
-      className={`fixed top-0 right-0 left-0 lg:left-64 z-30 h-topbar pt-safe-t bg-bg-card border-b border-border items-center justify-between px-4 md:px-6 ${
+      className={`fixed top-0 right-0 left-0 ${collapsed ? "lg:left-[72px]" : "lg:left-64"} transition-[left] duration-300 ease-apple motion-reduce:transition-none z-30 h-topbar pt-safe-t bg-bg-card border-b border-border items-center justify-between px-4 md:px-6 ${
         chatOpen ? "hidden md:flex" : "flex"
       }`}
     >
@@ -82,6 +84,16 @@ export default function PractitionerTopbar({ onToggle }: TopbarProps) {
         aria-label="Toggle menu"
       >
         <Menu size={20} />
+      </button>
+
+      {/* Collapse to an icon rail — iPad/desktop, where the sidebar is fixed */}
+      <button
+        onClick={toggleCollapsed}
+        className="hidden lg:inline-flex p-2 -ml-2 mr-2 rounded-lg hover:bg-bg-hover transition text-text-secondary"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
       </button>
 
       {/* The page title lives here, not in the content: a top-level page shows

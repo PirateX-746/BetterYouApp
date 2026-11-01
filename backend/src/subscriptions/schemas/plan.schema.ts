@@ -51,7 +51,7 @@ export const DEFAULT_PLANS: Array<Omit<Plan, never>> = [
     name: 'Free',
     monthlyPrice: 0,
     maxPractitioners: 1,
-    maxPatients: 100,
+    maxPatients: null,
     sortOrder: 0,
   },
   {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import PractitionerSidebar from "@/components/containers/layout/PractitionerSidebar";
+import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import PractitionerTopbar from "@/components/containers/layout/PractitionerTopbar";
 import { PractitionerUnreadProvider } from "@/contexts/PractitionerUnreadContext";
 import { PortalLockProvider, usePortalLock } from "@/contexts/PortalLockContext";
@@ -180,6 +181,7 @@ function LockOverlay() {
 
 function PractitionerLayoutInner({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [collapsed] = useSidebarCollapsed();
   const pathname = usePathname();
   const { isLocked } = usePortalLock();
   const { chatOpen } = usePractitionerChat();
@@ -197,7 +199,7 @@ function PractitionerLayoutInner({ children }: { children: ReactNode }) {
     <>
       <PractitionerSidebar open={open} setOpen={setOpen} />
 
-      <div className="lg:ml-64 h-[100dvh] bg-bg-page flex flex-col overflow-hidden">
+      <div className={`${collapsed ? "lg:ml-[72px]" : "lg:ml-64"} transition-[margin] duration-300 ease-apple motion-reduce:transition-none h-[100dvh] bg-bg-page flex flex-col overflow-hidden`}>
         <PractitionerTopbar onToggle={() => setOpen((o) => !o)} />
 
         <main className={mainClass}>

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useClientValue } from "@/hooks/useClientValue";
-import { ADMIN_STORAGE, clearAdminSessionStorage, useConsolePathname } from "@/lib/portal";
+import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
+import { clearAdminSessionStorage, useConsolePathname } from "@/lib/portal";
 import {
   LayoutDashboard,
   Building2,
@@ -32,7 +33,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { platformLogout } from "@/lib/superadmin/api";
+import { nameInitials, platformLogout, useAdminName } from "@/lib/superadmin/api";
 import { SupportNavBadge } from "@/components/containers/support/SupportInbox";
 import { BrandLogo } from "@/components/common/BrandLogo";
 
@@ -55,11 +56,12 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
   const pathname = useConsolePathname();
   const router = useRouter();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  // lg+ only: an icon rail. Below lg the sidebar is always the full drawer.
+  const [collapsed] = useSidebarCollapsed();
+  const hideWhenCollapsed = collapsed ? "lg:hidden" : "";
   const [signingOut, setSigningOut] = useState(false);
   const hydrated = useClientValue(() => true, false);
-  const adminName =
-    useClientValue(() => localStorage.getItem(ADMIN_STORAGE.name), null) ||
-    "Platform Admin";
+  const adminName = useAdminName() || "Platform Admin";
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -83,18 +85,19 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
   const accountButton = (
     <button
       type="button"
-      className="flex items-center gap-3 w-full px-3 py-2 rounded-xl hover:bg-bg-hover transition text-left focus:outline-none"
+      title={collapsed ? adminName : undefined}
+      className={`flex items-center gap-3 w-full px-3 py-2 rounded-xl hover:bg-bg-hover transition text-left focus:outline-none ${collapsed ? "lg:justify-center lg:px-0" : ""}`}
     >
       <div className="w-8 h-8 rounded-full bg-purple flex items-center justify-center text-white text-xs font-semibold shrink-0">
-        PA
+        {nameInitials(adminName)}
       </div>
-      <div className="flex-1 min-w-0">
+      <div className={`flex-1 min-w-0 ${hideWhenCollapsed}`}>
         <p className="text-sm font-medium text-text-primary truncate">
           {adminName}
         </p>
         <p className="text-xs text-text-secondary">Super Admin</p>
       </div>
-      <ChevronUp size={14} className="text-text-secondary shrink-0" />
+      <ChevronUp size={14} className={`text-text-secondary shrink-0 ${hideWhenCollapsed}`} />
     </button>
   );
 
@@ -114,8 +117,9 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
       <aside
         className={`
           fixed top-0 left-0 z-40 h-[100dvh] w-64 pt-safe-t pb-safe-b
+          ${collapsed ? "lg:w-[72px]" : ""}
           bg-bg-card border-r border-border
-          transform transition-transform duration-300 ease-in-out
+          transform transition-[transform,width] duration-300 ease-in-out motion-reduce:transition-none
           flex flex-col
           ${open ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
@@ -123,22 +127,25 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
       >
         {/* Brand — the same logo as everywhere else; the "Platform" label is
             what separates this from the practitioner portal at a glance. */}
-        <div className="h-14 px-5 flex items-center gap-2.5 border-b border-border shrink-0">
-          <BrandLogo />
-          <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-purple bg-purple-light px-2 py-0.5 rounded-md">
+        <div className={`h-14 px-5 flex items-center gap-2.5 border-b border-border shrink-0 ${collapsed ? "lg:px-0 lg:justify-center" : ""}`}>
+          <BrandLogo className={collapsed ? "lg:[&>*:last-child]:hidden" : ""} />
+          <span className={`${hideWhenCollapsed} ml-auto text-[10px] font-semibold uppercase tracking-wider text-purple bg-purple-light px-2 py-0.5 rounded-md`}>
             Platform
           </span>
         </div>
 
-        <nav className="p-3 space-y-0.5 flex-1">
+        <nav className="p-3 space-y-0.5 flex-1 overflow-y-auto overflow-x-hidden">
           {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
             const active = isActive(href);
             return (
               <Link
                 key={href}
                 href={href}
+                title={collapsed ? label : undefined}
+                aria-label={collapsed ? label : undefined}
                 className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all
+                  relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all
+                  ${collapsed ? "lg:justify-center lg:px-0" : ""}
                   ${
                     active
                       ? "bg-purple text-white font-medium shadow-sm"
@@ -146,9 +153,11 @@ export default function SuperAdminSidebar({ open, setOpen }: SidebarProps) {
                   }
                 `}
               >
-                <Icon size={17} />
-                <span className="flex-1">{label}</span>
-                {href === "/admin/support" && <SupportNavBadge />}
+                <Icon size={17} className="shrink-0" />
+                <span className={`flex-1 ${hideWhenCollapsed}`}>{label}</span>
+                {href === "/admin/support" && (
+                  <SupportNavBadge className={collapsed ? "lg:absolute lg:top-0.5 lg:right-1" : ""} />
+                )}
               </Link>
             );
           })}

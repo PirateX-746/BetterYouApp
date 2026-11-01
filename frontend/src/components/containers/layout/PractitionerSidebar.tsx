@@ -21,6 +21,7 @@ import {
 import { usePractitionerChat } from "@/contexts/PractitionerChatContext";
 import { useLogout } from "@/hooks/useLogout";
 import { readCookie, useClientValue } from "@/hooks/useClientValue";
+import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,6 +79,9 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
   const { chatOpen } = usePractitionerChat();
   const { handleLogout, isPending } = useLogout();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  // lg+ only: an icon rail. Below lg the sidebar is always the full drawer.
+  const [collapsed] = useSidebarCollapsed();
+  const hideWhenCollapsed = collapsed ? "lg:hidden" : "";
 
   useEffect(() => {
     setOpen(false);
@@ -106,23 +110,24 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
       <aside
         className={`
           fixed top-0 left-0 z-40 h-[100dvh] w-64 pt-safe-t pb-safe-b
+          ${collapsed ? "lg:w-[72px]" : ""}
           bg-bg-card border-r border-border
-          transform transition-transform duration-300 ease-apple motion-reduce:transition-none
+          transform transition-[transform,width] duration-300 ease-apple motion-reduce:transition-none
           flex flex-col
           ${open ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
         `}
       >
         {/* Brand */}
-        <div className="h-14 px-5 flex items-center gap-2.5 shrink-0">
-          <BrandLogo />
+        <div className={`h-14 px-5 flex items-center gap-2.5 shrink-0 ${collapsed ? "lg:px-0 lg:justify-center" : ""}`}>
+          <BrandLogo className={collapsed ? "lg:[&>*:last-child]:hidden" : ""} />
         </div>
 
         {/* Nav — flex-1 so it fills space and pushes profile to bottom */}
-        <nav aria-label="Main" className="px-3 pt-2 pb-3 flex-1 overflow-y-auto space-y-5">
+        <nav aria-label="Main" className="px-3 pt-2 pb-3 flex-1 overflow-y-auto overflow-x-hidden space-y-5">
           {NAV_GROUPS.map((g) => (
           <div key={g.id}>
-          <p className="px-3 pb-1.5 text-eyebrow font-semibold uppercase text-text-light">{g.label}</p>
+          <p className={`px-3 pb-1.5 text-eyebrow font-semibold uppercase text-text-light ${hideWhenCollapsed}`}>{g.label}</p>
           <div className="space-y-0.5">
           {NAV_ITEMS.filter((n) => n.group === g.id).map(({ label, href, icon: Icon, comingSoon }) => {
             if (comingSoon) {
@@ -131,11 +136,11 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
                   key={href}
                   aria-disabled="true"
                   title={`${label} — coming soon`}
-                  className="flex items-center gap-3 h-9 px-3 rounded-lg text-body text-text-disabled cursor-not-allowed select-none"
+                  className={`flex items-center gap-3 h-9 px-3 rounded-lg text-body text-text-disabled cursor-not-allowed select-none ${collapsed ? "lg:justify-center lg:px-0" : ""}`}
                 >
                   <Icon size={17} />
-                  <span className="flex-1">{label}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-bg-hover text-text-disabled">
+                  <span className={`flex-1 ${hideWhenCollapsed}`}>{label}</span>
+                  <span className={`${hideWhenCollapsed} text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-bg-hover text-text-disabled`}>
                     Soon
                   </span>
                 </div>
@@ -149,8 +154,11 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
+                title={collapsed ? label : undefined}
+                aria-label={collapsed ? label : undefined}
                 className={`
-                  flex items-center gap-3 h-9 px-3 rounded-lg text-body transition-colors
+                  relative flex items-center gap-3 h-9 px-3 rounded-lg text-body transition-colors
+                  ${collapsed ? "lg:justify-center lg:px-0" : ""}
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40
                   ${active
                     ? "bg-primary/10 text-primary-strong font-semibold"
@@ -158,9 +166,11 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
                   }
                 `}
               >
-                <Icon size={17} className={active ? "text-primary" : ""} aria-hidden />
-                <span className="flex-1">{label}</span>
-                {href === "/support" && <SupportNavBadge />}
+                <Icon size={17} className={`shrink-0 ${active ? "text-primary" : ""}`} aria-hidden />
+                <span className={`flex-1 ${hideWhenCollapsed}`}>{label}</span>
+                {href === "/support" && (
+                  <SupportNavBadge className={collapsed ? "lg:absolute lg:-top-1 lg:right-1" : ""} />
+                )}
               </Link>
             );
           })}
@@ -180,16 +190,17 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
                   aria-controls internally; a mismatch here is inert. */}
               <button
                 suppressHydrationWarning
-                className="flex items-center gap-3 w-full px-2.5 py-2 rounded-lg hover:bg-bg-hover transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                title={collapsed ? displayName : undefined}
+                className={`flex items-center gap-3 w-full px-2.5 py-2 rounded-lg hover:bg-bg-hover transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${collapsed ? "lg:justify-center lg:px-0" : ""}`}
               >
                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-semibold shrink-0">
                   {initials}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className={`flex-1 min-w-0 ${hideWhenCollapsed}`}>
                   <p className="text-body font-medium text-text-primary truncate">{displayName}</p>
                   <p className="text-caption text-text-secondary">Practitioner</p>
                 </div>
-                <ChevronUp size={14} className="text-text-secondary shrink-0" />
+                <ChevronUp size={14} className={`text-text-secondary shrink-0 ${hideWhenCollapsed}`} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="start" className="w-52">

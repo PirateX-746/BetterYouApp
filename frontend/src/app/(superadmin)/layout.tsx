@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChevronRight, Menu } from "lucide-react";
+import { ChevronRight, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import SuperAdminSidebar from "@/components/containers/superadmin/SuperAdminSidebar";
 import ThemeToggle from "@/components/containers/layout/ThemeToggle";
 import { SupportLiveToaster } from "@/components/containers/support/SupportLiveToaster";
@@ -45,8 +46,17 @@ export default function SuperAdminLayout({ children }: { children: ReactNode }) 
 
 function ConsoleShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const pathname = useConsolePathname();
   const { extraCrumb } = usePractitionerBreadcrumb();
+
+  // Dialogs, menus and popovers portal into <body>, outside the wrapper div
+  // below, so they would fall back to the blue :root tokens. Mirror the
+  // class onto <body> while the console is mounted.
+  useEffect(() => {
+    document.body.classList.add("theme-mono");
+    return () => document.body.classList.remove("theme-mono");
+  }, []);
 
   const crumbs = useMemo(() => {
     const top = Object.keys(ADMIN_NAV_LABELS).find((r) => pathname === r || pathname.startsWith(r + "/"));
@@ -63,7 +73,7 @@ function ConsoleShell({ children }: { children: ReactNode }) {
       <SupportLiveToaster side="support" />
       <SuperAdminSidebar open={open} setOpen={setOpen} />
 
-      <div className="lg:ml-64 min-h-[100dvh] pb-safe-b bg-bg-page flex flex-col">
+      <div className={`${collapsed ? "lg:ml-[72px]" : "lg:ml-64"} transition-[margin] duration-300 ease-in-out motion-reduce:transition-none min-h-[100dvh] pb-safe-b bg-bg-page flex flex-col`}>
         <header className="sticky top-0 z-30 h-topbar pt-safe-t shrink-0 border-b border-border bg-bg-card flex items-center gap-3 px-4 md:px-6">
           <button
             onClick={() => setOpen((o) => !o)}
@@ -71,6 +81,15 @@ function ConsoleShell({ children }: { children: ReactNode }) {
             aria-label="Toggle navigation"
           >
             <Menu size={18} />
+          </button>
+          {/* Collapse to an icon rail — iPad/desktop, where the sidebar is fixed */}
+          <button
+            onClick={toggleCollapsed}
+            className="hidden lg:inline-flex p-2 -ml-2 rounded-lg hover:bg-bg-hover text-text-secondary"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           </button>
 
           {/* The page title lives here, not in the content. */}

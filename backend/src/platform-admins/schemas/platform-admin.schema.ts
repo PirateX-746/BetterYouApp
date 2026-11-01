@@ -16,8 +16,16 @@ import { Role } from '../../common/role.enum';
  */
 @Schema({ timestamps: true, collection: 'platformadmins' })
 export class PlatformAdmin {
+  /** Display name, kept as "First Last" whenever the profile is edited. */
   @Prop({ required: true, trim: true })
   name: string;
+
+  /** Optional: seeded accounts only have `name` until the admin sets these. */
+  @Prop({ trim: true })
+  firstName?: string;
+
+  @Prop({ trim: true })
+  lastName?: string;
 
   @Prop({ required: true, unique: true, lowercase: true, trim: true })
   email: string;
