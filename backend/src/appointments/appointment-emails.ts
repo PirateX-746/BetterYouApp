@@ -8,10 +8,14 @@
  */
 
 import {
+  EMAIL_BRAND,
   EMAIL_COLORS,
+  emailButton,
   emailLayout,
+  emailPanel,
   emailParagraph,
   escapeHtml,
+  type EmailTone,
 } from '../email/email-layout';
 import { PATIENT_CANCEL_CUTOFF_HOURS } from './schemas/appointment.schema';
 
@@ -49,7 +53,15 @@ export interface RenderedEmail {
   text: string;
 }
 
-const { text: TEXT, muted: MUTED, border: BORDER } = EMAIL_COLORS;
+const { text: TEXT, muted: MUTED, border: BORDER, brand: BRAND } = EMAIL_COLORS;
+
+const BADGE: Record<AppointmentEmailKind, { label: string; tone: EmailTone }> =
+  {
+    booked: { label: 'Confirmed', tone: 'success' },
+    rescheduled: { label: 'Rescheduled', tone: 'warning' },
+    cancelled: { label: 'Cancelled', tone: 'danger' },
+    reminder: { label: 'Reminder', tone: 'info' },
+  };
 
 function formatDate(at: Date, timeZone: string) {
   return new Intl.DateTimeFormat('en-US', {
@@ -155,7 +167,7 @@ export function renderAppointmentEmail(
   const contactLine = contacts.length
     ? `${help}, contact ${ctx.practice.name} at ${contacts.join(' or ')}.`
     : `${help}, please contact ${ctx.practice.name}.`;
-  const footer = `You're receiving this because you have an appointment with ${ctx.practice.name}.`;
+  const footer = `You're receiving this because you have an appointment with ${ctx.practice.name}${ctx.practice.name === EMAIL_BRAND ? '' : `, which uses ${EMAIL_BRAND}`}.`;
 
   // Cancelled emails show no details card: the time is in the intro.
   const showDetails = kind !== 'cancelled';
@@ -170,12 +182,7 @@ export function renderAppointmentEmail(
       : []),
     ...(showDetails ? [''] : []),
     ...(links
-      ? [
-          confirmAsk,
-          `Confirm: ${links.confirm}`,
-          `Cancel: ${links.cancel}`,
-          '',
-        ]
+      ? [confirmAsk, `Confirm: ${links.confirm}`, `Cancel: ${links.cancel}`, '']
       : []),
     contactLine,
     '',
@@ -183,31 +190,109 @@ export function renderAppointmentEmail(
   ].join('\n');
 
   const e = escapeHtml;
-  const detailRows = rows
-    .map(
-      ([label, value]) => `
-        <tr>
-          <td style="padding:6px 0;width:96px;vertical-align:top;color:${MUTED};font-size:14px;">${e(label)}</td>
-          <td style="padding:6px 0;vertical-align:top;color:${TEXT};font-size:14px;font-weight:500;">${e(value).replace('\n', '<br>')}</td>
-        </tr>`,
-    )
-    .join('');
+  const monthShort = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    month: 'short',
+  })
+    .format(ctx.start)
+    .toUpperCase();
+  const dayNum = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    day: 'numeric',
+  }).format(ctx.start);
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    weekday: 'long',
+  }).format(ctx.start);
+  const longDate = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(ctx.start);
+
+  // The appointment at a glance: a calendar tile, then date and time.
+  const when = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 20px;border:1px solid ${BORDER};border-radius:14px;">
+      <tr>
+        <td style="padding:16px 18px;">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            <td style="vertical-align:middle;padding-right:16px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="width:58px;border-radius:10px;overflow:hidden;border:1px solid ${BORDER};text-align:center;">
+                <tr><td style="background:${kind === 'cancelled' ? '#94a3b8' : BRAND};color:#ffffff;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 0;">${e(monthShort)}</td></tr>
+                <tr><td style="background:#ffffff;color:${TEXT};font-size:24px;font-weight:700;padding:6px 0 7px;line-height:1;">${e(dayNum)}</td></tr>
+              </table>
+            </td>
+            <td style="vertical-align:middle;">
+              <div style="font-size:16px;font-weight:600;color:${TEXT};${kind === 'cancelled' ? 'text-decoration:line-through;' : ''}">${e(weekday)}, ${e(longDate)}</div>
+              <div style="font-size:15px;color:${MUTED};margin-top:3px;${kind === 'cancelled' ? 'text-decoration:line-through;' : ''}">${e(time)}</div>
+            </td>
+          </tr></table>
+        </td>
+      </tr>
+      <tr>
+        <td style="border-top:1px solid ${BORDER};padding:12px 18px 14px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding:3px 0;width:96px;color:${MUTED};font-size:14px;">With</td>
+              <td style="padding:3px 0;color:${TEXT};font-size:14px;font-weight:500;">${e(ctx.practitionerName)}</td>
+            </tr>
+            <tr>
+              <td style="padding:3px 0;width:96px;color:${MUTED};font-size:14px;">Where</td>
+              <td style="padding:3px 0;color:${TEXT};font-size:14px;font-weight:500;">${e(ctx.practice.name)}</td>
+            </tr>
+            ${
+              kind === 'rescheduled' && ctx.previousStart
+                ? `<tr>
+              <td style="padding:3px 0;width:96px;color:${MUTED};font-size:14px;">Was</td>
+              <td style="padding:3px 0;color:${MUTED};font-size:14px;text-decoration:line-through;">${e(`${formatDate(ctx.previousStart, tz)} at ${formatTime(ctx.previousStart, tz)}`)}</td>
+            </tr>`
+                : ''
+            }
+          </table>
+        </td>
+      </tr>
+    </table>`;
+
+  // Tap-to-call / tap-to-email where the practice has them.
+  const contactHtml = [
+    ctx.practice.phone
+      ? `<a href="tel:${e(ctx.practice.phone.replace(/[^\d+]/g, ''))}" style="color:${BRAND};text-decoration:none;font-weight:600;">${e(ctx.practice.phone)}</a>`
+      : '',
+    ctx.practice.email
+      ? `<a href="mailto:${e(ctx.practice.email)}" style="color:${BRAND};text-decoration:none;font-weight:600;">${e(ctx.practice.email)}</a>`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('<br>');
+  const panelTitle =
+    kind === 'cancelled'
+      ? 'Want to book a new time?'
+      : 'Need to make a change?';
+  const panelBody = contactHtml
+    ? `Contact ${e(ctx.practice.name)}:<br>${contactHtml}<br>Or simply reply to this email.`
+    : `Simply reply to this email and ${e(ctx.practice.name)} will get back to you.`;
+
+  const preheader =
+    kind === 'cancelled'
+      ? `${date} at ${shortTime} with ${ctx.practitionerName} is cancelled.`
+      : `${date} at ${shortTime} with ${ctx.practitionerName}.${links ? ' Please confirm.' : ''}`;
 
   const html = emailLayout({
     title: copy.subject,
     heading: copy.heading,
+    preheader,
+    badge: BADGE[kind],
     footer,
     body: [
       emailParagraph(`Hi ${ctx.patientFirstName},`),
       emailParagraph(copy.intro),
-      showDetails
-        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${BORDER};border-bottom:1px solid ${BORDER};padding:10px 0;margin:8px 0 24px;">${detailRows}</table>`
-        : '',
+      showDetails ? when : '',
       links ? emailParagraph(confirmAsk) : '',
       links
-        ? `<p style="margin:0 0 24px;"><a href="${e(links.confirm)}" style="display:inline-block;margin:0 8px 8px 0;padding:11px 20px;background:${EMAIL_COLORS.brand};border:1px solid ${EMAIL_COLORS.brand};border-radius:8px;color:#ffffff;font-size:15px;font-weight:500;text-decoration:none;">Confirm</a><a href="${e(links.cancel)}" style="display:inline-block;margin:0 0 8px;padding:11px 20px;background:#ffffff;border:1px solid ${BORDER};border-radius:8px;color:${TEXT};font-size:15px;font-weight:500;text-decoration:none;">Cancel appointment</a></p>`
+        ? `<div style="margin:0 0 18px;">${emailButton("Yes, I'll be there", links.confirm)}${emailButton('Cancel appointment', links.cancel, false)}</div>`
         : '',
-      emailParagraph(contactLine, true),
+      emailPanel(panelTitle, panelBody),
     ].join(''),
   });
 

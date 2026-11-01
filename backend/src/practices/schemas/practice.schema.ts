@@ -58,6 +58,14 @@ export class Practice {
   @Prop({ default: 'Asia/Kolkata' })
   timezone: string;
 
+  /**
+   * Master switch for every email to this practice's patients (bookings,
+   * changes, reminders, welcome, passwords). Off = nothing goes out; the
+   * appointments themselves are unaffected. Set in practitioner Settings.
+   */
+  @Prop({ default: true })
+  patientEmailsEnabled: boolean;
+
   /** The practitioner who owns this practice (its PRACTICE_ADMIN). */
   @Prop({ type: Types.ObjectId, ref: 'Practitioner' })
   ownerId?: Types.ObjectId;

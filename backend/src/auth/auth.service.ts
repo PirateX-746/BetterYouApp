@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { patientEmailsAllowed } from '../practices/patient-email-policy';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Document } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -352,17 +353,28 @@ export class AuthService {
     // Not awaited: the response must take the same time whether or not the
     // account exists, or its latency would reveal which emails are registered.
     const userId = user._id.toString();
-    this.email
-      .send({
-        to: normalizedEmail,
-        ...renderTempPasswordEmail({
-          firstName: user.firstName,
-          tempPassword,
-          validForMinutes: TEMP_PASSWORD_TTL_MS / 60_000,
-          signInUrl: portalSignInUrl(
-            role === Role.PATIENT ? 'patient' : 'practitioner',
-          ),
-        }),
+    const practiceId = (user as unknown as { practiceId?: unknown }).practiceId;
+    void (async () =>
+      role !== Role.PATIENT ||
+      (await patientEmailsAllowed(model.db, practiceId)))()
+      .then((allowed) => {
+        if (!allowed) {
+          this.logger.log(
+            `Skipped temporary-password email for patient ${userId}: patient emails are off for the practice`,
+          );
+          return;
+        }
+        return this.email.send({
+          to: normalizedEmail,
+          ...renderTempPasswordEmail({
+            firstName: user.firstName,
+            tempPassword,
+            validForMinutes: TEMP_PASSWORD_TTL_MS / 60_000,
+            signInUrl: portalSignInUrl(
+              role === Role.PATIENT ? 'patient' : 'practitioner',
+            ),
+          }),
+        });
       })
       .catch((err: unknown) =>
         this.logger.error(

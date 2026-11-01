@@ -1,4 +1,9 @@
-import { emailLayout, emailParagraph } from '../email/email-layout';
+import {
+  emailLayout,
+  emailPanel,
+  emailParagraph,
+  escapeHtml,
+} from '../email/email-layout';
 
 export interface WelcomeEmailContext {
   firstName: string;
@@ -32,10 +37,15 @@ export function renderWelcomeEmail(ctx: WelcomeEmailContext) {
   const html = emailLayout({
     title: subject,
     heading: `Welcome to ${practice}`,
+    preheader: `${practice} has registered you. Here's what to expect.`,
+    badge: { label: 'Welcome', tone: 'success' },
     footer,
-    body: lines
-      .map((l, i) => emailParagraph(l, i === lines.length - 1))
-      .join(''),
+    body: [
+      emailParagraph(lines[0]),
+      emailParagraph(lines[1]),
+      emailParagraph(lines[2]),
+      emailPanel('Questions or changes?', escapeHtml(contact)),
+    ].join(''),
   });
   return { subject, html, text };
 }
