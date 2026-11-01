@@ -41,6 +41,7 @@ import PatientDetails from "./patientTabs/PatientDetails";
 import PatientAssessments from "./patientTabs/PatientAssessments";
 import { emergencyName, emergencyPhone, type Patient } from "./types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BLOOD_GROUPS, bloodGroupField, emailField, mobileField, onlyDigits, onlyPhoneChars, optionalPhoneField, personName } from "@/schemas/fields";
 
 type Tab = "dashboard" | "patient" | "emr" | "care" | "appointments";
 
@@ -403,18 +404,19 @@ function PrintSummary({ patient, fullName, recordId }: { patient: Patient; fullN
    Edit Patient Dialog
 ══════════════════════════════════════════════ */
 const editSchema = z.object({
-  firstName:       z.string().min(1, "Required"),
-  lastName:        z.string().min(1, "Required"),
-  email:           z.string().email("Enter a valid email"),
-  phoneNo:         z.string().optional(),
+  firstName:       personName("First name"),
+  lastName:        personName("Last name"),
+  email:           emailField,
+  // Optional here: older records may have none; if given it must be valid.
+  phoneNo:         mobileField.optional().or(z.literal("")),
   dateOfBirth:     z.string().optional(),
   gender:          z.enum(["male", "female", "other", ""]).optional(),
-  bloodGroup:      z.string().optional(),
-  healthCondition: z.string().optional(),
-  allergies:       z.string().optional(),
+  bloodGroup:      bloodGroupField,
+  healthCondition: z.string().trim().max(200, "Must be 200 characters or fewer").optional(),
+  allergies:       z.string().trim().max(300, "Must be 300 characters or fewer").optional(),
   emergencyContactName:     z.string().max(100, "Too long").optional(),
   emergencyContactRelation: z.string().max(40, "Too long").optional(),
-  emergencyContactPhone:    z.string().regex(/^([0-9+()\-\s]{7,20})?$/, "Enter a valid phone number").optional(),
+  emergencyContactPhone:    optionalPhoneField,
 });
 type EditValues = z.infer<typeof editSchema>;
 
@@ -439,7 +441,7 @@ function EditPatientDialog({
       phoneNo:         patient.phoneNo ?? "",
       dateOfBirth:     patient.dateOfBirth ? patient.dateOfBirth.slice(0, 10) : "",
       gender:          (patient.gender?.toLowerCase() as EditValues["gender"]) ?? "",
-      bloodGroup:      patient.bloodGroup ?? "",
+      bloodGroup:      (patient.bloodGroup ?? "") as EditValues["bloodGroup"],
       healthCondition: patient.healthCondition ?? "",
       allergies:       patient.allergies ?? "",
       emergencyContactName:     patient.emergencyContactName ?? patient.emergency_contact_name ?? "",
@@ -503,7 +505,7 @@ function EditPatientDialog({
               <input id="ep-last" {...register("lastName")} aria-invalid={!!errors.lastName} className={inputClass} />
             </Field>
             <Field label="Date of birth" htmlFor="ep-dob">
-              <input id="ep-dob" {...register("dateOfBirth")} type="date" className={inputClass} />
+              <input id="ep-dob" {...register("dateOfBirth")} type="date" min="1900-01-01" max={new Date().toISOString().slice(0, 10)} className={inputClass} />
             </Field>
             <Field label="Gender" htmlFor="ep-gender">
               <select id="ep-gender" {...register("gender")} className={inputClass}>
@@ -521,21 +523,21 @@ function EditPatientDialog({
             <Field label="Email" htmlFor="ep-email" required error={err("email")} className="sm:col-span-2">
               <input id="ep-email" {...register("email")} type="email" aria-invalid={!!errors.email} className={inputClass} />
             </Field>
-            <Field label="Phone" htmlFor="ep-phone">
-              <input id="ep-phone" {...register("phoneNo")} type="tel" className={inputClass} />
+            <Field label="Mobile number" htmlFor="ep-phone" error={err("phoneNo")}>
+              <input id="ep-phone" {...register("phoneNo")} type="tel" inputMode="numeric" maxLength={10} onInput={onlyDigits(10)} aria-invalid={!!errors.phoneNo} className={inputClass} />
             </Field>
           </div>
         </FieldGroup>
 
         <FieldGroup legend="Clinical">
           <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem] gap-3">
-            <Field label="Health condition" htmlFor="ep-condition">
+            <Field label="Health condition" htmlFor="ep-condition" error={err("healthCondition")}>
               <input id="ep-condition" {...register("healthCondition")} placeholder="e.g. Generalised Anxiety Disorder" className={inputClass} />
             </Field>
-            <Field label="Blood group" htmlFor="ep-blood">
+            <Field label="Blood group" htmlFor="ep-blood" error={err("bloodGroup")}>
               <select id="ep-blood" {...register("bloodGroup")} className={inputClass}>
-                <option value="">Select</option>
-                {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((g) => (
+                <option value="">Not known</option>
+                {BLOOD_GROUPS.map((g) => (
                   <option key={g} value={g}>{g}</option>
                 ))}
               </select>
@@ -555,7 +557,7 @@ function EditPatientDialog({
               <input id="ec-rel" {...register("emergencyContactRelation")} placeholder="e.g. Spouse" className={inputClass} />
             </Field>
             <Field label="Phone" htmlFor="ec-phone" error={err("emergencyContactPhone")}>
-              <input id="ec-phone" type="tel" {...register("emergencyContactPhone")} aria-invalid={!!errors.emergencyContactPhone} className={inputClass} />
+              <input id="ec-phone" type="tel" inputMode="tel" maxLength={20} onInput={onlyPhoneChars} {...register("emergencyContactPhone")} aria-invalid={!!errors.emergencyContactPhone} className={inputClass} />
             </Field>
           </div>
         </FieldGroup>

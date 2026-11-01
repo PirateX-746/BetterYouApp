@@ -119,6 +119,13 @@ function getStatusColor(status?: string): string {
   return STATUS_COLORS[status ?? ""] ?? STATUS_COLORS.pending;
 }
 
+const SHOW_CLOSED_KEY = "calShowCancelled";
+
+/** Cancelled / no-show: the slot is free again. (Completed still happened, so it stays.) */
+function isFreedStatus(status?: string) {
+  return status === "cancelled" || status === "no_show";
+}
+
 /** Completed/cancelled/no-show appointments are closed out and can no longer be rescheduled. */
 function isClosedOutStatus(status?: string): boolean {
   return status === "completed" || status === "cancelled" || status === "no_show";
@@ -278,6 +285,29 @@ export default function AppointmentsClient() {
   const loading = !!practitionerId && loadedFor !== practitionerId;
 
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  // Cancelled / no-show appointments are hidden by default: they no longer
+  // hold their slot (the API ignores them for clashes), and drawn on the
+  // calendar they sit on top of it so the slot can't be clicked to rebook.
+  // Remembered per device.
+  // Read on first render: the calendar only renders after data loads (the
+  // server pass shows the spinner), so this can't cause a hydration mismatch.
+  const [showClosed, setShowClosed] = useState(() => {
+    try {
+      return typeof window !== "undefined" && localStorage.getItem(SHOW_CLOSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleShowClosed = useCallback(() => {
+    setShowClosed((v) => {
+      try {
+        localStorage.setItem(SHOW_CLOSED_KEY, v ? "0" : "1");
+      } catch {
+        /* storage unavailable */
+      }
+      return !v;
+    });
+  }, []);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -610,7 +640,7 @@ export default function AppointmentsClient() {
   const eventSources = useMemo(
     () => [
       {
-        events: events.map((e) => ({
+        events: events.filter((e) => showClosed || !isFreedStatus(e.status)).map((e) => ({
           id: e.id,
           title: e.title,
           start: e.start,
@@ -639,8 +669,9 @@ export default function AppointmentsClient() {
         })),
       },
     ],
-    [events, blockedSlots, typeColor, patientNames],
+    [events, blockedSlots, typeColor, patientNames, showClosed],
   );
+  const closedCount = useMemo(() => events.filter((e) => isFreedStatus(e.status)).length, [events]);
 
   if (loading) {
     return (
@@ -693,9 +724,16 @@ export default function AppointmentsClient() {
           headerToolbar={{
             left: "prev,next today",
             center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay availability",
+            right: "dayGridMonth,timeGridWeek,timeGridDay toggleClosed availability",
           }}
           customButtons={{
+            toggleClosed: {
+              text: showClosed ? "Hide cancelled" : `Show cancelled${closedCount ? ` (${closedCount})` : ""}`,
+              hint: showClosed
+                ? "Hide cancelled and no-show appointments so their slots can be booked"
+                : "Show cancelled and no-show appointments",
+              click: toggleShowClosed,
+            },
             availability: {
               text: "Manage availability",
               hint: "Set your working hours and blocked times",

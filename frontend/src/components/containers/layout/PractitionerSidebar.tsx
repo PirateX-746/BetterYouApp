@@ -1,5 +1,6 @@
 "use client";
 
+import { drName } from "@/lib/names";
 import { SupportNavBadge } from "@/components/containers/support/SupportInbox";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -88,7 +89,7 @@ export default function PractitionerSidebar({ open, setOpen }: SidebarProps) {
     pathname === href || pathname.startsWith(href + "/");
 
   const initials = getInitials(doctorName);
-  const displayName = `Dr. ${doctorName}`;
+  const displayName = drName(doctorName);
 
   return (
     <>
