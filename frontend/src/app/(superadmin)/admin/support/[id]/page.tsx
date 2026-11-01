@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Building2, CheckCircle2, Mail, User } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { LoadingState, ErrorState } from "@/components/containers/superadmin/console-ui";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, InfoList, InfoRow } from "@/components/common/Card";

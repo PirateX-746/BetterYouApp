@@ -15,7 +15,7 @@ import { api } from "@/lib/api";
 import { LoadingState } from "@/components/ui/loading-state";
 import { Card, CardHeader } from "@/components/common/Card";
 import { Button } from "@/components/ui/button";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 type EventType =
   | "appointment"

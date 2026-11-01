@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import { LoadingState } from "@/components/ui/loading-state";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 type GoalStatus = "pending" | "in-progress" | "achieved";
 

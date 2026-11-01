@@ -6,7 +6,9 @@ import {
   AsYouType,
   getCountries,
   getCountryCallingCode,
+  isValidPhoneNumber,
   parsePhoneNumberFromString,
+  validatePhoneNumberLength,
   type CountryCode,
 } from "libphonenumber-js";
 import { DEFAULT_COUNTRY, countryOf, flagEmoji } from "@/lib/phone";
@@ -31,6 +33,33 @@ function split(value: string): { country: CountryCode; national: string } {
   const p = value ? parsePhoneNumberFromString(value, DEFAULT_COUNTRY) : undefined;
   if (p) return { country: countryOf(p) ?? DEFAULT_COUNTRY, national: p.nationalNumber };
   return { country: DEFAULT_COUNTRY, national: value.replace(/\D/g, "") };
+}
+
+const tooLong = (digits: string, c: CountryCode) =>
+  validatePhoneNumberLength(digits, c) === "TOO_LONG";
+
+/**
+ * National digits that fit the country: a leading trunk 0 or a typed-in
+ * country code ("91 98765 43210" with India picked) is dropped, then extra
+ * digits are refused — an Indian number stops at 10.
+ */
+function fit(raw: string, c: CountryCode): string {
+  let digits = raw.replace(/\D/g, "").replace(/^0+/, "");
+  const dial = getCountryCallingCode(c);
+  const valid = (d: string) => isValidPhoneNumber(`+${dial}${d}`);
+  if (digits.startsWith(dial) && !valid(digits) && valid(digits.slice(dial.length))) {
+    digits = digits.slice(dial.length);
+  }
+  while (digits && tooLong(digits, c)) digits = digits.slice(0, -1);
+  // Length rules alone are loose (Indian toll-free numbers run to 13
+  // digits), so also stop where a complete, valid number would turn
+  // invalid with one more digit: 98765 43210 takes no 11th digit.
+  let out = "";
+  for (const ch of digits) {
+    if (out && valid(out) && !valid(out + ch)) break;
+    out += ch;
+  }
+  return out;
 }
 
 /**
@@ -74,9 +103,9 @@ export default function PhoneInput({
       const c =
         (p && countryOf(p)) ??
         (p && getCountries().find((code) => getCountryCallingCode(code) === p.countryCallingCode));
-      if (p && c) return emit(c, p.nationalNumber);
+      if (p && c) return emit(c, fit(p.nationalNumber, c));
     }
-    emit(country, raw.replace(/\D/g, "").replace(/^0+/, "").slice(0, 15));
+    emit(country, fit(raw, country));
   };
 
   const shown = national ? new AsYouType(country).input(national) : "";
@@ -96,7 +125,10 @@ export default function PhoneInput({
         <select
           aria-label="Country code"
           value={country}
-          onChange={(e) => emit(e.target.value as CountryCode, national)}
+          onChange={(e) => {
+            const c = e.target.value as CountryCode;
+            emit(c, fit(national, c));
+          }}
           onBlur={onBlur}
           className="absolute inset-0 opacity-0 cursor-pointer"
         >

@@ -12,7 +12,7 @@ import { Field, inputClass, textareaClass } from "@/components/common/Field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DataTable, type DataTableColumn } from "@/components/common/DataTable";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 interface Medication {
   _id: string;

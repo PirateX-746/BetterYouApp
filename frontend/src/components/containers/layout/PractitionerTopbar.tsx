@@ -99,7 +99,7 @@ export default function PractitionerTopbar({ onToggle }: TopbarProps) {
       {/* The page title lives here, not in the content: a top-level page shows
           its name; a detail page shows the path to it ("Patients › Name"). */}
       {breadcrumbs.length > 0 ? (
-        <nav aria-label="Breadcrumb" className="flex-1 lg:flex-none flex items-center gap-1.5 min-w-0 ml-1 lg:ml-0">
+        <nav aria-label="Breadcrumb" className="flex-1 flex items-center gap-1.5 min-w-0 ml-1 lg:ml-0">
           {breadcrumbs.map((crumb, i) => {
             const isLast = i === breadcrumbs.length - 1;
             return (
@@ -122,7 +122,7 @@ export default function PractitionerTopbar({ onToggle }: TopbarProps) {
           })}
         </nav>
       ) : (
-        <div className="hidden lg:block" />
+        <div className="flex-1" />
       )}
 
       {/* Right */}

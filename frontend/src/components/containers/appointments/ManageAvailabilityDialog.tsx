@@ -5,7 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2, Loader2, CalendarOff } from "lucide-react";
 import { api, apiErrorMessage } from "@/lib/api";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { blockSlotSchema, type BlockSlotValues } from "@/schemas/availability.schema";
 import { BlockedSlot } from "./types";
 import { Modal } from "@/components/common/Modal";

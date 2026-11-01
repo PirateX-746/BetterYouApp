@@ -1,28 +1,25 @@
 "use client";
 
-import { useSearchParams, useParams } from "next/navigation";
-import InitialEvaluationForm from "@/components/containers/documents/forms/InitialEvaluationForm";
-import RiskAssessmentForm from "@/components/containers/documents/forms/RiskAssessmentForm";
+import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import StructuredDocumentForm from "@/components/containers/documents/forms/StructuredDocumentForm";
+import { DOCUMENT_FORMS } from "@/lib/documentForms";
 
 export default function NewDocumentPage() {
-    const searchParams = useSearchParams();
-    const params = useParams();
+    const type = useSearchParams().get("type") ?? "";
+    const patientId = useParams().id as string;
+    const def = DOCUMENT_FORMS[type];
 
-    const type = searchParams.get("type");
-    const patientId = params.id as string;
-
-    switch (type) {
-        case "initial-evaluation":
-            return <InitialEvaluationForm patientId={patientId} />;
-
-        case "risk-assessment":
-            return <RiskAssessmentForm patientId={patientId} />;
-
-        default:
-            return (
-                <div className="p-10 text-center">
-                    Form not implemented
-                </div>
-            );
+    if (!def) {
+        return (
+            <div className="p-10 text-center space-y-2">
+                <p className="text-text-primary font-medium">Unknown document type</p>
+                <Link href={`/patients/${patientId}`} className="text-primary hover:underline text-sm">
+                    Back to patient
+                </Link>
+            </div>
+        );
     }
+    // Keyed by type so switching types starts a fresh form.
+    return <StructuredDocumentForm key={type} patientId={patientId} type={type} def={def} />;
 }

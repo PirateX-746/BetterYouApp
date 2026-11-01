@@ -9,7 +9,7 @@ import { Card, CardBody, CardHeader, InfoList, InfoRow } from "@/components/comm
 import { Page, PageHeader } from "@/components/common/PageLayout";
 import { useDetailCrumb } from "@/contexts/PractitionerBreadcrumbContext";
 import { useSupportLive } from "@/hooks/useSupportLive";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import { TicketConversation } from "@/components/containers/support/TicketThread";

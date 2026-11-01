@@ -8,6 +8,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { httpCorsOptions } from './common/cors';
 import { assertTrustProxySafe, parseTrustProxy } from './common/trust-proxy';
 import { passwordTransportMiddleware } from './common/password-transport';
+import { requestIpMiddleware } from './common/request-ip';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -44,6 +45,8 @@ async function bootstrap() {
   // Decrypts __enc__ password fields from the frontend; needs the parsed body.
   app.use(passwordTransportMiddleware());
   app.use(cookieParser());
+  // After the body parsers: their stream callbacks would drop this context.
+  app.use(requestIpMiddleware());
 
   app.useGlobalFilters(new AllExceptionsFilter());
 

@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from "react";
 import { Paperclip, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api";
 import { ATTACHMENT_LIMITS, BODY_MAX, formatBytes } from "@/lib/support";
 import { addFiles, FileChips } from "./AttachmentPicker";

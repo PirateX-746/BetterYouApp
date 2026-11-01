@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import { Loader2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
 import { apiErrorMessage } from "@/lib/api";
 import {

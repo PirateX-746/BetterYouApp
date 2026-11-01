@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Plus, Trash2, ChevronDown, NotebookPen, Printer, CalendarClock, CheckSquare } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";

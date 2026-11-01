@@ -14,7 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 
 import dynamic from "next/dynamic";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 import {
     CheckCircle,
