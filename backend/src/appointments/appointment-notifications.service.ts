@@ -144,7 +144,18 @@ export class AppointmentNotificationsService
         : null,
     ]);
 
-    if (!patient?.email || patient.emailNotifications === false) return false;
+    if (!patient?.email || patient.emailNotifications === false) {
+      this.logger.log(
+        `Skipped ${kind} email for appointment ${String(appt._id)}: ${
+          !patient
+            ? 'patient not found'
+            : !patient.email
+              ? 'patient has no email address'
+              : 'patient opted out of emails'
+        }`,
+      );
+      return false;
+    }
     // Practice-wide switch (Settings → Notifications).
     if (!(await patientEmailsAllowed(db, appt.practiceId))) {
       this.logger.log(
