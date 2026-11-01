@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPhone } from "@/lib/phone";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch, Resolver } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -187,7 +188,7 @@ export default function InitialEvaluationForm({ patientId }: Props) {
               value={`${calculateAge(patient?.dateOfBirth)}`}
             />
             <InfoItem label="Gender" value={patient?.gender || "—"} />
-            <InfoItem label="Contact" value={patient?.phoneNo || "—"} />
+            <InfoItem label="Contact" value={formatPhone(patient?.phoneNo) || "—"} />
           </div>
         </SectionCard>
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { NAME_RE, bloodGroupField, emailField, mobileField, optionalPhoneField, personName } from "./fields";
+import { NAME_RE, bloodGroupField, optionalEmailField, optionalPhoneField, personName, phoneField } from "./fields";
 
 const optionalText = (max: number, label: string) =>
   z.string().trim().max(max, `${label} must be ${max} characters or fewer`).optional().or(z.literal(""));
@@ -8,8 +8,8 @@ const optionalText = (max: number, label: string) =>
 export const addPatientSchema = z.object({
   firstName:   personName("First name"),
   lastName:    personName("Last name"),
-  email:       emailField,
-  phoneNo:     mobileField,
+  email:       optionalEmailField,
+  phoneNo:     phoneField,
   dateOfBirth: z
     .string()
     .min(1, "Date of birth is required")

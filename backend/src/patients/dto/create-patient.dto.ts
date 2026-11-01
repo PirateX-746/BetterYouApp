@@ -14,6 +14,7 @@ import {
   AVATAR_DATA_URL,
   AVATAR_MAX_LENGTH,
 } from '../../practitioners/dto/update-practitioner.dto';
+import { IsInternationalPhone, toE164 } from '../../common/phone';
 
 // Mirrors frontend/src/schemas/patient.schema.ts so a direct API call gets a
 // 400 for the same input the form rejects, rather than a 500 from Mongoose.
@@ -82,15 +83,22 @@ export class CreatePatientDto {
   @IsRealisticBirthDate()
   dateOfBirth: string; // ISO string from frontend
 
-  @Transform(lower)
+  // Optional: a patient may have no email (they then get no appointment
+  // emails). Blank is treated as not given.
+  @Transform(({ value }: { value: unknown }) => {
+    const v = lower({ value });
+    return v === '' ? undefined : v;
+  })
+  @IsOptional()
   @IsEmail({}, { message: 'Enter a valid email address' })
   @MaxLength(254)
-  email: string;
+  email?: string;
 
-  @Transform(trim)
-  @Matches(/^[6-9]\d{9}$/, {
-    message: 'phoneNo must be a valid 10-digit mobile number',
-  })
+  // Any country; stored as E.164 ("+919876543210"). Bare 10-digit numbers
+  // are read as Indian.
+  @Transform(({ value }: { value: unknown }) => toE164(value))
+  @IsNotEmpty({ message: 'Phone number is required' })
+  @IsInternationalPhone()
   phoneNo: string;
 
   // Lower-cased first: older records were seeded as "Male".
@@ -131,10 +139,9 @@ export class CreatePatientDto {
   emergencyContactName?: string;
 
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) => toE164(value))
   // Empty clears it on update.
-  @Matches(/^([0-9+()\-\s]{7,20})?$/, {
-    message: 'Emergency contact phone must be a valid phone number',
-  })
+  @IsInternationalPhone(true)
   emergencyContactPhone?: string;
 
   @IsOptional()

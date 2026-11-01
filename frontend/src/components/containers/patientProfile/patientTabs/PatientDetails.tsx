@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPhone } from "@/lib/phone";
 import { Pencil } from "lucide-react";
 import { Card, CardBody, CardHeader, InfoList, InfoRow, NotRecorded } from "@/components/common/Card";
 import { Badge } from "@/components/common/Badge";
@@ -62,7 +63,7 @@ export default function PatientDetails({ patient, onEdit }: { patient: Patient; 
         <CardHeader title="Contact" actions={edit} />
         <CardBody>
           <InfoList>
-            <InfoRow label="Phone"><span className="tabular-nums">{patient.phoneNo || <NotRecorded />}</span></InfoRow>
+            <InfoRow label="Phone"><span className="tabular-nums">{formatPhone(patient.phoneNo) || <NotRecorded />}</span></InfoRow>
             <InfoRow label="Email">{patient.email || <NotRecorded />}</InfoRow>
           </InfoList>
         </CardBody>

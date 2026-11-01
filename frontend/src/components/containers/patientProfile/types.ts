@@ -1,3 +1,4 @@
+import { formatPhone } from "@/lib/phone";
 export type Patient = {
   _id?: string;
   mrn?: string;
@@ -22,4 +23,6 @@ export type Patient = {
 };
 
 export const emergencyName = (p: Patient) => p.emergencyContactName ?? p.emergency_contact_name;
-export const emergencyPhone = (p: Patient) => p.emergencyContactPhone ?? p.emergency_contact_phone;
+/** Formatted for display (flag + international number); undefined when none. */
+export const emergencyPhone = (p: Patient) =>
+  formatPhone(p.emergencyContactPhone ?? p.emergency_contact_phone) || undefined;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams, useRouter } from "next/navigation";
@@ -41,7 +41,9 @@ import PatientDetails from "./patientTabs/PatientDetails";
 import PatientAssessments from "./patientTabs/PatientAssessments";
 import { emergencyName, emergencyPhone, type Patient } from "./types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BLOOD_GROUPS, bloodGroupField, emailField, mobileField, onlyDigits, onlyPhoneChars, optionalPhoneField, personName } from "@/schemas/fields";
+import { BLOOD_GROUPS, bloodGroupField, optionalEmailField, optionalPhoneField, personName, phoneField } from "@/schemas/fields";
+import PhoneInput from "@/components/common/PhoneInput";
+import { formatPhone } from "@/lib/phone";
 
 type Tab = "dashboard" | "patient" | "emr" | "care" | "appointments";
 
@@ -361,7 +363,7 @@ function PrintSummary({ patient, fullName, recordId }: { patient: Patient; fullN
   const rows: [string, string][] = [
     ["Gender", patient.gender ? capitalizeWords(patient.gender) : "—"],
     ["Date of birth", patient.dateOfBirth ? `${formatDate(patient.dateOfBirth)} (${calculateAge(patient.dateOfBirth)})` : "—"],
-    ["Phone", patient.phoneNo || "—"],
+    ["Phone", formatPhone(patient.phoneNo) || "—"],
     ["Email", patient.email || "—"],
     ["Last visit", formatDate(patient.lastVisit)],
     ["Health condition", patient.healthCondition || "No condition recorded"],
@@ -406,9 +408,8 @@ function PrintSummary({ patient, fullName, recordId }: { patient: Patient; fullN
 const editSchema = z.object({
   firstName:       personName("First name"),
   lastName:        personName("Last name"),
-  email:           emailField,
-  // Optional here: older records may have none; if given it must be valid.
-  phoneNo:         mobileField.optional().or(z.literal("")),
+  email:           optionalEmailField,
+  phoneNo:         phoneField,
   dateOfBirth:     z.string().optional(),
   gender:          z.enum(["male", "female", "other", ""]).optional(),
   bloodGroup:      bloodGroupField,
@@ -432,7 +433,7 @@ function EditPatientDialog({
   const [serverError, setServerError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<EditValues>({
+  const { register, control, handleSubmit, formState: { errors } } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
     defaultValues: {
       firstName:       patient.firstName ?? "",
@@ -520,11 +521,17 @@ function EditPatientDialog({
 
         <FieldGroup legend="Contact">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Email" htmlFor="ep-email" required error={err("email")} className="sm:col-span-2">
+            <Field label="Email" htmlFor="ep-email" error={err("email")} className="sm:col-span-2">
               <input id="ep-email" {...register("email")} type="email" aria-invalid={!!errors.email} className={inputClass} />
             </Field>
-            <Field label="Mobile number" htmlFor="ep-phone" error={err("phoneNo")}>
-              <input id="ep-phone" {...register("phoneNo")} type="tel" inputMode="numeric" maxLength={10} onInput={onlyDigits(10)} aria-invalid={!!errors.phoneNo} className={inputClass} />
+            <Field label="Phone number" htmlFor="ep-phone" required error={err("phoneNo")} className="sm:col-span-2">
+              <Controller
+                control={control}
+                name="phoneNo"
+                render={({ field }) => (
+                  <PhoneInput id="ep-phone" value={field.value ?? ""} onChange={field.onChange} onBlur={field.onBlur} invalid={!!errors.phoneNo} />
+                )}
+              />
             </Field>
           </div>
         </FieldGroup>
@@ -557,7 +564,13 @@ function EditPatientDialog({
               <input id="ec-rel" {...register("emergencyContactRelation")} placeholder="e.g. Spouse" className={inputClass} />
             </Field>
             <Field label="Phone" htmlFor="ec-phone" error={err("emergencyContactPhone")}>
-              <input id="ec-phone" type="tel" inputMode="tel" maxLength={20} onInput={onlyPhoneChars} {...register("emergencyContactPhone")} aria-invalid={!!errors.emergencyContactPhone} className={inputClass} />
+              <Controller
+                control={control}
+                name="emergencyContactPhone"
+                render={({ field }) => (
+                  <PhoneInput id="ec-phone" value={field.value ?? ""} onChange={field.onChange} onBlur={field.onBlur} invalid={!!errors.emergencyContactPhone} />
+                )}
+              />
             </Field>
           </div>
         </FieldGroup>

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, HeartPulse, Loader2, Phone, ShieldPlus, User } from "lucide-react";
 import toast from "react-hot-toast";
@@ -11,7 +11,8 @@ import { SectionCard } from "@/components/common/Dashboard";
 import { useDetailCrumb } from "@/contexts/PractitionerBreadcrumbContext";
 import { api, apiErrorMessage } from "@/lib/api";
 import { addPatientSchema, type AddPatientValues } from "@/schemas/patient.schema";
-import { BLOOD_GROUPS, onlyDigits, onlyPhoneChars } from "@/schemas/fields";
+import { BLOOD_GROUPS } from "@/schemas/fields";
+import PhoneInput from "@/components/common/PhoneInput";
 
 const fieldCls =
   "w-full h-11 px-3.5 text-sm bg-bg-page border border-border rounded-md text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition aria-[invalid=true]:border-danger";
@@ -57,6 +58,7 @@ export default function AddPatientPage() {
   const [serverError, setServerError] = useState("");
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<AddPatientValues>({ resolver: zodResolver(addPatientSchema), mode: "onBlur" });
@@ -72,7 +74,7 @@ export default function AddPatientPage() {
     setServerError("");
     // Optional fields left blank are omitted, not sent as "".
     const payload = Object.fromEntries(
-      Object.entries({ ...data, email: data.email.toLowerCase() }).filter(([, v]) => v !== "" && v !== undefined),
+      Object.entries({ ...data, email: data.email?.toLowerCase() }).filter(([, v]) => v !== "" && v !== undefined),
     );
     try {
       const { data: created } = await api.post("/patients", payload);
@@ -130,14 +132,28 @@ export default function AddPatientPage() {
 
           <SectionCard title="Contact" subtitle="How the practice reaches the patient" padded>
             <div className="flex items-center gap-2 mb-4 text-xs text-text-secondary">
-              <Phone size={14} aria-hidden /> Email is also the patient&apos;s future portal sign-in
+              <Phone size={14} aria-hidden /> A phone number is required; email is optional (needed for appointment emails)
             </div>
             <div className="grid gap-4">
-              <Field id="email" label="Email" required error={errors.email?.message}>
-                <input {...register("email")} {...a("email")} type="email" autoComplete="off" maxLength={254} placeholder="name@example.com" className={fieldCls} />
+              <Field id="phoneNo" label="Phone number" required hint="Pick the country, then the number" error={errors.phoneNo?.message}>
+                <Controller
+                  control={control}
+                  name="phoneNo"
+                  defaultValue=""
+                  render={({ field }) => (
+                    <PhoneInput
+                      id="phoneNo"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      invalid={!!errors.phoneNo}
+                      describedBy={errors.phoneNo ? "phoneNo-err" : "phoneNo-hint"}
+                    />
+                  )}
+                />
               </Field>
-              <Field id="phoneNo" label="Mobile number" required hint="10 digits starting with 6–9, without the country code" error={errors.phoneNo?.message}>
-                <input {...register("phoneNo")} {...a("phoneNo", true)} type="tel" inputMode="numeric" autoComplete="off" maxLength={10} onInput={onlyDigits(10)} placeholder="9876543210" className={fieldCls} />
+              <Field id="email" label="Email" hint="For appointment confirmations and reminders" error={errors.email?.message}>
+                <input {...register("email")} {...a("email")} type="email" autoComplete="off" maxLength={254} placeholder="name@example.com" className={fieldCls} />
               </Field>
             </div>
           </SectionCard>
@@ -174,7 +190,21 @@ export default function AddPatientPage() {
                 <input {...register("emergencyContactRelation")} {...a("emergencyContactRelation", true)} className={fieldCls} />
               </Field>
               <Field id="emergencyContactPhone" label="Phone" className="sm:col-span-2" error={errors.emergencyContactPhone?.message}>
-                <input {...register("emergencyContactPhone")} {...a("emergencyContactPhone")} type="tel" inputMode="tel" maxLength={20} onInput={onlyPhoneChars} className={fieldCls} />
+                <Controller
+                  control={control}
+                  name="emergencyContactPhone"
+                  defaultValue=""
+                  render={({ field }) => (
+                    <PhoneInput
+                      id="emergencyContactPhone"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      invalid={!!errors.emergencyContactPhone}
+                      describedBy={errors.emergencyContactPhone ? "emergencyContactPhone-err" : undefined}
+                    />
+                  )}
+                />
               </Field>
             </div>
           </SectionCard>

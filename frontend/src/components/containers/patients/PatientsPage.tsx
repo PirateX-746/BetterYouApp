@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPhone } from "@/lib/phone";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -82,7 +83,7 @@ const patientColumns: DataTableColumn<PatientView>[] = [
     header: "Phone",
     width: "13%",
     className: "text-sm text-text-secondary whitespace-nowrap",
-    render: (p) => p.phoneNo ?? "—",
+    render: (p) => formatPhone(p.phoneNo) || "—",
   },
   {
     key: "healthCondition",

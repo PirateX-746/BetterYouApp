@@ -2,6 +2,7 @@
 
 import { patientEmailsAllowed } from '../practices/patient-email-policy';
 import {
+  OnModuleInit,
   Injectable,
   Logger,
   ConflictException,
@@ -12,7 +13,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
-import { Patient, PatientDocument } from './schemas/patient.schema';
+import {
+  PATIENT_EMAIL_INDEX,
+  Patient,
+  PatientDocument,
+} from './schemas/patient.schema';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { Role } from '../common/role.enum';
@@ -22,6 +27,7 @@ import {
 } from '../common/tenancy/practice-scope';
 import { generateTempPassword } from '../common/temp-password';
 import { EmailService } from '../email/email.service';
+import { phoneVariants } from '../common/phone';
 import { renderWelcomeEmail } from './welcome-email';
 import {
   portalSignInUrl,
@@ -36,7 +42,7 @@ import {
 const NEW_PATIENT_TEMP_PASSWORD_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
-export class PatientsService {
+export class PatientsService implements OnModuleInit {
   private readonly logger = new Logger(PatientsService.name);
 
   constructor(
@@ -44,6 +50,32 @@ export class PatientsService {
     private readonly patientModel: Model<PatientDocument>,
     private readonly email: EmailService,
   ) {}
+
+  /**
+   * Email became optional: the old plain-unique email index would let only
+   * one patient have no email. Swap it for the partial index declared on
+   * the schema. Idempotent; dropping an index never touches documents.
+   */
+  async onModuleInit() {
+    try {
+      const coll = this.patientModel.collection;
+      const legacy = (await coll.indexes()).find(
+        (i) =>
+          i.name !== PATIENT_EMAIL_INDEX &&
+          Object.keys(i.key).length === 1 &&
+          i.key.email !== undefined,
+      );
+      if (legacy?.name) {
+        await coll.dropIndex(legacy.name);
+        this.logger.log(`Dropped legacy patient email index ${legacy.name}`);
+      }
+      await this.patientModel.createIndexes();
+    } catch (err) {
+      this.logger.error(
+        `Patient email index migration failed: ${(err as Error).message}`,
+      );
+    }
+  }
 
   /* ===============================
      GENERATE MRN (Better Version)
@@ -68,18 +100,21 @@ export class PatientsService {
      CREATE PATIENT
      =============================== */
   async create(dto: CreatePatientDto, practiceId: string | null) {
-    // 🔹 Check duplicate email or phone
+    // Duplicate email (when given) or phone. The phone is matched in every
+    // stored form: older records hold bare 10-digit Indian numbers.
+    const phones = phoneVariants(dto.phoneNo);
     const existing = await this.patientModel.findOne({
-      $or: [{ email: dto.email }, { phoneNo: dto.phoneNo }],
+      $or: [
+        ...(dto.email ? [{ email: dto.email }] : []),
+        { phoneNo: { $in: phones } },
+      ],
     });
 
     if (existing) {
-      if (existing.email === dto.email) {
+      if (dto.email && existing.email === dto.email) {
         throw new ConflictException('Email already registered');
       }
-      if (existing.phoneNo === dto.phoneNo) {
-        throw new ConflictException('Phone number already registered');
-      }
+      throw new ConflictException('Phone number already registered');
     }
 
     // 🔹 Generate MRN
@@ -194,7 +229,7 @@ export class PatientsService {
     patient: {
       _id: unknown;
       firstName: string;
-      email: string;
+      email?: string;
       practiceId?: unknown;
     },
     temporaryPassword: string,
@@ -214,6 +249,7 @@ export class PatientsService {
             .findById(patient.practiceId, { name: 1, email: 1 })
             .lean()
         : null;
+      if (!patient.email) return;
       await this.email.send({
         to: patient.email,
         replyTo: practice?.email,
