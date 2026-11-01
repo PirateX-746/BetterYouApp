@@ -79,8 +79,16 @@ export default function PracticesPage() {
   async function handleCreate() {
     setSaving(true);
     try {
-      const created = await createPractice(form);
-      toast.success(`${created.name} onboarded`);
+      const { practice: created, invitation } = await createPractice(form);
+      if (invitation?.delivered) {
+        toast.success(`${created.name} onboarded — invitation emailed to ${invitation.email}`);
+      } else {
+        // The link isn't kept anywhere, so point at the reissue path.
+        toast.error(
+          `${created.name} onboarded, but the invitation email didn't send. Open the practice and use Invite to send a new one.`,
+          { duration: 8000 },
+        );
+      }
       setCreateOpen(false);
       setForm({ name: "", subdomain: "", ownerName: "", ownerEmail: "" });
       reload();
@@ -237,8 +245,8 @@ export default function PracticesPage() {
           <DialogHeader>
             <DialogTitle>Onboard a practice</DialogTitle>
             <DialogDescription>
-              Creates the practice and its subdomain. No password is ever set
-              or shown here — the admin is invited separately.
+              Creates the practice and its subdomain, and emails the admin an
+              invitation. They choose their own password when they accept.
             </DialogDescription>
           </DialogHeader>
 

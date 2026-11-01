@@ -27,6 +27,11 @@ import {
 } from './dto/create-practice.dto';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { InvitationsService } from '../invitations/invitations.service';
+import { EmailService } from '../email/email.service';
+import {
+  invitationAcceptUrl,
+  renderInvitationEmail,
+} from '../invitations/invitation-email';
 import { PlanKey } from '../subscriptions/schemas/plan.schema';
 
 /**
@@ -74,7 +79,43 @@ export class AdminService {
     private readonly audit: AuditService,
     private readonly subscriptions: SubscriptionsService,
     private readonly invitations: InvitationsService,
+    private readonly email: EmailService,
   ) {}
+
+  /**
+   * Emails an invitation's accept link. Returns whether it was handed to the
+   * mail provider; a failure is logged, not thrown, because the console still
+   * shows the link to copy and send another way.
+   */
+  private async emailInvitation(params: {
+    to: string;
+    name: string;
+    role: Role;
+    practiceName: string;
+    rawToken: string;
+    expiresAt: Date;
+  }): Promise<boolean> {
+    if (!this.email.enabled) return false;
+    try {
+      await this.email.send({
+        to: params.to,
+        ...renderInvitationEmail({
+          name: params.name,
+          practiceName: params.practiceName,
+          role: params.role,
+          acceptUrl: invitationAcceptUrl(params.rawToken),
+          expiresAt: params.expiresAt,
+        }),
+      });
+      return true;
+    } catch (err: unknown) {
+      this.logger.error(
+        `Failed to email invitation for ${params.practiceName}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+      return false;
+    }
+  }
 
   /* ========================== own profile ========================== */
 
@@ -321,7 +362,11 @@ export class AdminService {
   ) {
     // Accepting creates an account in this practice, so it must be real.
     const practice = Types.ObjectId.isValid(practiceId)
-      ? await this.practiceModel.exists({ _id: practiceId, deletedAt: null })
+      ? await this.practiceModel
+          .findOne({ _id: practiceId, deletedAt: null })
+          .select('name')
+          .lean()
+          .exec()
       : null;
     if (!practice) throw new NotFoundException('Practice not found');
 
@@ -344,8 +389,18 @@ export class AdminService {
       ipAddress: ip,
     });
 
-    // The raw token is returned exactly once, for out-of-band delivery.
-    return { email: invitation.email, token: rawToken, expiresAt };
+    const delivered = await this.emailInvitation({
+      to: invitation.email,
+      name: invitation.name,
+      role: body.role,
+      practiceName: practice.name,
+      rawToken,
+      expiresAt,
+    });
+
+    // The raw token is also returned exactly once, so the console can show
+    // the link if the email didn't go out.
+    return { email: invitation.email, token: rawToken, expiresAt, delivered };
   }
 
   listInvitations(practiceId: string) {
@@ -462,15 +517,24 @@ export class AdminService {
 
     await this.subscriptions.startTrial(String(practice._id), PlanKey.TRIAL);
 
-    // Issue the owner's invitation. No password is created or emailed —
-    // the raw token is returned ONCE so the console can show the link for
-    // out-of-band delivery until a mail provider exists.
-    const { rawToken, expiresAt } = await this.invitations.invite({
+    // Issue and email the owner's invitation. No password is created — the
+    // owner picks one on the accept page. The raw token is also returned
+    // ONCE so the console can show the link if the email didn't go out.
+    const { rawToken, expiresAt, invitation } = await this.invitations.invite({
       practiceId: String(practice._id),
       email: dto.ownerEmail,
       name: dto.ownerName,
       role: Role.PRACTICE_ADMIN,
       invitedBy: actor.userId,
+    });
+
+    const delivered = await this.emailInvitation({
+      to: invitation.email,
+      name: invitation.name,
+      role: Role.PRACTICE_ADMIN,
+      practiceName: practice.name,
+      rawToken,
+      expiresAt,
     });
 
     this.logger.log(`Practice created: ${subdomain}`);
@@ -481,7 +545,7 @@ export class AdminService {
         email: dto.ownerEmail.toLowerCase().trim(),
         token: rawToken,
         expiresAt,
-        delivered: false,
+        delivered,
       },
     };
   }

@@ -744,11 +744,14 @@ export default function PracticeDetailPage({
           {issued ? (
             <>
               <DialogHeader>
-                <DialogTitle>Invitation ready</DialogTitle>
+                <DialogTitle>
+                  {issued.delivered ? "Invitation sent" : "Invitation email didn't send"}
+                </DialogTitle>
                 <DialogDescription>
-                  No email is sent — the platform has no mail provider yet, so
-                  deliver this link to {issued.email} yourself. It is shown once
-                  and expires {formatDate(issued.expiresAt)}.
+                  {issued.delivered
+                    ? `Emailed to ${issued.email}. If it doesn't arrive (check spam), copy the link below and send it yourself.`
+                    : `Copy this link and send it to ${issued.email} yourself.`}{" "}
+                  It is shown once and expires {formatDate(issued.expiresAt)}.
                 </DialogDescription>
               </DialogHeader>
 

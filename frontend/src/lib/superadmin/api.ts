@@ -163,8 +163,11 @@ export interface CreatePracticeInput {
 }
 
 export async function createPractice(input: CreatePracticeInput) {
-  const { data } = await api.post<Practice>("/admin/practices", input);
-  return normalisePractice(data);
+  const { data } = await api.post<Practice & { invitation?: IssuedInvitation }>(
+    "/admin/practices",
+    input,
+  );
+  return { practice: normalisePractice(data), invitation: data.invitation ?? null };
 }
 
 export async function suspendPractice(id: string) {
@@ -229,14 +232,16 @@ export interface Invitation {
 }
 
 /**
- * The response to issuing an invitation. `token` is returned exactly once —
- * the backend stores only its hash, so it cannot be recovered later. If the
- * operator loses it before delivering the link, reissue the invitation.
+ * The response to issuing an invitation. The backend emails the link; the
+ * raw `token` is also returned exactly once (only its hash is stored) so the
+ * console can show the link when the email didn't go out.
  */
 export interface IssuedInvitation {
   email: string;
   token: string;
   expiresAt: string;
+  /** True when the invitation email was handed to the mail provider. */
+  delivered: boolean;
 }
 
 export async function fetchInvitations(
@@ -285,8 +290,8 @@ export async function setPractitionerStatus(
 }
 
 /**
- * Builds the link handed to the invitee. No email is sent — the platform has
- * no mail provider — so the console shows this once for out-of-band delivery.
+ * Builds the link handed to the invitee — the same one the invitation email
+ * carries — for when the email didn't go out.
  * Any origin works: the accept route is @Public, so TenantGuard never checks
  * the host against the invite's practice.
  */
