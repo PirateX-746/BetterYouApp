@@ -47,6 +47,9 @@ const nextConfig: NextConfig = {
     },
     async rewrites() {
         return [
+            // Browsers, bookmarks and link previews still ask for /favicon.ico
+            // directly; answer with the generated app/icon.tsx image.
+            { source: "/favicon.ico", destination: "/icon" },
             {
                 source: "/api/:path*",
                 destination: `${process.env.BACKEND_URL || "http://localhost:3001"}/:path*`,

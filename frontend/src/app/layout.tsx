@@ -27,8 +27,12 @@ export const metadata: Metadata = {
   // Home-screen launch on iOS/iPadOS: full screen, no Safari chrome. The
   // "default" status bar keeps content below it, so the topbar needs no offset.
   appleWebApp: { capable: true, title: BRAND.shortName, statusBarStyle: "default" },
-  // The favicon comes from app/icon.tsx; this adds the iOS home-screen icon.
-  icons: { apple: "/icons/apple-touch-icon.png" },
+  // Declaring `icons` here replaces the <link> Next would generate from
+  // app/icon.tsx, so the favicon (served at /icon) must be listed too.
+  icons: {
+    icon: [{ url: "/icon", type: "image/png", sizes: "64x64" }],
+    apple: "/icons/apple-touch-icon.png",
+  },
   // Stop iOS turning phone-number-like IDs and dates into tap-to-call links.
   formatDetection: { telephone: false, date: false, address: false, email: false },
 };
