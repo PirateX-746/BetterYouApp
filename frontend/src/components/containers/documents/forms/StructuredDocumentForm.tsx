@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useDetailCrumb } from "@/contexts/PractitionerBreadcrumbContext";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import { api, apiErrorMessage } from "@/lib/api";
+import { patientRecordHref } from "@/lib/deepLinks";
 import type { DocField, DocFormDef, DocSection } from "@/lib/documentForms";
 
 type Values = { date: string; content: Record<string, Record<string, string>> };
@@ -54,6 +55,9 @@ export default function StructuredDocumentForm({
   const [collapsed] = useSidebarCollapsed();
   const [patientName, setPatientName] = useState<string>("");
   const [serverError, setServerError] = useState("");
+  // Set on the first real edit. RHF's isDirty is true from the start here:
+  // selects that open on "Not assessed" differ from the empty defaults.
+  const [edited, setEdited] = useState(false);
   useDetailCrumb(patientName ? `${patientName} · ${def.title}` : def.title);
 
   useEffect(() => {
@@ -67,10 +71,11 @@ export default function StructuredDocumentForm({
     register,
     control,
     handleSubmit,
-    formState: { errors, isSubmitting, isDirty },
+    formState: { errors, isSubmitting },
   } = useForm<Values>({ defaultValues: { date: today(), content: {} }, shouldUnregister: true });
 
-  const back = `/patients/${patientId}`;
+  // Where the document was started from: the patient's EMR Notes → Documents.
+  const back = patientRecordHref(patientId, "emr", "documents");
 
   const onSubmit = async (data: Values) => {
     setServerError("");
@@ -82,7 +87,8 @@ export default function StructuredDocumentForm({
         content: clean(def, data.content),
       });
       toast.success(`${def.title} saved`);
-      router.push(`${back}?doc=${created._id}`);
+      // Replace, so Back from the record doesn't reopen the filled-in form.
+      router.replace(`${back}&doc=${created._id}`);
     } catch (err) {
       setServerError(apiErrorMessage(err, "Couldn't save the document. Please try again."));
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -96,8 +102,8 @@ export default function StructuredDocumentForm({
   };
 
   const cancel = () => {
-    if (isDirty && !window.confirm("Discard this document? What you've entered will be lost.")) return;
-    router.push(back);
+    if (edited && !window.confirm("Discard this document? What you've entered will be lost.")) return;
+    router.replace(back);
   };
 
   return (
@@ -108,7 +114,7 @@ export default function StructuredDocumentForm({
         subtitle={def.subtitle}
       />
 
-      <form onSubmit={handleSubmit(onSubmit, onInvalid)} noValidate className="space-y-5 pb-24 max-w-4xl">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} onChange={() => setEdited(true)} noValidate className="space-y-5 pb-24 max-w-4xl">
         {serverError && (
           <div role="alert" className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger-strong">
             <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden />

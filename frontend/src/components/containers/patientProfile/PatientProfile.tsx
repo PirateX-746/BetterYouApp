@@ -44,12 +44,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BLOOD_GROUPS, bloodGroupField, optionalEmailField, optionalPhoneField, personName, phoneField } from "@/schemas/fields";
 import PhoneInput from "@/components/common/PhoneInput";
 import { formatPhone } from "@/lib/phone";
+import { patientRecordHref } from "@/lib/deepLinks";
 
 type Tab = "dashboard" | "patient" | "emr" | "care" | "appointments";
 
 /** EMR Notes groups the patient's clinical record: session notes (with their
     follow-up plan), session assessments and documents. */
 type EmrView = "all" | "notes" | "assessments" | "documents";
+const EMR_VIEWS: EmrView[] = ["all", "notes", "assessments", "documents"];
+
 
 /* Five questions, one tab each: what's going on (Dashboard), who they are
    (Patient), what was recorded (EMR Notes), what the plan is (Care Plan),
@@ -68,9 +71,18 @@ export default function PatientProfilePage() {
   const id = params?.id as string;
   const tabsId = useId();
 
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const searchParams = useSearchParams();
+  // The open tab (and EMR view) live in the URL, so Back from a page opened
+  // here (e.g. a new document) returns to the same place, not the Dashboard.
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const t = searchParams.get("tab");
+    return TABS.some((x) => x.id === t) ? (t as Tab) : "dashboard";
+  });
   const router = useRouter();
-  const [emrView, setEmrView] = useState<EmrView>("all");
+  const [emrView, setEmrView] = useState<EmrView>(() => {
+    const v = searchParams.get("emr");
+    return EMR_VIEWS.includes(v as EmrView) ? (v as EmrView) : "all";
+  });
   /** A record picked in EMR → All, opened in its own view. */
   const [focusNote, setFocusNote] = useState<string | undefined>();
   const [focusDoc, setFocusDoc] = useState<string | undefined>();
@@ -87,14 +99,22 @@ export default function PatientProfilePage() {
     }
   };
   // ?doc=<id> (e.g. right after saving a document): open it in EMR → Documents.
-  const docParam = useSearchParams().get("doc");
-  useEffect(() => {
-    if (!docParam) return;
+  const docParam = searchParams.get("doc");
+  const [handledDoc, setHandledDoc] = useState<string | null>(null);
+  if (docParam && docParam !== handledDoc) {
+    // Adjusting state during render (not in an effect) avoids a flash of the
+    // wrong tab.
+    setHandledDoc(docParam);
     setActiveTab("emr");
     setEmrView("documents");
     setFocusDoc(docParam);
-    router.replace(`/patients/${id}`, { scroll: false });
-  }, [docParam, id, router]);
+  }
+  // Mirror the tab into the URL in place (no new history entry); this also
+  // drops a one-shot ?doc= once it has been handled.
+  useEffect(() => {
+    if (!id) return;
+    window.history.replaceState(window.history.state, "", patientRecordHref(id, activeTab, emrView));
+  }, [id, activeTab, emrView, docParam]);
   const [careView, setCareView] = useState<"plans" | "medications">("plans");
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
