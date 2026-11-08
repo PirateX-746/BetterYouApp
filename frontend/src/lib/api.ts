@@ -53,9 +53,106 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+/* ---------------------------------------------------------------
+   Friendly errors.
+
+   Screens show `err.response.data.message`, falling back to
+   `err.message`. Left alone, those surface raw transport text such as
+   "Request failed with status code 500", "Network Error", an HTML 502
+   page from the proxy, or the server's generic "Internal server error".
+   Normalise both here, once, so no screen ever shows a status code.
+   A specific server message (validation, "Invalid email or password",
+   conflicts, ...) is kept as is.
+   --------------------------------------------------------------- */
+const GENERIC_SERVER_MESSAGES = new Set([
+  "internal server error",
+  "bad gateway",
+  "service unavailable",
+  "gateway timeout",
+  "not found",
+  "unauthorized",
+  "forbidden",
+  "payment required",
+  "bad request",
+]);
+
+function friendlyMessageFor(status: number | undefined, code?: string): string {
+  if (status === undefined) {
+    if (code === "ECONNABORTED" || code === "ETIMEDOUT")
+      return "This is taking longer than expected. Please check your connection and try again.";
+    if (typeof navigator !== "undefined" && navigator.onLine === false)
+      return "You appear to be offline. Please check your internet connection and try again.";
+    return "We couldn't reach the server. Please check your connection and try again.";
+  }
+  switch (status) {
+    case 400:
+      return "Some of the details look incorrect. Please check and try again.";
+    case 401:
+      return "Your session has ended. Please sign in again.";
+    case 402:
+      return "This feature isn't included in your current plan.";
+    case 403:
+      return "You don't have permission to do that.";
+    case 404:
+      return "We couldn't find what you were looking for. It may have been moved or removed.";
+    case 408:
+      return "This is taking longer than expected. Please try again.";
+    case 409:
+      return "This conflicts with an existing record. Please refresh and try again.";
+    case 413:
+      return "That file is too large. Please choose a smaller one.";
+    case 429:
+      return "Too many attempts. Please wait a moment and try again.";
+    default:
+      if (status >= 500)
+        return "Something went wrong on our end. Please try again in a moment.";
+      return "Something went wrong. Please try again.";
+  }
+}
+
+/** True when the server sent nothing a person should read. */
+function isUnhelpful(msg: unknown): boolean {
+  if (Array.isArray(msg)) return msg.length === 0;
+  if (typeof msg !== "string" || !msg.trim()) return true;
+  const m = msg.trim().toLowerCase();
+  return (
+    GENERIC_SERVER_MESSAGES.has(m) ||
+    /status code \d{3}/.test(m) ||
+    m.startsWith("<") // an HTML error page from a proxy
+  );
+}
+
+function humaniseError(error: unknown): void {
+  if (!axios.isAxiosError(error)) return;
+  const status = error.response?.status;
+  const friendly = friendlyMessageFor(status, error.code);
+
+  // err.message is the last-resort fallback many screens use.
+  error.message = friendly;
+
+  if (!error.response) return;
+  const data = error.response.data;
+  // 5xx: never show the server's wording (it can leak internals).
+  if (status !== undefined && status >= 500) {
+    error.response.data = {
+      ...(data && typeof data === "object" ? data : {}),
+      message: friendly,
+    };
+    return;
+  }
+  if (data && typeof data === "object" && !(typeof Blob !== "undefined" && data instanceof Blob)) {
+    const d = data as { message?: unknown };
+    if (isUnhelpful(d.message)) d.message = friendly;
+  } else {
+    // Text/HTML/blob bodies: replace with something readable.
+    error.response.data = { message: friendly };
+  }
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    humaniseError(error);
     if (error.response?.status === 401 && typeof window !== "undefined") {
       const path = window.location.pathname;
       const isAuthPage =

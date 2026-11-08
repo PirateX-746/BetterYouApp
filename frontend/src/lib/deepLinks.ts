@@ -38,3 +38,15 @@ export function clearPendingAppointment() {
 export function announceOpenAppointment(id: string) {
   window.dispatchEvent(new CustomEvent<string>(OPEN_APPOINTMENT_EVENT, { detail: id }));
 }
+
+/**
+ * A patient record URL that opens on a given tab / EMR view, e.g.
+ * patientRecordHref(id, "emr", "documents") → /patients/<id>?tab=emr&emr=documents
+ */
+export function patientRecordHref(patientId: string, tab: string = "dashboard", emr: string = "all") {
+  const qs = new URLSearchParams();
+  if (tab !== "dashboard") qs.set("tab", tab);
+  if (tab === "emr" && emr !== "all") qs.set("emr", emr);
+  const s = qs.toString();
+  return `/patients/${patientId}${s ? `?${s}` : ""}`;
+}
